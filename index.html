@@ -5877,7 +5877,7 @@ if (db) {
 
 try {
     await clearDatabase();
-    localStorage.clear();
+    indexedDB.clear();
 
     alert("すべてのデータが消去されました。アプリを初期化します。");
 
