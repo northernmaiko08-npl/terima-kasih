@@ -3021,7 +3021,7 @@ body[data-theme="cosmos"] {
         </section>
 
         <section id="view-tags" class="view">
-    <h3>タグ (件数の多い順)</h3>
+    <h3>タグ</h3>
 
     <div id="tag-back-area" class="hidden"
          style="margin-bottom:12px;">
@@ -3988,9 +3988,9 @@ function updateCharCount() {
     const count = plainText.length;
     countEl.textContent = `${count} 文字`;
     
-    if (count >= 2000) {
+    if (count >= 1200) {
         countEl.style.color = '#e94560';
-    } else if (count >= 1250) {
+    } else if (count >= 800) {
         countEl.style.color = '#ffb300';
     } else {
         countEl.style.color = '#22C55E';
@@ -4180,7 +4180,7 @@ else if (diffDays === 30) dayText = "1ヶ月後に";
 else if (diffDays === 92) dayText = "3ヶ月後に";
 else if (diffDays === 183) dayText = "6ヶ月後に";
         if (dayText !== "") {
-            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","1年間連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","↑もしかして、ぼっち行動？","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌",];
+            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","↑もしかして、ぼっち行動？","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは40万文字もあるんだよ","6000行のコードを全身で感じられているかな？","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","ヌバーン！！！👁️👄👁️","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
             const randomMsg = messages[Math.floor(Math.random() * messages.length)];
             
             const card = document.createElement('div');
@@ -4188,7 +4188,7 @@ else if (diffDays === 183) dayText = "6ヶ月後に";
             card.style.padding = "4px 0";
             card.style.lineHeight = "1.4";
             card.style.cursor = "pointer";
-            card.innerHTML = `<strong>${dayText}「${s.title}」の予定があります。</strong><br>${randomMsg}`;
+            card.innerHTML = `<strong>${dayText}「${s.title}」の予定があります。</strong><br>${randomMsg}`;　
             
             card.onclick = (e) => {
                 e.stopPropagation();
@@ -4864,7 +4864,7 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
         const plainText = content.replace(/<[^>]*>/g, '').trim();
         const contentLength = plainText.length;
         
-        if (contentLength >= 2000 && !config.hasUnlockedScholar) {
+        if (contentLength >= 1200 && !config.hasUnlockedScholar) {
             config.hasUnlockedScholar = true;
             
             const opt = document.getElementById('option-scholar');
@@ -4872,7 +4872,7 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
             
             await saveConfig();
             
-            alert('【おしゃべり？作家さん？】\n2000文字以上の長文日記を書きました！\n新しいテーマデザイン「アルファベータ」が解除されました✒️\nさっそく設定ページで確認しましょう');
+            alert('【おしゃべり？作家さん？】\n1200文字以上の長文日記を書きました！\n新しいテーマデザイン「アルファベータ」が解除されました✒️\nさっそく設定ページで確認しましょう');
         }
         invalidateCaches();   
 
@@ -4960,7 +4960,7 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
 
 const happyCount = diaries.filter(d => d.mood === 4 || d.mood === 5).length;
 
-if (happyCount >= 100 && !config.hasUnlockedLucky) {
+if (happyCount >= 50 && !config.hasUnlockedLucky) {
     config.hasUnlockedLucky = true;
 
     const opt = document.getElementById('option-lucky');
@@ -4971,11 +4971,11 @@ if (happyCount >= 100 && !config.hasUnlockedLucky) {
         ...config
     });
 
-    alert('【とてもハッピーなお知らせです！】\nハッピーな記録(🤩・😊)が合計100個に達しました！\n 新しいテーマデザイン「ラッキー」が解放されました！☘\nさっそく設定ページで確認しましょう！');
+    alert('【とてもハッピーなお知らせです！】\nハッピーな記録(🤩・😊)が合計50個に達しました！\n 新しいテーマデザイン「ラッキー」が解放されました！☘\nさっそく設定ページで確認しましょう！');
 } 
 const heibonCount = diaries.filter(d => d.mood === 3).length;
 
-if (heibonCount >= 100 && !config.hasUnlockedEdamame) {
+if (heibonCount >= 50 && !config.hasUnlockedEdamame) {
     config.hasUnlockedEdamame = true;
 
     const opt = document.getElementById('option-edamame');
@@ -4986,11 +4986,11 @@ if (heibonCount >= 100 && !config.hasUnlockedEdamame) {
         ...config
     });
 
-    alert('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計100個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう');
+    alert('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計50個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう');
 } 
 const devilCount = diaries.filter(d => d.mood === 1 || d.mood === 2).length;
 
-if (devilCount >= 100 && !config.hasUnlockedDevil) {
+if (devilCount >= 50 && !config.hasUnlockedDevil) {
     config.hasUnlockedDevil = true;
 
     const opt = document.getElementById('option-devil');
@@ -5001,11 +5001,11 @@ if (devilCount >= 100 && !config.hasUnlockedDevil) {
         ...config
     });
 
-    alert('\n【アンハッピー(？)なお知らせです...】\nネガティブな記録(😭・😡)が合計100個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
+    alert('\n【アンハッピー(？)なお知らせです...】\nネガティブな記録(😭・😡)が合計50個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
 }
 const scheduleCount = schedules.length;
 
-if (scheduleCount >= 30 && !config.hasUnlockedTerminal) {
+if (scheduleCount >= 15 && !config.hasUnlockedTerminal) {
 
     config.hasUnlockedTerminal = true;
 
@@ -5017,7 +5017,7 @@ if (scheduleCount >= 30 && !config.hasUnlockedTerminal) {
         ...config
     });
 
-    alert("【予定管理のプロ？】\n1ヶ月分に相当する予定を立てました！\n新しいテーマデザイン「タイムテーブル」が解放されました📆\nさっそく設定ページで確認しましょう" );
+    alert("【予定管理のプロ？】\n15件の予定を立てました！\n新しいテーマデザイン「タイムテーブル」が解放されました📆\nさっそく設定ページで確認しましょう" );
 }
            
 const streakCount = getStreak();
@@ -5034,11 +5034,11 @@ const streakCount = getStreak();
             legendOption.style.display = 'block';
         }
     }
-        if (streakCount >= 365 || config.hasUnlockedCosmos) {
+        if (streakCount >= 100 || config.hasUnlockedCosmos) {
     if (!config.hasUnlockedCosmos) {
         config.hasUnlockedCosmos = true;
         saveConfig();
-        alert('1年連続達成おめでとう！\n新しいテーマデザイン「ギャラクシー」が解放されました🛸\n1年間「でじ帖」を毎日つかってくれて本当にありがとう！\nさっそく設定ページで確認しましょう！');
+        alert('100日連続達成おめでとう！\n新しいテーマデザイン「ギャラクシー」が解放されました🛸\n1年間「でじ帖」を毎日つかってくれて本当にありがとう！\nさっそく設定ページで確認しましょう！');
     }
     
     const cosmosOption = document.getElementById('option-cosmos');
@@ -5046,11 +5046,11 @@ const streakCount = getStreak();
         cosmosOption.style.display = 'block';
     }
 }
-   if (streakCount >= 100|| config.hasUnlockedMaster) {
+   if (streakCount >= 50|| config.hasUnlockedMaster) {
         if (!config.hasUnlockedMaster) {
             config.hasUnlockedMaster = true;
             saveConfig();
-            alert("100日連続達成おめでとう！\n新しいテーマデザイン「モダンノート」が解放されました📓\nさっそく設定ページで確認しましょう！");
+            alert("50日連続達成おめでとう！\n新しいテーマデザイン「モダンノート」が解放されました📓\nさっそく設定ページで確認しましょう！");
         }
         
         const masterOption = document.getElementById('option-master');
@@ -5153,7 +5153,7 @@ if (birthdaySchedule) {
                 if (mood === 5) greetingText = "素敵な日々が続いているね！このまま幸せな日々を送り続けよう👍️";
                 else if (mood === 4) greetingText = "いい日を送る秘訣は笑顔かな？😊";
                 else if (mood === 3) greetingText = "穏やかな生活を送ることができてなにより🕊️";
-                else if (mood === 1) greetingText = "悲しいことが起こりすぎだよ！つらいときは無理しないで休もう😭";
+                else if (mood === 1) greetingText = "クライシスは今日で終わり！つらいときは無理しないで休もう😭";
                 else if (mood === 2) greetingText = "もう頭は大噴火！今日はクールダウンしよう🌋🙀";
             }
         }
@@ -5877,7 +5877,6 @@ if (db) {
 
 try {
     await clearDatabase();
-    indexedDB.clear();
 
     alert("すべてのデータが消去されました。アプリを初期化します。");
 
