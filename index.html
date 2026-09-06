@@ -354,6 +354,48 @@ body[data-theme="edamame"] {
     overflow-x: hidden;
 }
 
+/* えだまめテーマ：🟢と💚の控えめな浮遊 */
+.edamame-floating-layer {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+    contain: layout style paint;
+}
+
+.edamame-float-char {
+    position: absolute;
+    will-change: transform;
+    user-select: none;
+    white-space: nowrap;
+    line-height: 1;
+    filter: blur(.1px);
+    animation: edamameFloatMove linear forwards, edamameFloatSpin linear infinite;
+}
+
+@keyframes edamameFloatMove {
+    from {
+        transform: translate(var(--sx), var(--sy)) rotate(0deg);
+        opacity: 0;
+    }
+    10% { opacity: var(--opacity); }
+    90% { opacity: var(--opacity); }
+    to {
+        transform: translate(var(--ex), var(--ey)) rotate(var(--r));
+        opacity: 0;
+    }
+}
+
+@keyframes edamameFloatSpin {
+    from { rotate: 0deg; }
+    to { rotate: 360deg; }
+}
+
+body[data-theme="edamame"] .edamame-floating-layer {
+    z-index: 0;
+}
+
 [data-theme="edamame"] .card,
 [data-theme="edamame"] header,
 [data-theme="edamame"] nav#tab-bar {
@@ -367,8 +409,8 @@ body[data-theme="edamame"] {
 }
 
 [data-theme="edamame"] .card:hover {
-    transform: translateY(-3px) scale(1.01);
-    box-shadow: 0 10px 25px rgba(139,207,91,0.25);
+    transform: none;
+    box-shadow: var(--shadow);
 }
 
 [data-theme="edamame"] .btn,
@@ -860,13 +902,8 @@ body[data-theme="lucky"]::before {
 }
 
 [data-theme="lucky"] .card:hover {
-
-    transform:
-        translateY(-2px)
-        scale(1.01);
-
-    box-shadow:
-        0 0 32px rgba(255,215,0,0.32);
+    transform: none;
+    box-shadow: var(--shadow);
 }
 
 [data-theme="lucky"] .card::before {
@@ -1242,10 +1279,8 @@ body[data-theme="master"]::after {
 [data-theme="master"] .card:hover,
 [data-theme="master"] .section:hover,
 [data-theme="master"] .panel:hover {
-    transform: translateY(-2px);
-
-    box-shadow:
-        0 12px 24px rgba(80,60,40,0.10);
+    transform: none;
+    box-shadow: var(--shadow);
 }
 
 [data-theme="master"] .card::before,
@@ -1367,21 +1402,7 @@ body[data-theme="master"]::after {
 }
 
 [data-theme="master"] .tab-item.active::after {
-    content: "";
-
-    position: absolute;
-
-    bottom: -4px;
-    left: 50%;
-
-    transform: translateX(-50%);
-
-    width: 8px;
-    height: 8px;
-
-    border-radius: 50%;
-
-    background: #d89d4b;
+    content: none;
 }
 
 [data-theme="devil"] {
@@ -1531,13 +1552,8 @@ body[data-theme="devil"]::after {
 }
 
 [data-theme="devil"] .card:hover {
-
-    transform:
-        translateY(-2px)
-        scale(1.01);
-
-    box-shadow:
-        0 0 35px rgba(255,0,255,0.35);
+    transform: none;
+    box-shadow: var(--shadow);
 }
 
 [data-theme="devil"] .card::before {
@@ -2147,6 +2163,16 @@ body[data-theme="cosmos"] {
             transition: 0.2s;
         }
         .calendar-day:hover { background: #f0f0f0; }
+
+/* 日記がある日をホバーしたときも、白ではなく現在のテーマに対応した薄い色を維持 */
+.has-diary:hover {
+    background: color-mix(in srgb, var(--primary-color) 70%, var(--card-bg)) !important;
+    color: var(--text-color) !important;
+}
+
+.has-diary:hover * {
+    color: var(--text-color) !important;
+}
         .has-schedule::after {
     content: '';
     width: 6px;
@@ -2260,6 +2286,43 @@ body[data-theme="cosmos"] {
             justify-content: center;
             overflow: hidden;
         }
+        #gallery-open-diary-btn {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            z-index: 22;
+            width: 34px;
+            height: 34px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 50%;
+            background: rgba(0,0,0,0.42);
+            color: rgba(255,255,255,0.9);
+            cursor: pointer;
+            padding: 0;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            -webkit-tap-highlight-color: transparent;
+        }
+        #gallery-open-diary-btn:hover { background: rgba(255,255,255,0.16); color: #fff; }
+        #gallery-open-diary-btn:active { transform: scale(0.94); }
+        #gallery-open-diary-btn svg { width: 18px; height: 18px; pointer-events: none; }
+        #img-modal-date {
+            position: absolute;
+            top: 14px;
+            left: 16px;
+            z-index: 21;
+            color: rgba(255,255,255,0.82);
+            font-size: 12px;
+            line-height: 1.2;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            pointer-events: none;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.65);
+        }
         #img-modal img {
             max-width: 95%;
             max-height: 95%;
@@ -2350,6 +2413,29 @@ body[data-theme="cosmos"] {
         }
         .flashback-item:last-child { border-bottom: none; }
         .flashback-label { font-size: 0.7rem; font-weight: bold; color: var(--primary-color); text-transform: uppercase; }
+
+        /* 統計グラフを見やすく拡大 */
+        #view-home .card:has(#moodChart) {
+            padding: 20px;
+        }
+        #view-home .card:has(#moodChart) .chart-controls {
+            margin-bottom: 12px;
+        }
+        #view-home .card:has(#moodChart) .chart-btn {
+            padding: 6px 12px;
+            font-size: 0.78rem;
+        }
+        #view-home .card:has(#moodChart) > div:last-child {
+            height: 260px !important;
+        }
+        @media (max-width: 600px) {
+            #view-home .card:has(#moodChart) {
+                padding: 16px;
+            }
+            #view-home .card:has(#moodChart) > div:last-child {
+                height: 230px !important;
+            }
+        }
 
         .chart-controls {
             display: flex;
@@ -2758,6 +2844,10 @@ body[data-theme="cosmos"] {
     </div>
 
   <div id="img-modal" onclick="closeImageModalDirect(event)">
+        <div id="img-modal-date" aria-label="日記に画像を追加した日"></div>
+        <button id="gallery-open-diary-btn" type="button" aria-label="この画像の日記を開く" title="この画像の日記を開く" onclick="openCurrentImageDiary(event)">
+            <i data-lucide="book-open"></i>
+        </button>
     
         <button
             id="gallery-prev-image-btn"
@@ -2863,7 +2953,16 @@ body[data-theme="cosmos"] {
                 </div>
             <div class="card">
                 <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <h3 style="margin:0;">今月の統計</h3>
+                    <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                        <h3 id="stats-title" style="margin:0; white-space:nowrap;">今月の統計</h3>
+                        <select id="stats-period-select" onchange="setChartPeriod(this.value)" aria-label="統計期間" style="padding:5px 8px; border-radius:7px; border:1px solid var(--border-color, #ddd); background:var(--card-bg, #fff); color:var(--text-color, inherit); font-size:0.78rem; cursor:pointer;">
+                            <option value="month">今月</option>
+                            <option value="7">過去7日間</option>
+                            <option value="30">過去30日間</option>
+                            <option value="100">過去100日間</option>
+                            <option value="all">すべての期間</option>
+                        </select>
+                    </div>
                     <div class="chart-controls">
                         <button class="chart-btn active" onclick="setChartType('doughnut', this)">◯</button>
                         <button class="chart-btn" onclick="setChartType('bar', this)">| |</button>
@@ -2871,7 +2970,7 @@ body[data-theme="cosmos"] {
                     </div>
                 </div>
                 <p style="font-size: 0.8rem; margin-bottom: 5px;">投稿数: <span id="stat-count-month">0</span>件</p>
-                <div style="height: 180px; position: relative;">
+                <div style="height: 260px; position: relative;">
                     <canvas id="moodChart"></canvas>
                 </div>
             </div>
@@ -3021,7 +3120,7 @@ body[data-theme="cosmos"] {
         </section>
 
         <section id="view-tags" class="view">
-    <h3>タグ (件数の多い順)</h3>
+    <h3>タグ</h3>
 
     <div id="tag-back-area" class="hidden"
          style="margin-bottom:12px;">
@@ -3424,7 +3523,7 @@ body[data-theme="cosmos"] {
         let diaryDateMap = new Map();
         let scheduleDateMap = new Map();
         
-        let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', lastBackup: null, backupReminderSkippedAt: null, recoverySet: false, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false };
+        let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', chartPeriod: 'month', lastBackup: null, backupReminderSkippedAt: null, recoverySet: false, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false };
         let currentEditingId = null;
 
         // 通常の通知操作ではフェードアウトせず、即座に閉じる。
@@ -3988,9 +4087,9 @@ function updateCharCount() {
     const count = plainText.length;
     countEl.textContent = `${count} 文字`;
     
-    if (count >= 2000) {
+    if (count >= 1200) {
         countEl.style.color = '#e94560';
-    } else if (count >= 1250) {
+    } else if (count >= 800) {
         countEl.style.color = '#ffb300';
     } else {
         countEl.style.color = '#22C55E';
@@ -4180,7 +4279,7 @@ else if (diffDays === 30) dayText = "1ヶ月後に";
 else if (diffDays === 92) dayText = "3ヶ月後に";
 else if (diffDays === 183) dayText = "6ヶ月後に";
         if (dayText !== "") {
-            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","1年間連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","↑もしかして、ぼっち行動？","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌",];
+            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","↑もしかして、ぼっち行動？","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは40万文字もあるんだよ","6000行のコードを全身で感じられているかな？","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","ヌバーン！！！👁️👄👁️","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
             const randomMsg = messages[Math.floor(Math.random() * messages.length)];
             
             const card = document.createElement('div');
@@ -4188,7 +4287,7 @@ else if (diffDays === 183) dayText = "6ヶ月後に";
             card.style.padding = "4px 0";
             card.style.lineHeight = "1.4";
             card.style.cursor = "pointer";
-            card.innerHTML = `<strong>${dayText}「${s.title}」の予定があります。</strong><br>${randomMsg}`;
+            card.innerHTML = `<strong>${dayText}「${s.title}」の予定があります。</strong><br>${randomMsg}`;　
             
             card.onclick = (e) => {
                 e.stopPropagation();
@@ -4275,7 +4374,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
         }
     }
 }
-       async function openViewer(id) {
+       async function openViewer(id, immediate = false) {
     saveCurrentListPageByDiary(id);
     let item = diaryMap.get(id);
     let isDiary = true;
@@ -4284,6 +4383,10 @@ if (document.getElementById('view-tags').classList.contains('active') && current
         isDiary = false; 
     }
     if (!item) return;
+
+    // ギャラリーから開く場合は、拡大表示を閉じた直後に日記ビューへ切り替える
+    // DB保存を待ってから画面遷移することで一瞬ギャラリーが残るのを防ぐ
+    if (immediate) switchTab('viewer');
 
     if (isDiary) {
         item.lastViewed = Date.now();
@@ -4432,6 +4535,10 @@ function closeImageModalDirect(event) {
     const prevBtn = document.getElementById('gallery-prev-image-btn');
     const nextBtn = document.getElementById('gallery-next-image-btn');
     const deleteBtn = document.getElementById('delete-image-btn');
+    const modalDate = document.getElementById('img-modal-date');
+    const openDiaryBtn = document.getElementById('gallery-open-diary-btn');
+    if (modalDate) modalDate.textContent = '';
+    if (openDiaryBtn) openDiaryBtn.style.display = 'none';
     if (prevBtn) { prevBtn.style.display = 'none'; prevBtn.disabled = false; }
     if (nextBtn) { nextBtn.style.display = 'none'; nextBtn.disabled = false; }
     if (deleteBtn) deleteBtn.style.display = 'none';
@@ -4450,6 +4557,15 @@ function zoomImage(src, diaryId = null, galleryIndex = null) {
     modalImg.style.opacity='1';
     modalImg.style.transform='scale(1)';
     modalImg.src=src;
+
+    const modalDate = document.getElementById('img-modal-date');
+    const sourceDiary = diaryId != null
+        ? diaries.find(d => String(d.id) === String(diaryId))
+        : null;
+    if (modalDate) {
+        const addedDate = sourceDiary?.date || '';
+        modalDate.textContent = /^\d{4}-\d{2}-\d{2}$/.test(addedDate) ? addedDate : '';
+    }
 
     const isGallery=document.getElementById('view-gallery')?.classList.contains('active');
     const isViewer=document.getElementById('view-viewer')?.classList.contains('active');
@@ -4475,6 +4591,9 @@ function zoomImage(src, diaryId = null, galleryIndex = null) {
 
     deleteBtn.style.display=(diaryId && isGallery)?'flex':'none';
 
+    const openDiaryBtn = document.getElementById('gallery-open-diary-btn');
+    if (openDiaryBtn) openDiaryBtn.style.display = (isGallery && diaryId != null) ? 'flex' : 'none';
+
     if (diaryId) {
         const diary=diaries.find(d=>String(d.id)===String(diaryId));
         if (diary) {
@@ -4485,6 +4604,19 @@ function zoomImage(src, diaryId = null, galleryIndex = null) {
     }
     updateGalleryNavigation();
     createIcons();
+}
+
+function openCurrentImageDiary(event) {
+    if (event) event.stopPropagation();
+    if (!currentGalleryImage || currentGalleryImage.diaryId == null) return;
+
+    const diary = diaries.find(d => String(d.id) === String(currentGalleryImage.diaryId));
+    if (!diary) return;
+
+    // 拡大表示を閉じる処理と日記ページへの切り替えを同じクリック処理内で実行する
+    // immediate=true によりDB保存を待たず、視覚的にも同時に切り替わる
+    closeImageModalDirect();
+    openViewer(diary.id, true);
 }
 
 function navigateGalleryImage(direction,event) {
@@ -4519,6 +4651,16 @@ function navigateGalleryImage(direction,event) {
 
     const nextImage=images[nextIndex];
     currentGalleryImage={src:nextImage.src,diaryId:nextImage.id,galleryIndex:nextIndex};
+
+    const modalDate=document.getElementById('img-modal-date');
+    if(modalDate) {
+        const nextDiary=diaries.find(d=>String(d.id)===String(nextImage.id));
+        const addedDate=nextDiary?.date || '';
+        modalDate.textContent=/^\d{4}-\d{2}-\d{2}$/.test(addedDate) ? addedDate : '';
+    }
+
+    const openDiaryBtn = document.getElementById('gallery-open-diary-btn');
+    if (openDiaryBtn) openDiaryBtn.style.display = isGallery ? 'flex' : 'none';
 
     modalImg.style.opacity='0';
     modalImg.style.transform=`translateX(${direction>0?'10px':'-10px'}) scale(0.985)`;
@@ -4864,7 +5006,7 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
         const plainText = content.replace(/<[^>]*>/g, '').trim();
         const contentLength = plainText.length;
         
-        if (contentLength >= 2000 && !config.hasUnlockedScholar) {
+        if (contentLength >= 1200 && !config.hasUnlockedScholar) {
             config.hasUnlockedScholar = true;
             
             const opt = document.getElementById('option-scholar');
@@ -4872,7 +5014,7 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
             
             await saveConfig();
             
-            alert('【おしゃべり？作家さん？】\n2000文字以上の長文日記を書きました！\n新しいテーマデザイン「アルファベータ」が解除されました✒️\nさっそく設定ページで確認しましょう');
+            alert('【おしゃべり？作家さん？】\n1200文字以上の長文日記を書きました！\n新しいテーマデザイン「アルファベータ」が解除されました✒️\nさっそく設定ページで確認しましょう');
         }
         invalidateCaches();   
 
@@ -4960,7 +5102,7 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
 
 const happyCount = diaries.filter(d => d.mood === 4 || d.mood === 5).length;
 
-if (happyCount >= 100 && !config.hasUnlockedLucky) {
+if (happyCount >= 50 && !config.hasUnlockedLucky) {
     config.hasUnlockedLucky = true;
 
     const opt = document.getElementById('option-lucky');
@@ -4971,11 +5113,11 @@ if (happyCount >= 100 && !config.hasUnlockedLucky) {
         ...config
     });
 
-    alert('【とてもハッピーなお知らせです！】\nハッピーな記録(🤩・😊)が合計100個に達しました！\n 新しいテーマデザイン「ラッキー」が解放されました！☘\nさっそく設定ページで確認しましょう！');
+    alert('【とてもハッピーなお知らせです！】\nハッピーな記録(🤩・😊)が合計50個に達しました！\n 新しいテーマデザイン「ラッキー」が解放されました！☘\nさっそく設定ページで確認しましょう！');
 } 
 const heibonCount = diaries.filter(d => d.mood === 3).length;
 
-if (heibonCount >= 100 && !config.hasUnlockedEdamame) {
+if (heibonCount >= 50 && !config.hasUnlockedEdamame) {
     config.hasUnlockedEdamame = true;
 
     const opt = document.getElementById('option-edamame');
@@ -4986,11 +5128,11 @@ if (heibonCount >= 100 && !config.hasUnlockedEdamame) {
         ...config
     });
 
-    alert('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計100個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう');
+    alert('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計50個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう');
 } 
 const devilCount = diaries.filter(d => d.mood === 1 || d.mood === 2).length;
 
-if (devilCount >= 100 && !config.hasUnlockedDevil) {
+if (devilCount >= 50 && !config.hasUnlockedDevil) {
     config.hasUnlockedDevil = true;
 
     const opt = document.getElementById('option-devil');
@@ -5001,11 +5143,11 @@ if (devilCount >= 100 && !config.hasUnlockedDevil) {
         ...config
     });
 
-    alert('\n【アンハッピー(？)なお知らせです...】\nネガティブな記録(😭・😡)が合計100個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
+    alert('\n【アンハッピー(？)なお知らせです...】\nネガティブな記録(😭・😡)が合計50個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
 }
 const scheduleCount = schedules.length;
 
-if (scheduleCount >= 30 && !config.hasUnlockedTerminal) {
+if (scheduleCount >= 15 && !config.hasUnlockedTerminal) {
 
     config.hasUnlockedTerminal = true;
 
@@ -5017,7 +5159,7 @@ if (scheduleCount >= 30 && !config.hasUnlockedTerminal) {
         ...config
     });
 
-    alert("【予定管理のプロ？】\n1ヶ月分に相当する予定を立てました！\n新しいテーマデザイン「タイムテーブル」が解放されました📆\nさっそく設定ページで確認しましょう" );
+    alert("【予定管理のプロ？】\n15件の予定を立てました！\n新しいテーマデザイン「タイムテーブル」が解放されました📆\nさっそく設定ページで確認しましょう" );
 }
            
 const streakCount = getStreak();
@@ -5034,11 +5176,11 @@ const streakCount = getStreak();
             legendOption.style.display = 'block';
         }
     }
-        if (streakCount >= 365 || config.hasUnlockedCosmos) {
+        if (streakCount >= 100 || config.hasUnlockedCosmos) {
     if (!config.hasUnlockedCosmos) {
         config.hasUnlockedCosmos = true;
         saveConfig();
-        alert('1年連続達成おめでとう！\n新しいテーマデザイン「ギャラクシー」が解放されました🛸\n1年間「でじ帖」を毎日つかってくれて本当にありがとう！\nさっそく設定ページで確認しましょう！');
+        alert('100日連続達成おめでとう！\n新しいテーマデザイン「ギャラクシー」が解放されました🛸\n1年間「でじ帖」を毎日つかってくれて本当にありがとう！\nさっそく設定ページで確認しましょう！');
     }
     
     const cosmosOption = document.getElementById('option-cosmos');
@@ -5046,11 +5188,11 @@ const streakCount = getStreak();
         cosmosOption.style.display = 'block';
     }
 }
-   if (streakCount >= 100|| config.hasUnlockedMaster) {
+   if (streakCount >= 50|| config.hasUnlockedMaster) {
         if (!config.hasUnlockedMaster) {
             config.hasUnlockedMaster = true;
             saveConfig();
-            alert("100日連続達成おめでとう！\n新しいテーマデザイン「モダンノート」が解放されました📓\nさっそく設定ページで確認しましょう！");
+            alert("50日連続達成おめでとう！\n新しいテーマデザイン「モダンノート」が解放されました📓\nさっそく設定ページで確認しましょう！");
         }
         
         const masterOption = document.getElementById('option-master');
@@ -5081,7 +5223,8 @@ if (streakDisplay) {
     }
 }
             const now = new Date();
-            document.getElementById('current-date-display').innerText = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日`;
+            const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+            document.getElementById('current-date-display').innerText = `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日(${weekdays[now.getDay()]})`;
             renderNotifications();
             
             const sortedDiaries = getSortedDiaries();
@@ -5153,7 +5296,7 @@ if (birthdaySchedule) {
                 if (mood === 5) greetingText = "素敵な日々が続いているね！このまま幸せな日々を送り続けよう👍️";
                 else if (mood === 4) greetingText = "いい日を送る秘訣は笑顔かな？😊";
                 else if (mood === 3) greetingText = "穏やかな生活を送ることができてなにより🕊️";
-                else if (mood === 1) greetingText = "悲しいことが起こりすぎだよ！つらいときは無理しないで休もう😭";
+                else if (mood === 1) greetingText = "クライシスは今日で終わり！つらいときは無理しないで休もう😭";
                 else if (mood === 2) greetingText = "もう頭は大噴火！今日はクールダウンしよう🌋🙀";
             }
         }
@@ -5271,22 +5414,56 @@ function renderSchedules() {
 
         async function setChartType(type, btn) { config.chartType = type; await saveConfig(); document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderMoodChart(); }
 
+        async function setChartPeriod(period) {
+            config.chartPeriod = period;
+            await saveConfig();
+            renderMoodChart();
+        }
+
+        function getChartPeriodDiaries() {
+            const period = config.chartPeriod || 'month';
+            if (period === 'all') return [...diaries].sort((a,b) => a.date.localeCompare(b.date));
+
+            const now = new Date();
+            if (period === 'month') {
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const key = `${year}-${month}`;
+                return diaries.filter(d => d.date && d.date.startsWith(key)).sort((a,b) => a.date.localeCompare(b.date));
+            }
+
+            const days = Number(period);
+            const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const start = new Date(end);
+            start.setDate(start.getDate() - (days - 1));
+            const startKey = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`;
+            const endKey = `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`;
+            return diaries.filter(d => d.date && d.date >= startKey && d.date <= endKey).sort((a,b) => a.date.localeCompare(b.date));
+        }
+
         function renderMoodChart() {
             const ctx = document.getElementById('moodChart').getContext('2d');
-            const currentMonth = new Date().toISOString().slice(0, 7);
-            const monthDiaries = diaries.filter(d => d.date.startsWith(currentMonth)).sort((a,b) => a.date.localeCompare(b.date));
-            const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0}; 
-            diaries.forEach(d => { if(d.date.startsWith(currentMonth)) moodCounts[d.mood]++ });
+            const period = config.chartPeriod || 'month';
+            const periodDiaries = getChartPeriodDiaries();
+            const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+            periodDiaries.forEach(d => { if (moodCounts[d.mood] !== undefined) moodCounts[d.mood]++; });
+
+            const labels = { month: '今月', '7': '過去7日間', '30': '過去30日間', '100': '過去100日間', all: 'すべての期間' };
+            const label = labels[period] || '今月';
+            const title = document.getElementById('stats-title');
+            if (title) title.textContent = `${label}の統計`;
+            const selector = document.getElementById('stats-period-select');
+            if (selector) selector.value = period;
 
             if (window.myChart) window.myChart.destroy();
             let chartData;
             if (config.chartType === 'line') {
-                chartData = { labels: monthDiaries.map(d => d.date.split('-')[2]), datasets: [{ label: '感情推移', data: monthDiaries.map(d => d.mood), borderColor: '#ffca28', backgroundColor: 'rgba(255, 202, 40, 0.2)', fill: true, tension: 0.3 }] };
+                chartData = { labels: periodDiaries.map(d => d.date), datasets: [{ label: '感情推移', data: periodDiaries.map(d => d.mood), borderColor: '#ffca28', backgroundColor: 'rgba(255, 202, 40, 0.2)', fill: true, tension: 0.3 }] };
             } else {
-                chartData = { labels: ['😭 最悪', '😡 怒り', '😐 普通', '😊 良好', '🤩 最高',], datasets: [{ data: [moodCounts[1], moodCounts[2], moodCounts[3], moodCounts[4], moodCounts[5]], backgroundColor: ['#a2d2ff', '#ff8a80', '#c8e6c9', '#ffb7c5', '#ffd700'] }] };
+                chartData = { labels: ['😭 最悪', '😡 怒り', '😐 普通', '😊 良好', '🤩 最高'], datasets: [{ data: [moodCounts[1], moodCounts[2], moodCounts[3], moodCounts[4], moodCounts[5]], backgroundColor: ['#a2d2ff', '#ff8a80', '#c8e6c9', '#ffb7c5', '#ffd700'] }] };
             }
             window.myChart = new Chart(ctx, { type: config.chartType, data: chartData, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: config.chartType !== 'line', position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: config.chartType === 'line' ? { y: { min: 1, max: 5, ticks: { stepSize: 1, callback: v => ['','😭','😡','😐','😊','🤩'][v] } } } : (config.chartType === 'bar' ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {}) } });
-            document.getElementById('stat-count-month').innerText = monthDiaries.length;
+            document.getElementById('stat-count-month').innerText = periodDiaries.length;
         }
         function normalizeSearchText(text) {
     return String(text || '')
@@ -5877,7 +6054,6 @@ if (db) {
 
 try {
     await clearDatabase();
-    localStorage.clear();
 
     alert("すべてのデータが消去されました。アプリを初期化します。");
 
@@ -6019,6 +6195,98 @@ async function saveRecoverySettings() {
     
     const count = plainText.length;
     countEl.textContent = `${count} 文字`;
+}
+
+
+let edamameLayer = null;
+let edamameInterval = null;
+let edamamePaused = false;
+
+const EDAMAME_MAX_CHARS = window.innerWidth < 768 ? 40 : 58;
+const EDAMAME_INTERVAL = 450;
+
+function createEdamameChar() {
+    if (!edamameLayer) return;
+    if (document.body.dataset.theme !== "edamame") return;
+    if (document.hidden || edamamePaused) return;
+    if (edamameLayer.childElementCount >= EDAMAME_MAX_CHARS) return;
+
+    const el = document.createElement("div");
+    el.className = "edamame-float-char";
+
+    // 🟢を基本にし、5%だけ💚にする
+    el.textContent = Math.random() < 0.05 ? "💚" : "🟢";
+
+    const size = random(16, 32);
+    el.style.fontSize = `${size}px`;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const side = Math.floor(random(0, 4));
+    let sx, sy, ex, ey;
+
+    switch (side) {
+        case 0:
+            sx = -80; sy = random(-80, vh + 80);
+            ex = vw + 80; ey = random(-80, vh + 80);
+            break;
+        case 1:
+            sx = vw + 80; sy = random(-80, vh + 80);
+            ex = -80; ey = random(-80, vh + 80);
+            break;
+        case 2:
+            sx = random(-80, vw + 80); sy = -80;
+            ex = random(-80, vw + 80); ey = vh + 80;
+            break;
+        default:
+            sx = random(-80, vw + 80); sy = vh + 80;
+            ex = random(-80, vw + 80); ey = -80;
+            break;
+    }
+
+    el.style.setProperty("--sx", `${sx}px`);
+    el.style.setProperty("--sy", `${sy}px`);
+    el.style.setProperty("--ex", `${ex}px`);
+    el.style.setProperty("--ey", `${ey}px`);
+    el.style.setProperty("--r", `${random(-360, 360)}deg`);
+    el.style.setProperty("--opacity", random(0.28, 0.68));
+
+    const moveDur = random(24, 48);
+    const spinDur = random(45, 100);
+    el.style.animationDuration = `${moveDur}s, ${spinDur}s`;
+
+    edamameLayer.appendChild(el);
+    el.addEventListener("animationend", () => el.remove(), { once: true });
+}
+
+function startEdamameFloating() {
+    if (edamameLayer) return;
+
+    edamameLayer = document.createElement("div");
+    edamameLayer.id = "edamameFloating";
+    edamameLayer.className = "edamame-floating-layer";
+    document.body.appendChild(edamameLayer);
+
+    // 初期から一気に出し切らず、少しずつ投入して常に「ぽろぽろ」出現するようにする
+    const initialCount = Math.min(20, Math.floor(window.innerWidth / 42));
+    for (let i = 0; i < initialCount; i++) {
+        setTimeout(() => createEdamameChar(), i * 450);
+    }
+
+    // 初期投入後も一定間隔で補充し、出現と消滅の波を作らない
+    edamameInterval = setInterval(createEdamameChar, EDAMAME_INTERVAL);
+}
+
+function stopEdamameFloating() {
+    if (edamameInterval) {
+        clearInterval(edamameInterval);
+        edamameInterval = null;
+    }
+    if (edamameLayer) {
+        edamameLayer.innerHTML = "";
+        edamameLayer.remove();
+        edamameLayer = null;
+    }
 }
 
 let scholarLayer = null;
@@ -6179,6 +6447,7 @@ function stopScholarFloating() {
 
 document.addEventListener("visibilitychange", () => {
     scholarPaused = document.hidden;
+    edamamePaused = document.hidden;
 });
 
 function applyTheme() {
@@ -6190,6 +6459,12 @@ function applyTheme() {
         startScholarFloating();
     } else {
         stopScholarFloating();
+    }
+
+    if (currentTheme === "edamame") {
+        startEdamameFloating();
+    } else {
+        stopEdamameFloating();
     }
 }
 </script>
