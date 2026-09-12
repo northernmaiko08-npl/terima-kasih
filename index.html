@@ -4727,6 +4727,13 @@ function closeImageModalDirect(event) {
     const modal = document.getElementById('img-modal');
     if (!modal) return;
 
+    // ギャラリーで「最近見た順」を使用中なら、
+    // 拡大表示を閉じた瞬間に閲覧履歴を反映して並び順を更新する。
+    // zoomImage() / navigateGalleryImage() が diaries 側の履歴を同期更新しているため、
+    // ここではDBの保存完了を待たず、画面を即時再描画する。
+    const isGallery = document.getElementById('view-gallery')?.classList.contains('active');
+    const shouldRefreshGallery = isGallery && gallerySortOrder === 'latestViewed';
+
     modal.style.display = 'none';
     modal.classList.remove('gallery-navigation-active');
 
@@ -4750,6 +4757,11 @@ function closeImageModalDirect(event) {
     diaryViewerNavigationItems = null;
     galleryNavigationItems = null;
     currentGalleryImage = null;
+
+    // モーダルを閉じた直後に「最近見た順」を再計算する。
+    if (shouldRefreshGallery) {
+        renderGallery();
+    }
 }
 
 let modalImageScale = 1;
