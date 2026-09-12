@@ -3147,7 +3147,7 @@ body[data-theme="cosmos"] {
     <h2 id="viewer-title" style="margin: 8px 0 10px 0;"></h2>
     
     <div id="viewer-tags" style="margin-bottom: 1rem;"></div>
-    
+
     <div style="
     display:flex;
     flex-direction:column;
@@ -3162,6 +3162,12 @@ body[data-theme="cosmos"] {
         box-sizing:border-box;
     "></div>
 
+    <!-- 本文の直後に写真を配置 -->
+    <div class="viewer-images-wrap">
+        <div id="viewer-images" class="viewer-images"></div>
+        <div id="viewer-images-counter" class="viewer-images-counter" aria-live="polite">1 / 1</div>
+    </div>
+    
     <div id="viewer-char-count" style="
     margin-top:8px;
     color:var(--primary-color);
@@ -3175,11 +3181,6 @@ body[data-theme="cosmos"] {
 ">
     0文字
 </div>
-
-    <div class="viewer-images-wrap">
-        <div id="viewer-images" class="viewer-images"></div>
-        <div id="viewer-images-counter" class="viewer-images-counter" aria-live="polite">1 / 1</div>
-    </div>
 
 </div>
     </div>
