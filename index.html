@@ -70,7 +70,7 @@ function _t(t){return t+.5|0}const yt=(t,e,i)=>Math.max(Math.min(t,i),e);functio
     line-height: 1.6 !important;
     white-space: pre-wrap;
     outline: none;
-    min-height: 300px;
+    min-height: 280px;
     overflow-wrap: anywhere;
     word-break: break-word;
 }
@@ -3048,6 +3048,50 @@ body[data-theme="cosmos"] {
 }
 </style>
 
+
+<style id="stats-horizontal-scroll">
+/* 統計グラフ：7日間以外は横スクロールで見やすく表示 */
+#mood-chart-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-y: hidden;
+    box-sizing: border-box;
+}
+
+/* 横スクロールは折れ線グラフだけ */
+#mood-chart-scroll.line-chart-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    scrollbar-width: auto;
+}
+
+#mood-chart-inner {
+    position: relative;
+    height: 300px;
+    width: 100%;
+    min-width: 0;
+}
+
+#mood-chart-inner #moodChart {
+    display: block;
+    width: 100% !important;
+    height: 280px !important;
+}
+
+/* 7日間は今まで通り画面内に収める */
+#mood-chart-scroll.stats-period-7 #mood-chart-inner {
+    width: 100%;
+    min-width: 0;
+}
+
+/* 30日・100日・全期間・今月は横幅を確保してスクロール可能にする */
+#mood-chart-scroll.stats-period-wide #mood-chart-inner {
+    width: 100%;
+}
+</style>
+
 </head>
 <body class="font-standard">
     <div id="lock-screen">
@@ -3187,7 +3231,11 @@ body[data-theme="cosmos"] {
                 </div>
                 <p style="font-size: 0.8rem; margin-bottom: 5px;">投稿数: <span id="stat-count-month">0</span>件</p>
                 <div style="height: 260px; position: relative;">
-                    <canvas id="moodChart"></canvas>
+                    <div id="mood-chart-scroll" class="mood-chart-scroll">
+  <div id="mood-chart-inner" class="mood-chart-inner">
+    <canvas id="moodChart"></canvas>
+  </div>
+</div>
                 </div>
             </div>
         </section>
@@ -5366,6 +5414,8 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
             if (activeMoodFilter === m) activeMoodFilter = null;
             else activeMoodFilter = m;
             document.querySelectorAll('.mood-filter-item').forEach(el => el.classList.toggle('active', parseInt(el.dataset.filterMood) === activeMoodFilter));
+            diaryPage = 1;
+            sessionStorage.setItem('savedDiaryPage', '1');
             renderDiaryList();
         }
 
@@ -6030,34 +6080,149 @@ function renderSchedules() {
         }
 
         function renderMoodChart() {
-            const ctx = document.getElementById('moodChart').getContext('2d');
-            const period = config.chartPeriod || 'month';
-            const periodDiaries = getChartPeriodDiaries();
-            const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
-            periodDiaries.forEach(d => { if (moodCounts[d.mood] !== undefined) moodCounts[d.mood]++; });
+    const ctx = document.getElementById('moodChart').getContext('2d');
+    const period = config.chartPeriod || 'month';
+    const periodDiaries = getChartPeriodDiaries();
+    const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+    periodDiaries.forEach(d => { if (moodCounts[d.mood] !== undefined) moodCounts[d.mood]++; });
 
-            const labels = { month: '今月', '7': '過去7日間', '30': '過去30日間', '100': '過去100日間', all: 'すべての期間' };
-            const label = labels[period] || '今月';
-            const title = document.getElementById('stats-title');
-            if (title) title.textContent = `${label}の統計`;
-            const selector = document.getElementById('stats-period-select');
-            if (selector) selector.value = period;
+    // 横スクロールは「折れ線グラフ」かつ「過去7日間以外」の場合だけ有効にする。
+    const chartScroll = document.getElementById('mood-chart-scroll');
+    const chartInner = document.getElementById('mood-chart-inner');
+    const isLineChart = config.chartType === 'line';
+    const isSevenDays = period === '7';
 
-            if (window.myChart) window.myChart.destroy();
-            let chartData;
-            if (config.chartType === 'line') {
-                chartData = { labels: periodDiaries.map(d => d.date), datasets: [{ label: '感情推移', data: periodDiaries.map(d => d.mood), borderColor: '#ffca28', backgroundColor: 'rgba(255, 202, 40, 0.2)', fill: true, tension: 0.3 }] };
-            } else {
-                chartData = { labels: ['😭 最悪', '😡 怒り', '😐 普通', '😊 良好', '🤩 最高'], datasets: [{ data: [moodCounts[1], moodCounts[2], moodCounts[3], moodCounts[4], moodCounts[5]], backgroundColor: ['#a2d2ff', '#ff8a80', '#c8e6c9', '#ffb7c5', '#ffd700'] }] };
-            }
-            window.myChart = new Chart(ctx, { type: config.chartType, data: chartData, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: config.chartType !== 'line', position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } }, scales: config.chartType === 'line' ? { y: { min: 1, max: 5, ticks: { stepSize: 1, callback: v => ['','😭','😡','😐','😊','🤩'][v] } } } : (config.chartType === 'bar' ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } } : {}) } });
-            document.getElementById('stat-count-month').innerText = periodDiaries.length;
+    if (chartScroll) {
+        chartScroll.classList.toggle('line-chart-scroll', isLineChart && !isSevenDays);
+        chartScroll.classList.toggle('stats-period-7', isSevenDays);
+        chartScroll.classList.toggle('stats-period-wide', isLineChart && !isSevenDays);
+    }
+
+    if (chartInner) {
+        if (isLineChart && !isSevenDays) {
+            // 日数に応じて十分な横幅を確保し、横方向へスクロールできるようにする。
+            const pointCount = periodDiaries.length;
+            // デフォルトサイズは「過去7日間」の折れ線グラフと同じ表示幅を基準にする。
+            // 件数が7件以下でも幅を縮めたり、最初から横に広げたりしない。
+            // 8件目から、過去7日間での1点あたりの間隔を基準に必要な分だけ広げる。
+            const baseChartWidth = chartScroll ? chartScroll.clientWidth : window.innerWidth;
+            const pointSpacing = baseChartWidth / 6;
+            const chartWidth = pointCount <= 7
+                ? baseChartWidth
+                : baseChartWidth + (pointCount - 7) * pointSpacing;
+
+            chartInner.style.width = `${chartWidth}px`;
+            chartInner.style.minWidth = `${chartWidth}px`;
+        } else {
+            // 棒・円グラフ、および過去7日間の折れ線グラフは画面内に収める。
+            chartInner.style.width = '100%';
+            chartInner.style.minWidth = '0';
         }
-        function normalizeSearchText(text) {
-    return String(text || '')
+    }
+
+    let chartData;
+    if (config.chartType === 'line') {
+        chartData = {
+            labels: periodDiaries.map(d => d.date),
+            datasets: [{
+                label: '感情推移',
+                data: periodDiaries.map(d => d.mood),
+                borderColor: '#ffca28',
+                backgroundColor: 'rgba(255, 202, 40, 0.2)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 6,
+                pointHoverRadius: 9,
+                pointHitRadius: 14,
+                borderWidth: 2
+            }]
+        };
+    } else {
+        chartData = {
+            labels: ['😭 最悪', '😡 怒り', '😐 普通', '😊 良好', '🤩 最高'],
+            datasets: [{
+                data: [moodCounts[1], moodCounts[2], moodCounts[3], moodCounts[4], moodCounts[5]],
+                backgroundColor: ['#a2d2ff', '#ff8a80', '#c8e6c9', '#ffb7c5', '#ffd700']
+            }]
+        };
+    }
+
+    if (window.myChart) {
+        window.myChart.destroy();
+        window.myChart = null;
+    }
+
+    window.myChart = new Chart(ctx, {
+        type: config.chartType,
+        data: chartData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: config.chartType !== 'line',
+                    position: 'bottom',
+                    labels: { boxWidth: 10, font: { size: 10 } }
+                }
+            },
+            scales: config.chartType === 'line'
+                ? {
+                    x: {
+                        offset: false,
+                        ticks: {
+                            autoSkip: true,
+                            maxTicksLimit: period === '7' ? 7 : 15,
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    },
+                    y: {
+                        // 最上段・最下段のドットが画面端に触れないよう上下に余白を確保。
+                        min: 0.65,
+                        max: 5.35,
+                        ticks: {
+                            stepSize: 1,
+                            callback: v => {
+                                const labels = {1: '😭', 2: '😡', 3: '😐', 4: '😊', 5: '🤩'};
+                                return labels[v] || '';
+                            }
+                        }
+                    }
+                }
+                : (config.chartType === 'bar'
+                    ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    : {})
+        }
+    });
+
+    document.getElementById('stat-count-month').innerText = periodDiaries.length;
+}
+let statsChartResizeTimer;
+window.addEventListener('resize', () => {
+    clearTimeout(statsChartResizeTimer);
+    statsChartResizeTimer = setTimeout(() => {
+        if (document.getElementById('view-stats')?.style.display !== 'none') {
+            renderMoodChart();
+        }
+    }, 120);
+});
+
+
+/* 日記一覧検索用の文字正規化
+   ・ひらがな ⇔ カタカナ
+   ・半角/全角英数字
+   ・英字の大文字/小文字
+   ・全角スペース等
+   を同一視する。 */
+function normalizeSearchText(value) {
+    return String(value ?? '')
         .normalize('NFKC')
         .toLowerCase()
-        .replace(/[ァ-ヶ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0x60));
+        .replace(/[\u3041-\u3096]/g, ch =>
+            String.fromCharCode(ch.charCodeAt(0) + 0x60)
+        )
+        .replace(/\s+/g, ' ')
+        .trim();
 }
 
 function renderDiaryList() {
@@ -6069,8 +6234,10 @@ function renderDiaryList() {
         if (activeMoodFilter !== null && d.mood !== activeMoodFilter) return false;
 
         if (search) {
-            const targetText = normalizeSearchText(d.searchText ||
-                (d.title + " " + (d.tags || []).join(" ")));
+            const targetText = normalizeSearchText(
+                d.searchText ||
+                (String(d.title ?? '') + " " + (Array.isArray(d.tags) ? d.tags.join(" ") : ''))
+            );
             return targetText.includes(search);
         }
         return true;
@@ -6108,17 +6275,29 @@ function renderDiaryList() {
     const visible = filtered.slice(start, start + DIARY_PAGE_SIZE);
 
     document.getElementById('all-diaries-list').innerHTML =
-        visible.map(d => `
+        visible.map(d => {
+            const title = String(d.title ?? '無題');
+            const date = String(d.date ?? '');
+            const content = String(d.content ?? '');
+            const tags = Array.isArray(d.tags) ? d.tags : [];
+            const preview = content
+                .replace(/<[^>]*>/g, '')
+                .replace(/&nbsp;/gi, ' ')
+                .trim()
+                .substring(0, 100);
+
+            return `
             <div class="card diary-item" onclick="saveDiaryListScroll(); openViewer(${d.id})">
                 <div style="display:flex; justify-content:space-between;">
-                    <span class="diary-date">${d.date}</span>
+                    <span class="diary-date">${date}</span>
                     <span>${['','😭','😡','😐','😊','🤩'][d.mood] || ''}</span>
                 </div>
-                <div class="diary-title">${d.title}</div>
-                <div class="diary-preview">${d.content.replace(/<[^>]*>/g,'').substring(0,100)}...</div>
-                <div style="margin-top:5px;">${d.tags.map(t=>`<span class="tag-badge">${t}</span>`).join('')}</div>
+                <div class="diary-title">${title}</div>
+                <div class="diary-preview">${preview}${content.replace(/<[^>]*>/g,'').trim().length > 100 ? '...' : ''}</div>
+                <div style="margin-top:5px;">${tags.map(t=>`<span class="tag-badge">${String(t)}</span>`).join('')}</div>
             </div>
-        `).join('');
+            `;
+        }).join('');
 
     document.getElementById('diary-total-count').textContent =
     `全 ${filtered.length} 件の日記`;
@@ -6160,10 +6339,15 @@ function prevDiaryPage() {
 function changeDiarySort(order) {
     diarySortOrder = order;
     diaryPage = 1;
+    sessionStorage.setItem('savedDiaryPage', '1');
     renderDiaryList();
 }
 
-        function filterBySpecificDate(date) { renderDiaryList(); }
+function filterBySpecificDate(date) {
+    diaryPage = 1;
+    sessionStorage.setItem('savedDiaryPage', '1');
+    renderDiaryList();
+}
 
         function renderCalendar() {
             cleanupPassedSchedules();
@@ -6725,6 +6909,8 @@ function clearDatabase() {
 document.getElementById('search-input').addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
+        diaryPage = 1;
+        sessionStorage.setItem('savedDiaryPage', '1');
         renderDiaryList();
     }, 300);
 });
