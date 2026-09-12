@@ -3006,7 +3006,7 @@ body[data-theme="cosmos"] {
                     <span class="mood-filter-item" data-filter-mood="5" onclick="toggleMoodFilter(5)">🤩</span>
                 </div>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+            <div id="diary-controls" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
     <h3 id="diary-total-count" style="margin:0;">全 0 件</h3>
     <select id="diary-sort" class="kawaii-select" onchange="changeDiarySort(this.value)">
         <option value="new">新しい順</option>
@@ -3015,7 +3015,7 @@ body[data-theme="cosmos"] {
     </select>
 </div>
             <div id="all-diaries-list"></div>
-        <div style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
+        <div id="diary-pagination-area" style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
     <button class="btn" id="diary-prev-btn" onclick="prevDiaryPage()">◀ 前へ</button>
     <span id="diary-page-info"></span>
     <button class="btn" id="diary-next-btn" onclick="nextDiaryPage()">次へ ▶</button>
@@ -3093,7 +3093,7 @@ body[data-theme="cosmos"] {
         <section id="view-gallery" class="view">
     <h3 id="gallery-total-count" style="margin:0 0 12px 0;">全 0 枚のギャラリー</h3>
 
-    <div style="
+    <div id="gallery-sort-area" style="
         display:flex;
         justify-content:space-between;
         align-items:center;
@@ -3115,7 +3115,7 @@ body[data-theme="cosmos"] {
     </div>
 
     <div class="gallery-grid" id="gallery-container"></div>
-<div
+<div id="gallery-pagination-area"
     style="
         display:flex;
         justify-content:center;
@@ -3133,7 +3133,7 @@ body[data-theme="cosmos"] {
         </section>
 
         <section id="view-tags" class="view">
-    <h3>タグ</h3>
+    <h3 id="tag-total-count" style="margin:0 0 12px 0;">全 0 件のタグ</h3>
 
     <div id="tag-back-area" class="hidden"
          style="margin-bottom:12px;">
@@ -5509,6 +5509,23 @@ function renderDiaryList() {
         filtered.sort((a, b) => a.date.localeCompare(b.date));
     }
 
+    // 日記がまだ1件も保存されていない場合は、タグページと同様の空状態UIにする。
+    // この状態では並び替え・ページネーションは表示しない。
+    const diaryControls = document.getElementById('diary-controls');
+    const diaryPaginationArea = document.getElementById('diary-pagination-area');
+
+    if (diaries.length === 0) {
+        document.getElementById('all-diaries-list').innerHTML =
+            '<p style="opacity:0.6; text-align:center; padding:40px 20px;">まだ日記が保存されていません</p>';
+        document.getElementById('diary-total-count').textContent = '全 0 件の日記';
+        if (diaryControls) diaryControls.style.display = 'none';
+        if (diaryPaginationArea) diaryPaginationArea.style.display = 'none';
+        return;
+    }
+
+    if (diaryControls) diaryControls.style.display = 'flex';
+    if (diaryPaginationArea) diaryPaginationArea.style.display = 'flex';
+
     const totalPages = Math.max(1, Math.ceil(filtered.length / DIARY_PAGE_SIZE));
     if (diaryPage > totalPages) diaryPage = totalPages;
 
@@ -5642,6 +5659,23 @@ function openEditorWithDate(type, date) {
     }
 
     const imgs = getGalleryImageList();
+    const gallerySortArea = document.getElementById('gallery-sort-area');
+    const galleryPaginationArea = document.getElementById('gallery-pagination-area');
+
+    // ギャラリーに写真がまだ1枚も保存されていない場合は、タグページと同様の空状態UIにする。
+    // この状態では並び替え・ページネーションは表示しない。
+    if (imgs.length === 0) {
+        document.getElementById('gallery-container').innerHTML =
+            '<p style="opacity:0.6; text-align:center; padding:40px 20px; grid-column:1 / -1;">まだ写真が保存されていません</p>';
+        document.getElementById('gallery-total-count').textContent = '全 0 枚のギャラリー';
+        if (gallerySortArea) gallerySortArea.style.display = 'none';
+        if (galleryPaginationArea) galleryPaginationArea.style.display = 'none';
+        return;
+    }
+
+    if (gallerySortArea) gallerySortArea.style.display = 'flex';
+    if (galleryPaginationArea) galleryPaginationArea.style.display = 'flex';
+
     const totalPages = Math.max(1, Math.ceil(imgs.length / GALLERY_PAGE_SIZE));
     if (galleryPage > totalPages) galleryPage = totalPages;
 
@@ -5743,7 +5777,12 @@ invalidateCaches();
         }
     });
 
-     const html = Object.keys(tagMap)
+     const totalTagCountEl = document.getElementById('tag-total-count');
+    if (totalTagCountEl) {
+        totalTagCountEl.textContent = `全 ${Object.keys(tagMap).length} 件のタグ`;
+    }
+
+    const html = Object.keys(tagMap)
         .sort((a, b) => tagMap[b] - tagMap[a])
         .map(tag => {
             const safeTag = tag.replace(/'/g, "\\'");
