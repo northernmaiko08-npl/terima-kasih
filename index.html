@@ -2955,6 +2955,99 @@ body[data-theme="cosmos"] {
     }, true);
 })();
 </script>
+
+<style id="large-calendar-override">
+/* カレンダーを画面内に収まりやすい、ほどよいサイズに調整 */
+#view-calendar .card {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#view-calendar .calendar-grid {
+    width: 100%;
+    grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+}
+
+#view-calendar .calendar-day {
+    min-height: 56px !important;
+    padding: 8px 2px !important;
+    font-size: 1.25rem !important;
+    font-weight: 600 !important;
+    box-sizing: border-box;
+}
+
+#view-calendar #calendar-header {
+    font-size: 0.95rem !important;
+}
+
+#view-calendar #calendar-month-year {
+    font-size: 1.05rem;
+}
+
+@media (min-width: 900px) {
+    #view-calendar .calendar-day {
+        min-height: 72px !important;
+        padding: 9px 3px !important;
+        font-size: 1.35rem !important;
+        font-weight: 600 !important;
+    }
+
+    #view-calendar #calendar-header {
+        font-size: 1rem !important;
+    }
+}
+
+@media (max-width: 600px) {
+    #view-calendar .calendar-grid {
+        gap: 2px !important;
+    }
+
+    #view-calendar .calendar-day {
+        min-height: 48px !important;
+        padding: 6px 1px !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+    }
+}
+</style>
+
+
+<style id="calendar-final-fix">
+/* カレンダー：日付をセルの中央に配置 */
+#view-calendar .calendar-day {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 56px !important;
+    padding: 8px 2px !important;
+    box-sizing: border-box !important;
+    font-size: 1.25rem !important;
+    font-weight: 600 !important;
+}
+
+@media (min-width: 900px) {
+    #view-calendar .calendar-day {
+        min-height: 72px !important;
+        padding: 9px 3px !important;
+        font-size: 1.35rem !important;
+    }
+}
+
+@media (max-width: 600px) {
+    #view-calendar .calendar-day {
+        min-height: 48px !important;
+        padding: 6px 1px !important;
+        font-size: 1.1rem !important;
+    }
+}
+
+/* カレンダーから開いた編集画面でも保存ボタンを常に操作可能にする */
+#view-calendar .calendar-day {
+    -webkit-tap-highlight-color: transparent;
+}
+</style>
+
 </head>
 <body class="font-standard">
     <div id="lock-screen">
@@ -3859,11 +3952,24 @@ async function cleanupPassedSchedules(force = false) {
     console.log(`✅ ${passedSchedules.length}件の過去予定を削除完了`);
 }
         async function saveDataToDB(storeName, data) {
+            // カレンダー経由の保存時にDB接続が未準備／切断されていても
+            // 無言で失敗しないよう、DBを確認してから書き込む。
+            if (!db || !db.objectStoreNames.contains(storeName)) {
+                await initDB();
+            }
+
             return new Promise((resolve, reject) => {
-                const tx = db.transaction(storeName, 'readwrite');
-                tx.objectStore(storeName).put(data);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject(tx.error);
+                try {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const request = tx.objectStore(storeName).put(data);
+
+                    request.onerror = () => reject(request.error || tx.error || new Error('保存に失敗しました'));
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error || new Error('保存に失敗しました'));
+                    tx.onabort = () => reject(tx.error || new Error('保存処理が中断されました'));
+                } catch (error) {
+                    reject(error);
+                }
             });
         }
 
@@ -5442,6 +5548,15 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
         function removeTempImg(idx) { tempImages.splice(idx, 1); updateImagePreviews(); }
 
        async function saveDiary() {
+    try {
+        await saveDiaryInternal();
+    } catch (error) {
+        console.error('保存エラー:', error);
+        alert('保存できませんでした。データベースへの書き込みでエラーが発生しました。\nもう一度お試しください。');
+    }
+}
+
+async function saveDiaryInternal() {
     updateCharCount();
     const title = document.getElementById('diary-title').value || '無題';
     const content = document.getElementById('diary-content').innerHTML;
@@ -5529,6 +5644,11 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
         renderAll();
     }
 
+    if (document.getElementById('view-calendar')?.classList.contains('active')) {
+        invalidateCaches();
+        renderCalendar();
+        showCalendarEntries(date);
+    }
     openViewer(entry.id);
 }
 }   
@@ -6103,8 +6223,12 @@ onclick="showCalendarEntries('${dateStr}')">
 }
 
 function openEditorWithDate(type, date) {
-    openEditor(type);      
-    document.getElementById('diary-date-input').value = date;
+    // カレンダーから新規作成した場合、種別と日付を確実にセットする。
+    openEditor(type, null);
+    currentEditingType = type;
+    currentEditingId = null;
+    const dateInput = document.getElementById('diary-date-input');
+    if (dateInput) dateInput.value = date;
 }
 
         function renderGallery() {
