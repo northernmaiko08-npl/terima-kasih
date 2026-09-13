@@ -2549,22 +2549,23 @@ body[data-theme="cosmos"] {
             line-height: 1; display: inline-flex; align-items: center;
             justify-content: center; white-space: nowrap;
         }
-        /* PC：横長画面でもグラフが横に間延びしないよう、表示領域を適度な幅に制限。
-           モバイル側のサイズ・レイアウトは従来のまま維持する。 */
-        #view-home .card:has(#moodChart) > div:last-child {
-            height: 300px !important;
-        }
-        #view-home .card:has(#moodChart) #mood-chart-scroll {
-            width: min(100%, 760px);
-            max-width: 760px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        #view-home .card:has(#moodChart) #mood-chart-inner {
-            height: 280px;
-        }
-        #view-home .card:has(#moodChart) #mood-chart-inner #moodChart {
-            height: 280px !important;
+        /* PC版だけ統計グラフのレイアウトを調整。モバイル版とは完全に分離。 */
+        @media (min-width: 601px) {
+            #view-home .card:has(#moodChart) > div:last-child {
+                height: 300px !important;
+            }
+            #view-home .card:has(#moodChart) #mood-chart-scroll {
+                width: min(100%, 760px);
+                max-width: 760px;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            #view-home .card:has(#moodChart) #mood-chart-inner {
+                height: 280px;
+            }
+            #view-home .card:has(#moodChart) #mood-chart-inner #moodChart {
+                height: 280px !important;
+            }
         }
 
         @media (max-width: 600px) {
@@ -2583,7 +2584,24 @@ body[data-theme="cosmos"] {
                 width: 40px; min-width: 40px; height: 29px; padding: 2px 3px;
                 font-size: 0.68rem;
             }
-            #view-home .card:has(#moodChart) > div:last-child { height: 230px !important; }
+            /* モバイル版：グラフを完全な円形に見せるため、表示領域を正方形にする */
+            #view-home .card:has(#moodChart) > div:last-child {
+                height: min(calc(100vw - 28px), 340px) !important;
+                max-height: 340px;
+            }
+            #view-home .card:has(#moodChart) #mood-chart-scroll,
+            #view-home .card:has(#moodChart) #mood-chart-inner {
+                width: min(100%, 340px);
+                aspect-ratio: 1 / 1;
+                height: auto;
+                margin-left: auto;
+                margin-right: auto;
+            }
+            #view-home .card:has(#moodChart) #mood-chart-inner #moodChart {
+                width: 100% !important;
+                height: 100% !important;
+                aspect-ratio: 1 / 1;
+            }
         }
 
         .chart-controls {
@@ -3247,7 +3265,7 @@ body[data-theme="cosmos"] {
                     </div>
                 </div>
                 <p style="font-size: 0.8rem; margin-bottom: 5px;">投稿数: <span id="stat-count-month">0</span>件</p>
-                <div style="height: 300px; position: relative;">
+                <div style="height: 340px; position: relative;">
                     <div id="mood-chart-scroll" class="mood-chart-scroll">
   <div id="mood-chart-inner" class="mood-chart-inner">
     <canvas id="moodChart"></canvas>
@@ -6069,6 +6087,24 @@ function renderSchedules() {
 
         async function setChartType(type, btn) { config.chartType = type; await saveConfig(); document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderMoodChart(); }
 
+        function getChartPeriodTitle(period) {
+            const titles = {
+                month: '今月の統計',
+                '7': '過去7日間の統計',
+                '30': '過去30日間の統計',
+                '100': '過去100日間の統計',
+                all: 'すべての期間の統計'
+            };
+            return titles[period] || '今月の統計';
+        }
+
+        function updateChartPeriodSummary(period, count) {
+            const title = document.getElementById('stats-title');
+            const countEl = document.getElementById('stat-count-month');
+            if (title) title.textContent = getChartPeriodTitle(period);
+            if (countEl) countEl.textContent = count;
+        }
+
         async function setChartPeriod(period) {
             config.chartPeriod = period;
             await saveConfig();
@@ -6096,6 +6132,40 @@ function renderSchedules() {
             return diaries.filter(d => d.date && d.date >= startKey && d.date <= endKey).sort((a,b) => a.date.localeCompare(b.date));
         }
 
+        function updateMoodChartLayout() {
+            const chartScroll = document.getElementById('mood-chart-scroll');
+            const chartInner = document.getElementById('mood-chart-inner');
+            if (!chartScroll || !chartInner) return;
+
+            const period = config.chartPeriod || 'month';
+            const periodDiaries = getChartPeriodDiaries();
+            const isLineChart = config.chartType === 'line';
+            const isSevenDays = period === '7';
+
+            // 横スクロールは「折れ線グラフ」かつ「過去7日間以外」の場合だけ有効にする。
+            chartScroll.classList.toggle('line-chart-scroll', isLineChart && !isSevenDays);
+            chartScroll.classList.toggle('stats-period-7', isSevenDays);
+            chartScroll.classList.toggle('stats-period-wide', isLineChart && !isSevenDays);
+
+            if (isLineChart && !isSevenDays) {
+                // 日数に応じて十分な横幅を確保し、横方向へスクロールできるようにする。
+                const pointCount = periodDiaries.length;
+                // デフォルトサイズは「過去7日間」の折れ線グラフと同じ表示幅を基準にする。
+                const baseChartWidth = chartScroll.clientWidth || window.innerWidth;
+                const pointSpacing = baseChartWidth / 6;
+                const chartWidth = pointCount <= 7
+                    ? baseChartWidth
+                    : baseChartWidth + (pointCount - 7) * pointSpacing;
+
+                chartInner.style.width = `${chartWidth}px`;
+                chartInner.style.minWidth = `${chartWidth}px`;
+            } else {
+                // 棒・円グラフ、および過去7日間の折れ線グラフは画面内に収める。
+                chartInner.style.width = '100%';
+                chartInner.style.minWidth = '0';
+            }
+        }
+
         function renderMoodChart() {
     const ctx = document.getElementById('moodChart').getContext('2d');
     const period = config.chartPeriod || 'month';
@@ -6103,39 +6173,7 @@ function renderSchedules() {
     const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
     periodDiaries.forEach(d => { if (moodCounts[d.mood] !== undefined) moodCounts[d.mood]++; });
 
-    // 横スクロールは「折れ線グラフ」かつ「過去7日間以外」の場合だけ有効にする。
-    const chartScroll = document.getElementById('mood-chart-scroll');
-    const chartInner = document.getElementById('mood-chart-inner');
-    const isLineChart = config.chartType === 'line';
-    const isSevenDays = period === '7';
-
-    if (chartScroll) {
-        chartScroll.classList.toggle('line-chart-scroll', isLineChart && !isSevenDays);
-        chartScroll.classList.toggle('stats-period-7', isSevenDays);
-        chartScroll.classList.toggle('stats-period-wide', isLineChart && !isSevenDays);
-    }
-
-    if (chartInner) {
-        if (isLineChart && !isSevenDays) {
-            // 日数に応じて十分な横幅を確保し、横方向へスクロールできるようにする。
-            const pointCount = periodDiaries.length;
-            // デフォルトサイズは「過去7日間」の折れ線グラフと同じ表示幅を基準にする。
-            // 件数が7件以下でも幅を縮めたり、最初から横に広げたりしない。
-            // 8件目から、過去7日間での1点あたりの間隔を基準に必要な分だけ広げる。
-            const baseChartWidth = chartScroll ? chartScroll.clientWidth : window.innerWidth;
-            const pointSpacing = baseChartWidth / 6;
-            const chartWidth = pointCount <= 7
-                ? baseChartWidth
-                : baseChartWidth + (pointCount - 7) * pointSpacing;
-
-            chartInner.style.width = `${chartWidth}px`;
-            chartInner.style.minWidth = `${chartWidth}px`;
-        } else {
-            // 棒・円グラフ、および過去7日間の折れ線グラフは画面内に収める。
-            chartInner.style.width = '100%';
-            chartInner.style.minWidth = '0';
-        }
-    }
+    updateMoodChartLayout();
 
     let chartData;
     if (config.chartType === 'line') {
@@ -6212,14 +6250,16 @@ function renderSchedules() {
         }
     });
 
-    document.getElementById('stat-count-month').innerText = periodDiaries.length;
+    updateChartPeriodSummary(period, periodDiaries.length);
 }
 let statsChartResizeTimer;
 window.addEventListener('resize', () => {
     clearTimeout(statsChartResizeTimer);
     statsChartResizeTimer = setTimeout(() => {
-        if (document.getElementById('view-stats')?.style.display !== 'none') {
-            renderMoodChart();
+        if (document.getElementById('view-stats')?.style.display !== 'none' && window.myChart) {
+            // リサイズ時はChart.jsを破棄・再生成せず、レイアウトだけ更新してサイズを再計算する。
+            updateMoodChartLayout();
+            window.myChart.resize();
         }
     }, 120);
 });
