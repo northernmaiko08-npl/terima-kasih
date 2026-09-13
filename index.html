@@ -35,7 +35,8 @@ const lucideSVGs = {
     "pen-tool": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 22 22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pen-tool-icon lucide-pen-tool"><path d="M15.707 21.293a1 1 0 0 1-1.414 0l-1.586-1.586a1 1 0 0 1 0-1.414l5.586-5.586a1 1 0 0 1 1.414 0l1.586 1.586a1 1 0 0 1 0 1.414z"/><path d="m18 13-1.375-6.874a1 1 0 0 0-.746-.776L3.235 2.028a1 1 0 0 0-1.207 1.207L5.35 15.879a1 1 0 0 0 .776.746L13 18"/><path d="m2.3 2.3 7.286 7.286"/><circle cx="11" cy="11" r="2"/></svg>`,
 
     "chevron-left": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>`,
-    "chevron-right": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>`
+    "chevron-right": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>`,
+    "download": `<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`
 };
 
 
@@ -3127,6 +3128,12 @@ body[data-theme="cosmos"] {
 }
 </style>
 
+<style id="html-export-ui">
+.page-bottom-action{display:flex;justify-content:center;margin:28px 0 12px;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+.export-icon-btn{width:42px;height:42px;min-width:42px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:13px;box-shadow:none}
+.export-icon-btn svg{width:18px;height:18px}.export-icon-btn:active{transform:scale(.95)}
+.export-settings-row{justify-content:flex-start}.export-settings-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;padding:9px 15px;border-radius:13px;font-weight:700;box-shadow:none}.export-settings-btn svg{width:17px;height:17px}.export-settings-btn:active{transform:scale(.98)}
+</style>>
 </head>
 <body class="font-standard">
     <div id="lock-screen">
@@ -3312,7 +3319,12 @@ body[data-theme="cosmos"] {
            <div class="card">
     <div style="display:flex; justify-content: space-between; margin-bottom:1rem;">
         <button class="btn" onclick="switchTab('lastTabId')">戻る</button>
-        <button class="btn btn-primary" id="viewer-edit-btn">編集する</button>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <button class="btn export-icon-btn" type="button" onclick="exportDiaryHtml()" title="この日記を書き出す" aria-label="この日記を書き出す">
+                <i data-lucide="download"></i>
+            </button>
+            <button class="btn btn-primary" id="viewer-edit-btn">編集する</button>
+        </div>
     </div>
 
     <div style="display:flex; justify-content: space-between; align-items: center;">
@@ -3360,6 +3372,7 @@ body[data-theme="cosmos"] {
 
 </div>
     </div>
+
 
         </section>
 
@@ -3491,6 +3504,12 @@ body[data-theme="cosmos"] {
                         <input type="file" id="import-file" class="hidden" onchange="importData(event)">
                     </label>
                 </div>
+                <div class="setting-row export-settings-row">
+                    <button class="btn export-settings-btn" type="button" onclick="exportAllDiariesHtml()">
+                        <i data-lucide="download"></i>
+                        <span>全データ書き出し</span>
+                    </button>
+                </div>
                 <div class="setting-row">
                     <button class="btn btn-danger" onclick="startFullInitialization()" style="background-color: #e94560; color: white;">
     全データ初期化
@@ -3522,6 +3541,7 @@ body[data-theme="cosmos"] {
         <i data-lucide="chevron-right"></i>
     </div>
 </div>
+
 </section>
 <section id="view-about" class="view">
     <div class="card">
@@ -4769,6 +4789,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
 }
 
 async function openViewer(id, immediate = false) {
+    window.currentViewerDiaryId = id;
     saveCurrentListPageByDiary(id);
     let item = diaryMap.get(id);
     let isDiary = true;
@@ -6863,24 +6884,73 @@ async function changePassword() {
 }
         async function saveConfig() { await saveDataToDB('config', { key: 'main', ...config }); }
 
-        async function exportData() {
-    const backupData = JSON.stringify({ diaries, schedules, config });
-    const blob = new Blob([backupData], { type: 'application/json' });
-    const a = document.createElement('a');
-    const dateStr = new Date().toISOString().split('T')[0];
-    
-    a.href = URL.createObjectURL(blob);
-    a.download = `dejicho_backup_${dateStr}.json`;
-    a.click();
+        function escapeExportHtml(value){return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function getExportThemeStyles(){return Array.from(document.querySelectorAll('style')).map(x=>x.textContent||'').filter(x=>x&&!x.includes('html-export-ui')).join('\n');}
+function getExportFontClass(){return Array.from(document.body.classList).join(' ');}
+function buildDiaryExportCard(entry){
+ const moods=['','😭','😡','😐','😊','🤩'],mood=moods[entry.mood]||'';
+ const tags=(entry.tags||[]).map(t=>`<span class="export-tag">${escapeExportHtml(t)}</span>`).join('');
+ const imgs=entry.images||[];
+ const images=imgs.map((src,i)=>`<figure class="export-photo" data-photo-index="${i}"><img src="${String(src)}" alt="日記の写真 ${i+1}" loading="lazy"><figcaption>${i+1}</figcaption></figure>`).join('');
+ return `<article class="export-diary-card"><div class="export-card-top"><div class="export-date">${escapeExportHtml(entry.date||'')}</div><div class="export-mood" aria-label="感情">${mood}</div></div><div class="export-heading"><h2 class="export-title">${escapeExportHtml(entry.title||'無題')}</h2>${tags?`<div class="export-tags">${tags}</div>`:''}</div><div class="export-content">${linkifyViewerContent(entry.content||'')}</div>${images?`<div class="export-photo-album count-${Math.min(imgs.length,9)}">${images}</div>`:''}</article>`;
+}
+function buildDiaryExportHtml(entries,{title='A Certain Day\'s Memories',includeSchedules=false}={}){
+  const theme=escapeExportHtml(config.theme||'default'),font=escapeExportHtml(getExportFontClass()),exportedDate=getLocalDateString(new Date());
+  const cards=entries.map(buildDiaryExportCard).join('\n');
+  const schedulesHtml=includeSchedules&&(schedules||[]).length?`<section class="export-schedules"><div class="export-section-label">SCHEDULE</div><h2>予定</h2>${schedules.map(x=>`<article class="export-diary-card export-schedule-card"><div class="export-card-top"><div class="export-date">${escapeExportHtml(x.date||'')}</div></div><h2 class="export-title">${escapeExportHtml(x.title||'無題')}</h2><div class="export-content">${linkifyViewerContent(x.content||'')}</div></article>`).join('')}</section>`:'';
+  return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>${escapeExportHtml(title)}</title><style>${getExportThemeStyles()}
+:root{color-scheme:light dark}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:var(--bg-color,#f6f4f1);color:var(--text-color,#292725);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}.export-page{width:min(980px,calc(100% - 32px));margin:0 auto;padding:34px 0 72px}.export-header{position:relative;text-align:center;padding:24px 22px 25px;margin:0 0 30px;background:var(--card-bg,#fff);border:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);border-radius:32px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}.export-header-brand{margin:0 0 8px;color:var(--text-color,#333);font-family:"Arial Rounded MT Bold","Trebuchet MS","Segoe UI",sans-serif;font-size:.68rem;font-weight:900;letter-spacing:.18em;line-height:1;text-transform:uppercase;opacity:.58}.export-header h1{margin:0;color:var(--primary-color,#333);font-size:clamp(1.65rem,4vw,2.45rem);line-height:1.2;letter-spacing:.025em}.export-header p{margin:10px 0 0;opacity:.55;font-size:.75rem}.export-header:after{content:"";display:block;margin:17px auto 0;width:58px;height:2px;background:var(--accent-color,var(--primary-color,#777));border-radius:99px}.export-diary-card{position:relative;margin:0 0 26px;padding:26px clamp(20px,4vw,34px);background:var(--card-bg,#fff);color:var(--text-color,#333);border:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);border-radius:24px;box-shadow:0 12px 35px rgba(0,0,0,.055);overflow:hidden}.export-card-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}.export-date{font-size:.78rem;font-weight:800;letter-spacing:.08em;opacity:.62}.export-mood{font-size:2rem;line-height:1}.export-heading{padding-bottom:16px;border-bottom:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);margin-bottom:18px}.export-title{margin:0 0 12px;color:var(--primary-color,#333);font-size:clamp(1.35rem,3vw,1.8rem);line-height:1.35;word-break:break-word}.export-content{line-height:1.95;word-break:break-word;overflow-wrap:anywhere;font-size:.96rem}.export-content p{margin:0 0 1em}.export-content a{color:var(--accent-color,#06c)}.export-tags{display:flex;flex-wrap:wrap;gap:7px}.export-tag{display:inline-block;padding:4px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent-color,#ddd) 18%,transparent);border:1px solid color-mix(in srgb,var(--accent-color,#ddd) 32%,transparent);color:var(--text-color,#333);font-size:.72rem;font-weight:700}.export-photo-album{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:minmax(90px,8vw);grid-auto-flow:dense;gap:8px;margin-top:24px;padding:8px;border-radius:20px;background:color-mix(in srgb,var(--text-color,#333) 4%,transparent)}.export-photo{position:relative;margin:0;min-width:0;overflow:hidden;border-radius:13px;background:var(--bg-color,#eee);box-shadow:0 3px 12px rgba(0,0,0,.08);cursor:zoom-in}.export-photo img{display:block;width:100%;height:100%;object-fit:cover}.export-photo figcaption{position:absolute;right:7px;bottom:7px;min-width:21px;height:21px;padding:0 5px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:.65rem;font-weight:800}.export-photo-album.count-1 .export-photo{grid-column:span 6;grid-row:span 4}.export-photo-album.count-2 .export-photo{grid-column:span 3;grid-row:span 4}.export-photo-album.count-3 .export-photo:first-child{grid-column:span 4;grid-row:span 5}.export-photo-album.count-3 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-4 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-4 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-5 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-5 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-6 .export-photo{grid-column:span 2;grid-row:span 2}.export-photo-album.count-7 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-7 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-8 .export-photo,.export-photo-album.count-9 .export-photo{grid-column:span 2;grid-row:span 2}.export-schedules{margin-top:44px}.export-section-label{font-size:.68rem;letter-spacing:.2em;font-weight:900;opacity:.5}.export-schedules>h2{margin:5px 0 18px;color:var(--primary-color,#333)}.export-schedule-card{padding:20px 24px;border-radius:20px}.export-schedule-card .export-title{font-size:1.15rem}.export-footer{text-align:center;margin-top:36px;font-size:.72rem;opacity:.45}.export-lightbox{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);z-index:2000;display:none;align-items:center;justify-content:center;overflow:hidden}.export-lightbox.is-open{display:flex}.export-lightbox.gallery-navigation-active .export-lb-img{max-width:calc(100% - 150px)}.export-lb-img{max-width:95%;max-height:95%;object-fit:contain;transition:opacity 180ms ease-out,transform 190ms cubic-bezier(.22,.8,.28,1);will-change:opacity,transform;border-radius:3px;box-shadow:0 10px 30px rgba(0,0,0,.6);touch-action:none;user-select:none;-webkit-user-select:none;cursor:default}.export-lb-btn{position:absolute;width:48px;height:48px;border:1px solid rgba(255,255,255,.24);border-radius:50%;background:rgba(20,20,20,.62);color:#fff;display:none;align-items:center;justify-content:center;padding:0;cursor:pointer;z-index:20;box-shadow:0 6px 20px rgba(0,0,0,.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background 140ms ease,opacity 140ms ease;-webkit-tap-highlight-color:transparent;font-size:30px;line-height:1}.export-lb-btn:hover:not(:disabled){background:rgba(255,255,255,.18)}.export-lb-btn:active:not(:disabled){transform:none}.export-lb-btn:disabled{opacity:.22;cursor:default}.export-lb-prev{right:70px;left:auto;bottom:16px;top:auto;transform:none}.export-lb-next{right:16px;left:auto;bottom:16px;top:auto;transform:none}.export-lb-counter{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);padding:5px 10px;border-radius:999px;background:rgba(0,0,0,.45);color:#fff;font-size:12px;z-index:22}.export-no-scroll{overflow:hidden}@media(max-width:600px){.export-page{width:min(100% - 20px,980px);padding-top:20px}.export-header{padding:21px 17px 22px;border-radius:26px}.export-diary-card{padding:20px 16px;border-radius:19px}.export-photo-album{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(100px,30vw);gap:6px;padding:6px;border-radius:16px}.export-photo-album .export-photo{grid-column:span 1!important;grid-row:span 1!important}.export-photo-album.count-1 .export-photo{grid-column:span 2!important;grid-row:span 3!important}.export-photo-album.count-2 .export-photo{grid-row:span 2!important}.export-photo-album.count-3 .export-photo:first-child,.export-photo-album.count-4 .export-photo:first-child,.export-photo-album.count-5 .export-photo:first-child{grid-column:span 2!important;grid-row:span 2!important}.export-lightbox.gallery-navigation-active .export-lb-img{max-width:94%;max-height:calc(100vh - 110px)}.export-lb-btn{width:46px;height:46px}.export-lb-prev{right:72px;left:auto;bottom:max(14px,env(safe-area-inset-bottom));top:auto;transform:none}.export-lb-next{right:16px;left:auto;bottom:max(14px,env(safe-area-inset-bottom));top:auto;transform:none}.export-lb-counter{bottom:22px}}@media print{body{background:#fff!important}.export-page{width:auto;padding:0}.export-diary-card{break-inside:avoid;box-shadow:none}.export-photo img{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+</style></head><body data-theme="${theme}" class="${font}"><main class="export-page"><header class="export-header"><div class="export-header-brand">DEJICHO · OFFLINE DIARY</div><h1>${escapeExportHtml(title)}</h1><p>書き出し日 ${escapeExportHtml(exportedDate)}</p></header>${cards||'<p style="text-align:center;opacity:.6">日記はありません。</p>'}${schedulesHtml}<div class="export-footer">このページは「でじ帖」から書き出されました。</div></main><div class="export-lightbox" id="export-lightbox" aria-hidden="true"><button class="export-lb-btn export-lb-prev" id="export-lb-prev" aria-label="前の画像">‹</button><button class="export-lb-btn export-lb-next" id="export-lb-next" aria-label="次の画像">›</button><img id="export-lb-img" class="export-lb-img" src="" alt="拡大画像"></div><script>(function(){
+const modal=document.getElementById('export-lightbox'),img=document.getElementById('export-lb-img'),prevBtn=document.getElementById('export-lb-prev'),nextBtn=document.getElementById('export-lb-next');
+if(!modal||!img)return;
+const images=Array.from(document.querySelectorAll('.export-photo img'));
+let currentIndex=-1,modalImageScale=1,pinchStartDistance=null,pinchStartScale=1,modalImageTranslateX=0,modalImageTranslateY=0,touchMoved=false,touchStartX=0,touchStartY=0,lastTouchX=0,lastTouchY=0,mouseDown=false,mouseMoved=false,lastMouseX=0,lastMouseY=0,modalSwipeStartX=0,modalSwipeStartY=0,modalSwipeAxis=null;
+function clampModalImageScale(scale){return Math.min(4,Math.max(1,scale));}
+function clampModalImageTranslation(x,y){if(!modal||!img||modalImageScale<=1)return{x:0,y:0};const rect=img.getBoundingClientRect(),baseWidth=rect.width/Math.max(modalImageScale,1),baseHeight=rect.height/Math.max(modalImageScale,1),scaledWidth=baseWidth*modalImageScale,scaledHeight=baseHeight*modalImageScale,maxX=Math.max(0,(scaledWidth-modal.clientWidth)/2),maxY=Math.max(0,(scaledHeight-modal.clientHeight)/2);return{x:Math.max(-maxX,Math.min(maxX,x)),y:Math.max(-maxY,Math.min(maxY,y))};}
+function applyModalImageTransform(){const c=clampModalImageTranslation(modalImageTranslateX,modalImageTranslateY);modalImageTranslateX=c.x;modalImageTranslateY=c.y;img.style.transform=\`translate3d(\${modalImageTranslateX}px, \${modalImageTranslateY}px, 0) scale(\${modalImageScale})\`;}
+function applyModalImageScale(scale){modalImageScale=clampModalImageScale(scale);if(modalImageScale<=1){modalImageTranslateX=0;modalImageTranslateY=0;}applyModalImageTransform();}
+function reset(){modalImageScale=1;modalImageTranslateX=0;modalImageTranslateY=0;pinchStartDistance=null;pinchStartScale=1;applyModalImageTransform();}
+function getTouchDistance(t1,t2){const dx=t2.clientX-t1.clientX,dy=t2.clientY-t1.clientY;return Math.hypot(dx,dy);}
+function updateNavigation(){if(images.length<=1){prevBtn.style.display='none';nextBtn.style.display='none';modal.classList.remove('gallery-navigation-active');return;}prevBtn.style.display='flex';nextBtn.style.display='flex';prevBtn.disabled=currentIndex<=0;nextBtn.disabled=currentIndex>=images.length-1;modal.classList.add('gallery-navigation-active');}
+function closeModal(event){if(event){event.stopPropagation();}modal.style.display='none';modal.classList.remove('gallery-navigation-active');reset();document.body.classList.remove('export-no-scroll');currentIndex=-1;}
+function showImage(index){if(index<0||index>=images.length)return;currentIndex=index;const src=images[index].src;reset();img.style.opacity='1';img.src=src;modal.style.display='flex';document.body.classList.add('export-no-scroll');updateNavigation();}
+function navigate(direction,event){if(event)event.stopPropagation();if(modal.style.display==='none'||images.length<=1)return;const nextIndex=currentIndex+direction;if(nextIndex<0||nextIndex>=images.length)return;currentIndex=nextIndex;modalImageScale=1;modalImageTranslateX=0;modalImageTranslateY=0;img.style.transition='none';img.style.opacity='.72';img.style.transform=\`translate3d(\${direction>0?'34px':'-34px'},0,0) scale(.985)\`;void img.offsetWidth;img.style.transition='opacity 180ms ease-out, transform 190ms cubic-bezier(.22,.8,.28,1)';let finished=false;const reveal=()=>{if(finished)return;finished=true;img.style.opacity='1';img.style.transform='translate3d(0,0,0) scale(1)';};img.onload=reveal;img.onerror=reveal;img.src=images[currentIndex].src;if(img.complete)requestAnimationFrame(reveal);updateNavigation();}
+images.forEach((el,index)=>el.parentElement.addEventListener('click',()=>showImage(index)));
+prevBtn.addEventListener('click',e=>navigate(-1,e));nextBtn.addEventListener('click',e=>navigate(1,e));modal.addEventListener('click',e=>{if(e.target===modal)closeModal(e);});
+img.addEventListener('click',function(event){event.preventDefault();event.stopPropagation();if(touchMoved||mouseMoved){touchMoved=false;mouseMoved=false;return;}closeModal(event);});
+img.addEventListener('wheel',function(event){event.preventDefault();event.stopPropagation();const factor=event.deltaY<0?1.12:.89;applyModalImageScale(modalImageScale*factor);},{passive:false});
+img.addEventListener('touchstart',function(event){event.stopPropagation();touchMoved=false;if(event.touches.length===1){touchStartX=lastTouchX=event.touches[0].clientX;touchStartY=lastTouchY=event.touches[0].clientY;modalSwipeStartX=event.touches[0].clientX;modalSwipeStartY=event.touches[0].clientY;modalSwipeAxis=null;pinchStartDistance=null;}else if(event.touches.length===2){pinchStartDistance=getTouchDistance(event.touches[0],event.touches[1]);pinchStartScale=modalImageScale;touchMoved=true;}},{passive:false});
+img.addEventListener('touchmove',function(event){event.preventDefault();event.stopPropagation();if(event.touches.length===2){const distance=getTouchDistance(event.touches[0],event.touches[1]);if(pinchStartDistance)applyModalImageScale(pinchStartScale*(distance/pinchStartDistance));return;}if(event.touches.length===1&&modalImageScale>1){const x=event.touches[0].clientX,y=event.touches[0].clientY,dx=x-lastTouchX,dy=y-lastTouchY;if(Math.abs(x-touchStartX)>6||Math.abs(y-touchStartY)>6)touchMoved=true;modalImageTranslateX+=dx;modalImageTranslateY+=dy;const c=clampModalImageTranslation(modalImageTranslateX,modalImageTranslateY);modalImageTranslateX=c.x;modalImageTranslateY=c.y;lastTouchX=x;lastTouchY=y;applyModalImageTransform();}else if(event.touches.length===1){const x=event.touches[0].clientX,y=event.touches[0].clientY,dx=x-modalSwipeStartX,dy=y-modalSwipeStartY;if(!modalSwipeAxis&&(Math.abs(dx)>8||Math.abs(dy)>8))modalSwipeAxis=Math.abs(dx)>Math.abs(dy)?'x':'y';if(Math.abs(x-touchStartX)>6||Math.abs(y-touchStartY)>6)touchMoved=true;}},{passive:false});
+img.addEventListener('touchend',function(event){event.stopPropagation();if(event.touches.length<2)pinchStartDistance=null;if(event.touches.length===0&&modalImageScale<=1.0001&&modalSwipeAxis==='x'){const t=event.changedTouches[0],dx=t.clientX-modalSwipeStartX,threshold=48;if(Math.abs(dx)>=threshold){touchMoved=true;navigate(dx<0?1:-1,event);}}modalSwipeAxis=null;},{passive:false});
+img.addEventListener('touchcancel',function(){pinchStartDistance=null;touchMoved=true;},{passive:false});
+img.addEventListener('mousedown',function(event){if(event.button!==0)return;event.preventDefault();event.stopPropagation();mouseDown=true;mouseMoved=false;lastMouseX=event.clientX;lastMouseY=event.clientY;});
+img.addEventListener('mousemove',function(event){if(!mouseDown||modalImageScale<=1)return;event.preventDefault();event.stopPropagation();const dx=event.clientX-lastMouseX,dy=event.clientY-lastMouseY;if(Math.abs(dx)>0||Math.abs(dy)>0)mouseMoved=true;modalImageTranslateX+=dx;modalImageTranslateY+=dy;const c=clampModalImageTranslation(modalImageTranslateX,modalImageTranslateY);modalImageTranslateX=c.x;modalImageTranslateY=c.y;lastMouseX=event.clientX;lastMouseY=event.clientY;applyModalImageTransform();});
+function finishMouse(){if(!mouseDown)return;mouseDown=false;}img.addEventListener('mouseup',finishMouse);img.addEventListener('mouseleave',finishMouse);
+window.addEventListener('keydown',function(event){if(modal.style.display==='none')return;if(event.key==='ArrowLeft'){event.preventDefault();event.stopPropagation();navigate(-1,event);}else if(event.key==='ArrowRight'){event.preventDefault();event.stopPropagation();navigate(1,event);}else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeModal(event);}});
+reset();
+})();<\/script></body></html>`;
+}
+function downloadHtmlFile(html,filename){const blob=new Blob([html],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+async function exportDiaryHtml(){
+ const id=window.currentViewerDiaryId||currentEditingId;let entry=id?diaryMap.get(id):null;if(!entry&&id)entry=diaries.find(d=>d.id===id);
+ if(!entry){alert('書き出す日記を取得できませんでした。');return;}
+ const safeTitle=String(entry.title||'無題').replace(/[\\/:*?"<>|]/g,'_').slice(0,60);
+ downloadHtmlFile(buildDiaryExportHtml([entry],{title:"あるひの日記"}),`dejicho_diary_${entry.date||getLocalDateString(new Date())}_${safeTitle||'diary'}.html`);
+}
+async function exportAllDiariesHtml(){
+ downloadHtmlFile(buildDiaryExportHtml(diaries||[],{title:'すべての日記',includeSchedules:true}),`dejicho_all_diaries_${getLocalDateString(new Date())}.html`);
+ config.lastBackup=Date.now();await saveConfig();if(document.getElementById('view-home')?.classList.contains('active'))renderNotifications();alert('全日記をHTML形式で書き出しました。');
+}
 
-    config.lastBackup = new Date().getTime();
-    await saveConfig();
-    
-    alert('バックアップをダウンロードしました。');
-
-    if (document.getElementById('view-home').classList.contains('active')) {
-        renderNotifications();
-    }
+async function exportData(){
+ const backupData=JSON.stringify({diaries,schedules,config});
+ const blob=new Blob([backupData],{type:'application/json'});
+ const a=document.createElement('a'),dateStr=getLocalDateString(new Date());
+ a.href=URL.createObjectURL(blob);a.download=`dejicho_backup_${dateStr}.json`;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+ config.lastBackup=Date.now();await saveConfig();
+ alert('バックアップをダウンロードしました。');
+ if(document.getElementById('view-home')?.classList.contains('active'))renderNotifications();
 }
 
 async function importData(e) {
