@@ -4663,7 +4663,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
         } else if (diarySortOrder === 'new') {
             filtered.sort((a, b) => b.date.localeCompare(a.date));
         } else {
-            filtered.sort((a, b) => a.date.localeCompare(b.date));
+            filtered.sort((a, b) => b.date.localeCompare(a.date));
         }
 
         const index = filtered.findIndex(d => d.id == id);
@@ -6067,7 +6067,7 @@ function renderSchedules() {
     
     const upcoming = schedules
         .filter(s => s.date >= today)
-        .sort((a, b) => a.date.localeCompare(b.date))
+        .sort((a, b) => b.date.localeCompare(a.date))
         .slice(0, 5);
 
     if (upcoming.length === 0) {
@@ -6113,14 +6113,16 @@ function renderSchedules() {
 
         function getChartPeriodDiaries() {
             const period = config.chartPeriod || 'month';
-            if (period === 'all') return [...diaries].sort((a,b) => a.date.localeCompare(b.date));
+            // 全データは新しい→古い順のキャッシュを使い、再描画のたびに全件sortしない。
+            const sortedDiaries = getSortedDiaries();
+            if (period === 'all') return sortedDiaries;
 
             const now = new Date();
             if (period === 'month') {
                 const year = now.getFullYear();
                 const month = String(now.getMonth() + 1).padStart(2, '0');
                 const key = `${year}-${month}`;
-                return diaries.filter(d => d.date && d.date.startsWith(key)).sort((a,b) => a.date.localeCompare(b.date));
+                return sortedDiaries.filter(d => d.date && d.date.startsWith(key));
             }
 
             const days = Number(period);
@@ -6129,16 +6131,16 @@ function renderSchedules() {
             start.setDate(start.getDate() - (days - 1));
             const startKey = `${start.getFullYear()}-${String(start.getMonth()+1).padStart(2,'0')}-${String(start.getDate()).padStart(2,'0')}`;
             const endKey = `${end.getFullYear()}-${String(end.getMonth()+1).padStart(2,'0')}-${String(end.getDate()).padStart(2,'0')}`;
-            return diaries.filter(d => d.date && d.date >= startKey && d.date <= endKey).sort((a,b) => a.date.localeCompare(b.date));
+            // キャッシュが新しい→古い順なので、filterだけで順序を維持できる。
+            return sortedDiaries.filter(d => d.date && d.date >= startKey && d.date <= endKey);
         }
 
-        function updateMoodChartLayout() {
+        function updateMoodChartLayout(periodDiaries) {
             const chartScroll = document.getElementById('mood-chart-scroll');
             const chartInner = document.getElementById('mood-chart-inner');
             if (!chartScroll || !chartInner) return;
 
             const period = config.chartPeriod || 'month';
-            const periodDiaries = getChartPeriodDiaries();
             const isLineChart = config.chartType === 'line';
             const isSevenDays = period === '7';
 
@@ -6148,9 +6150,8 @@ function renderSchedules() {
             chartScroll.classList.toggle('stats-period-wide', isLineChart && !isSevenDays);
 
             if (isLineChart && !isSevenDays) {
-                // 日数に応じて十分な横幅を確保し、横方向へスクロールできるようにする。
+                // 取得済みのデータ件数だけを使い、同じ期間の検索・ソートを二重実行しない。
                 const pointCount = periodDiaries.length;
-                // デフォルトサイズは「過去7日間」の折れ線グラフと同じ表示幅を基準にする。
                 const baseChartWidth = chartScroll.clientWidth || window.innerWidth;
                 const pointSpacing = baseChartWidth / 6;
                 const chartWidth = pointCount <= 7
@@ -6160,24 +6161,34 @@ function renderSchedules() {
                 chartInner.style.width = `${chartWidth}px`;
                 chartInner.style.minWidth = `${chartWidth}px`;
             } else {
-                // 棒・円グラフ、および過去7日間の折れ線グラフは画面内に収める。
                 chartInner.style.width = '100%';
                 chartInner.style.minWidth = '0';
             }
         }
 
         function renderMoodChart() {
-    const ctx = document.getElementById('moodChart').getContext('2d');
+    const canvas = document.getElementById('moodChart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     const period = config.chartPeriod || 'month';
     const periodDiaries = getChartPeriodDiaries();
-    const moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
-    periodDiaries.forEach(d => { if (moodCounts[d.mood] !== undefined) moodCounts[d.mood]++; });
 
-    updateMoodChartLayout();
+    // 折れ線グラフでは集計値を使わないため、不要な全件ループを行わない。
+    let moodCounts = null;
+    if (config.chartType !== 'line') {
+        moodCounts = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+        periodDiaries.forEach(d => {
+            if (moodCounts[d.mood] !== undefined) moodCounts[d.mood]++;
+        });
+    }
+
+    updateMoodChartLayout(periodDiaries);
 
     let chartData;
     if (config.chartType === 'line') {
         chartData = {
+            // getChartPeriodDiaries() は新しい→古い順。
+            // その順序をそのまま描画データに渡し、左→右を未来→今日→過去にする。
             labels: periodDiaries.map(d => d.date),
             datasets: [{
                 label: '感情推移',
@@ -6202,63 +6213,85 @@ function renderSchedules() {
         };
     }
 
-    if (window.myChart) {
-        window.myChart.destroy();
-        window.myChart = null;
-    }
-
-    window.myChart = new Chart(ctx, {
-        type: config.chartType,
-        data: chartData,
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: config.chartType !== 'line',
-                    position: 'bottom',
-                    labels: { boxWidth: 10, font: { size: 10 } }
-                }
-            },
-            scales: config.chartType === 'line'
-                ? {
-                    x: {
-                        offset: false,
-                        ticks: {
-                            autoSkip: true,
-                            maxTicksLimit: period === '7' ? 7 : 15,
-                            maxRotation: 45,
-                            minRotation: 0
-                        }
-                    },
-                    y: {
-                        // 最上段・最下段のドットが画面端に触れないよう上下に余白を確保。
-                        min: 0.65,
-                        max: 5.35,
-                        ticks: {
-                            stepSize: 1,
-                            callback: v => {
-                                const labels = {1: '😭', 2: '😡', 3: '😐', 4: '😊', 5: '🤩'};
-                                return labels[v] || '';
-                            }
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        // 折れ線のアニメーションは既存の動きを維持しつつ、
+        // データ点の開始だけを左→右へ少しずつずらす。最大180msで頭打ちにして負荷と待ち時間を抑える。
+        ...(config.chartType === 'line' ? {
+            animation: {
+                delay: context => (
+                    context.type === 'data'
+                        ? Math.min(context.dataIndex * 15, 180)
+                        : 0
+                )
+            }
+        } : {}),
+        plugins: {
+            legend: {
+                display: config.chartType !== 'line',
+                position: 'bottom',
+                labels: { boxWidth: 10, font: { size: 10 } }
+            }
+        },
+        scales: config.chartType === 'line'
+            ? {
+                x: {
+                    offset: false,
+                    ticks: {
+                        autoSkip: true,
+                        maxTicksLimit: period === '7' ? 7 : 15,
+                        maxRotation: 45,
+                        minRotation: 0
+                    }
+                },
+                y: {
+                    // 最上段・最下段のドットが画面端に触れないよう上下に余白を確保。
+                    min: 0.65,
+                    max: 5.35,
+                    ticks: {
+                        stepSize: 1,
+                        callback: v => {
+                            const labels = {1: '😭', 2: '😡', 3: '😐', 4: '😊', 5: '🤩'};
+                            return labels[v] || '';
                         }
                     }
                 }
-                : (config.chartType === 'bar'
-                    ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-                    : {})
+            }
+            : (config.chartType === 'bar'
+                ? { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                : {})
+    };
+
+    // 期間変更・データ変更では既存Chartを更新して、毎回destroy→newする重い処理を避ける。
+    // グラフ種類を変更した場合だけ再生成する。
+    if (window.myChart && window.myChart.config.type === config.chartType) {
+        window.myChart.data = chartData;
+        window.myChart.options = chartOptions;
+        window.myChart.update();
+    } else {
+        if (window.myChart) {
+            window.myChart.destroy();
+            window.myChart = null;
         }
-    });
+
+        window.myChart = new Chart(ctx, {
+            type: config.chartType,
+            data: chartData,
+            options: chartOptions
+        });
+    }
 
     updateChartPeriodSummary(period, periodDiaries.length);
 }
+
 let statsChartResizeTimer;
 window.addEventListener('resize', () => {
     clearTimeout(statsChartResizeTimer);
     statsChartResizeTimer = setTimeout(() => {
         if (document.getElementById('view-stats')?.style.display !== 'none' && window.myChart) {
             // リサイズ時はChart.jsを破棄・再生成せず、レイアウトだけ更新してサイズを再計算する。
-            updateMoodChartLayout();
+            updateMoodChartLayout(getChartPeriodDiaries());
             window.myChart.resize();
         }
     }, 120);
@@ -6305,7 +6338,7 @@ function renderDiaryList() {
     } else if (diarySortOrder === 'new') {
         filtered.sort((a, b) => b.date.localeCompare(a.date));
     } else { 
-        filtered.sort((a, b) => a.date.localeCompare(b.date));
+        filtered.sort((a, b) => b.date.localeCompare(a.date));
     }
 
     // 日記がまだ1件も保存されていない場合は、タグページと同様の空状態UIにする。
@@ -6703,7 +6736,7 @@ function renderTagPage() {
     } else if (tagSortOrder === 'new') {
         filtered.sort((a, b) => b.date.localeCompare(a.date));
     } else { 
-        filtered.sort((a, b) => a.date.localeCompare(b.date));
+        filtered.sort((a, b) => b.date.localeCompare(a.date));
     }
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / TAG_PAGE_SIZE));
