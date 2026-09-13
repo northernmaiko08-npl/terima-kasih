@@ -2558,8 +2558,19 @@ body[data-theme="cosmos"] {
             line-height: 1; display: inline-flex; align-items: center;
             justify-content: center; white-space: nowrap;
         }
-        /* PC版だけ統計グラフのレイアウトを調整。モバイル版とは完全に分離。 */
-        @media (min-width: 601px) {
+       
+    @media (max-width: 600px) {
+    .stats-title {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 4px;
+        width: 100%;
+        text-align: right;
+    }
+}
+    /* PC版だけ統計グラフのレイアウトを調整。モバイル版とは完全に分離。 */
+       @media (min-width: 601px) {
             #view-home .card:has(#moodChart) > div:last-child {
                 height: 300px !important;
             }
