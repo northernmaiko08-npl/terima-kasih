@@ -2538,7 +2538,7 @@ body[data-theme="cosmos"] {
             gap: 12px; margin-bottom: 12px;
         }
         #view-home .card:has(#moodChart) .stats-chart-main {
-            display: flex; align-items: center; justify-content: flex-end; gap: 4px; min-width: 0;
+            display: flex; align-items: center; justify-content: flex-start; gap: 4px; min-width: 0;
             font-size: 1.17em; font-weight: bold;
         }
         #view-home .card:has(#moodChart) .stats-chart-title { min-width: 0; }
@@ -2558,18 +2558,7 @@ body[data-theme="cosmos"] {
             line-height: 1; display: inline-flex; align-items: center;
             justify-content: center; white-space: nowrap;
         }
-       
-    @media (max-width: 600px) {
-    .stats-title {
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        gap: 4px;
-        width: 100%;
-        text-align: right;
-    }
-}
-    /* PC版だけ統計グラフのレイアウトを調整。モバイル版とは完全に分離。 */
+          /* PC版だけ統計グラフのレイアウトを調整。モバイル版とは完全に分離。 */
        @media (min-width: 601px) {
             #view-home .card:has(#moodChart) > div:last-child {
                 height: 300px !important;
@@ -2591,15 +2580,41 @@ body[data-theme="cosmos"] {
         @media (max-width: 600px) {
             #view-home .card:has(#moodChart) { padding: 14px; }
             #view-home .card:has(#moodChart) .stats-chart-header {
-                display: grid; grid-template-columns: minmax(0,1fr) auto;
-                grid-template-areas: "main period" "controls controls";
-                gap: 8px 10px; align-items: center;
-            }
-            #view-home .card:has(#moodChart) .stats-chart-main { grid-area: main; min-width: 0; }
-            #view-home .card:has(#moodChart) .stats-chart-period { grid-area: period; }
-            #view-home .card:has(#moodChart) .chart-controls {
-                grid-area: controls; width: 100%; gap: 5px; justify-content: center;
-            }
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "main"
+        "controls";
+    gap: 8px;
+    align-items: center;
+}
+
+#view-home .card:has(#moodChart) .stats-chart-main {
+    grid-area: main;
+    min-width: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px;
+    text-align: left;
+}
+
+#view-home .card:has(#moodChart) .stats-chart-period {
+    margin-left: 0;
+}
+
+#view-home .card:has(#moodChart) .stats-chart-title {
+    min-width: 0;
+    text-align: left;
+}
+
+#view-home .card:has(#moodChart) .chart-controls {
+    grid-area: controls;
+    width: 100%;
+    gap: 5px;
+    justify-content: center;
+}
             #view-home .card:has(#moodChart) .chart-btn {
                 width: 40px; min-width: 40px; height: 29px; padding: 2px 3px;
                 font-size: 0.68rem;
