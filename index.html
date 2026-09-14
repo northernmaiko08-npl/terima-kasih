@@ -2820,42 +2820,6 @@ body[data-theme="cosmos"] {
         }
 
 </style>
-<!-- PWA Essential Settings (Auto-generated) -->
-<link href="manifest.json" rel="manifest"/>
-<script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js');
-      });
-    }
-  </script>
-<!-- PWA Essential Settings (Auto-generated) -->
-<link href="manifest.json" rel="manifest"/>
-<script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js');
-      });
-    }
-  </script>
-<!-- PWA Essential Settings (Auto-generated) -->
-<link href="manifest.json" rel="manifest"/>
-<script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js');
-      });
-    }
-  </script>
-<!-- PWA Essential Settings (Auto-generated) -->
-<link href="manifest.json" rel="manifest"/>
-<script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js');
-      });
-    }
-  </script>
 <style id="anti-accidental-selection">
 /* 編集画面では文章を自由に選択・コピーできるようにする。
    それ以外の画面では、誤操作による文字選択を無効化する。 */
@@ -3252,7 +3216,17 @@ body[data-theme="cosmos"] {
 }
 #view-about .support-accordion-group-body > h4 { margin-top: 20px; }
 #view-about .support-accordion-group-body > h4:first-child { margin-top: 8px; }
-</style></head>
+</style>
+<!-- PWA Essential Settings -->
+<link href="manifest.json" rel="manifest"/>
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js');
+    }, { once: true });
+  }
+</script>
+</head>
 <body class="font-standard">
 <div id="lock-screen">
 <div class="lock-container" id="lock-standard">
@@ -4804,7 +4778,6 @@ const monthLater = new Date(today);
         area.style.display = 'none';
         return;
     }
-
 
 
 area.style.display = 'block';
