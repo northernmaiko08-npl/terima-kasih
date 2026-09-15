@@ -3260,7 +3260,34 @@ body[data-theme="cosmos"] {
     }, { once: true });
   }
 </script>
-</head>
+<style id="support-accordion-static-style">
+#view-about .support-accordion-static-item{padding:0 0 15px;margin:10px 0;border:none;border-radius:0;background:transparent;}
+#view-about .support-accordion-static-title{padding:11px 0 8px;font-weight:700;font-size:.93rem;}
+#view-about .support-accordion-static-item > :not(.support-accordion-static-title){margin-top:0;}
+</style><style id="support-one-level-no-inner-frame">
+/* 1段階のサポート項目：展開内容の内側にはカード枠を一切表示しない */
+#view-about details.support-one-level > .support-accordion-body,
+#view-about details.support-one-level > .support-accordion-group-body {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+#view-about details.support-one-level > .support-accordion-body > *,
+#view-about details.support-one-level > .support-accordion-group-body > * {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+#view-about details.support-one-level .support-accordion-static-item,
+#view-about details.support-one-level .support-accordion-static-title {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    border-radius: 0 !important;
+}
+</style></head>
 <body class="font-standard">
 <div id="lock-screen">
 <div class="lock-container" id="lock-standard">
@@ -3569,7 +3596,7 @@ body[data-theme="cosmos"] {
 </div>
 <div class="setting-row export-settings-row">
 <button class="btn export-settings-btn" onclick="exportAllDiariesHtml()" type="button">
-<span>日記を読み物として保存</span>
+<span>日記をアーカイブ</span>
 </button>
 </div>
 <div class="setting-row">
@@ -3610,7 +3637,7 @@ body[data-theme="cosmos"] {
 <h3 style="margin:0;">このアプリについて</h3>
 </div>
 <div style="line-height: 1.8; font-size: 0.95rem;">
-<details class="support-accordion-group"><summary>📓 でじ帖 - Offline Diary とは</summary><div class="support-accordion-group-body">
+<div class="support-accordion-group support-overview-fixed"><div class="support-accordion-summary">📓 でじ帖 - Offline Diary とは</div><div class="support-accordion-group-body">
 <p>
         「でじ帖(でじちょう)」は、インターネット上の喧騒から切り離された、あなただけのために用意された<strong>「オフライン完結型ダイアリー」</strong>です。
         SNSで誰かの反応を気にしたり、クラウドサービスに個人データを預けたりすることに、ふと疲れを感じることはありませんか？
@@ -3621,32 +3648,32 @@ body[data-theme="cosmos"] {
     </p>
 <p>このアプリ名の由来は「デジタル」を意味する「でじ」と、手帳や記録帳を表す「帖」を組み合わせて作られています。
 単なるメモアプリや作業ツールではなく、<strong>“自分の日常や感情、思い出を静かに積み重ねていく記録帳”</strong>のような雰囲気を表した名前です。</p>
-<div style="margin-left: 10px; border-left: 3px solid var(--accent-color); padding-left: 15px; margin-bottom: 2rem;">
-<summary class="support-accordion-summary">1. なぜ「オフライン」なのか</summary><div class="support-accordion-body">
+</div></div><details class="support-accordion-group support-one-level"><summary>💡 でじ帖の基本理念</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">1. なぜ「オフライン」なのか</h4>
 <p>
             一般的な日記アプリの多くは、データを運営会社のサーバーに送信します。しかし「でじ帖」は、あなたが入力した一文字、添付した一枚の写真を、決して外へは出しません。
             データはすべて、あなたがお使いのデバイスの内部（ブラウザの保存領域）にのみ、隔離保存されます。<br/>
             この「手元にしかない」という不自由さこそが、「誰にも絶対に見られない」という安心感をつくり、あなたの最も素直な言葉を引き出す鍵となります。<br/>
             ( ※このように説明しておりますが、実際は開発者である私の技術力不足により外部接続のような開発を進めることができない、ということがオフラインである最大の理由となります。これによって利用者の皆様には少々不便な思いをお掛けしてしまう機能が一部存在しておりますが、何卒ご了承ください。)
         </p>
-</div><summary class="support-accordion-summary">2. 記憶の彩りを可視化する</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">2. 記憶の彩りを可視化する</h4>
 <p>
             私たちは、毎日たくさんの感情を抱いて生きています。しかし、その多くは時間の経過とともに霧散してしまいます。
             「でじ帖」は、文章だけでなく「5段階の感情アイコン」や「写真」を組み合わせることで、その時の心の色彩を鮮明に保存します。<br/>
             積み重ねた日々は「ヒートマップ」や「グラフ」として可視化され、数ヶ月後に振り返ったとき、自分でも気づかなかった心のバイオリズムやパターンなどを、客観的なデータとして発見できるはずです。
         </p>
-</div><summary class="support-accordion-summary">3. 自由で心地よい空間づくり</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">3. 自由で心地よい空間づくり</h4>
 <p>
             長く使い続けていただくために、デザインやゲーミフィケーションにもこだわりました。
             あなたの今の気分にフィットする多彩な<strong>テーマデザイン(全12種類)</strong>を用意しています。
             また、連続更新カウント機能や特定のアクションを起こすことによって新しいカラーテーマが解放される仕組みも実装しているので、日記を書くモチベーションを高めることができます。
             お気に入りの喫茶店でノートを広げるような感覚で、いつでもどこでも、自分だけの日記”帖”を開いてください。
         </p>
-</div></div>
-</div></details><details class="support-accordion-group"><summary>📖 使い方と機能の詳細ガイド</summary><div class="support-accordion-group-body">
+</div>
+</details><details class="support-accordion-group support-one-level"><summary>📖 使い方と機能の詳細ガイド</summary><div class="support-accordion-group-body">
 <p>「でじ帖」は、単なる日記帳以上の体験を提供するために設計されています。主な4つの機能について、その詳細な活用方法を解説します。</p>
-<div style="margin-left: 10px; border-left: 3px solid var(--accent-color); padding-left: 15px;">
-<summary class="support-accordion-summary">1. 感情と記憶を刻む「日記保存」</summary><div class="support-accordion-body">
+<div>
+<div class="support-accordion-static-item"><div class="support-accordion-static-title">1. 感情と記憶を刻む「日記保存」</div>
 <p>
                 画面右下の万年筆ボタン、またはカレンダーの各日付から日記を作成できます。
                 最大の特徴は、その日の気分を5段階のアイコンで選択できる点です。言葉にできないモヤモヤや、最高にハッピーな瞬間を直感的に記録してください。
@@ -3654,34 +3681,34 @@ body[data-theme="cosmos"] {
                 入力されたデータは、保存ボタンを押した瞬間にブラウザのIndexedDBという高速なデータベースに書き込まれます。
                 <br/>また、保存した日記は「日記」ページから振り返ることができます。アプリ内動作の高速化を維持させるため、過去の日記とタグをページネーション形式として50件ずつ表示させる方法を採用しており(ギャラリーは30件)、さらに検索機能やその日の感情フィルターで日記を絞ることができるため、より詳しく正確に過去の日記を検索することができます。
             </p>
-</div><summary class="support-accordion-summary">2. 予定を自由にデザインできる「カレンダーと予定管理」</summary><div class="support-accordion-body">
+</div><div class="support-accordion-static-item"><div class="support-accordion-static-title">2. 予定を自由にデザインできる「カレンダーと予定管理」</div>
 <p>
                 カレンダー画面では、過去の記録を振り返るだけでなく、未来の予定を「タスク」として登録できます。
                 予定がある日にはカレンダー上にドットが表示され、一目でスケジュールの密度が把握可能です。
                 過去の日記と未来の予定が一つの時間軸でつながることで、あなたの生活の全体像を可視化します。
             </p>
-</div><summary class="support-accordion-summary">3. 自己理解を深める「統計と分析」</summary><div class="support-accordion-body">
+</div><div class="support-accordion-static-item"><div class="support-accordion-static-title">3. 自己理解を深める「統計と分析」</div>
 <p>
                 記録が蓄積されると、ホーム画面の「統計」タブが真価を発揮します。
                 <br/><strong>・感情ヒートマップ：</strong> 1年間の記録頻度と感情の起伏が、タイルの色(5種類)で表現されます。どの時期に自分が活動的だったか、あるいは休息が必要だったかが視覚的に分かります。
                 <br/><strong>・感情推移グラフ：</strong>直近の気分の波をラインチャートで表示します。週単位、月単位でのメンタルの安定度を確認するセルフケアツールとして活用してください。
                 これらのデータは、すべて端末内でリアルタイムに計算・生成されており、プライバシーを保ったまま高度な分析が可能です。
             </p>
-</div><summary class="support-accordion-summary">4. あなたらしさを彩る「カスタマイズ機能」</summary><div class="support-accordion-body">
+</div><div class="support-accordion-static-item"><div class="support-accordion-static-title">4. あなたらしさを彩る「カスタマイズ機能」</div>
 <p>
                 設定画面の「テーマ変更」から、アプリ全体の雰囲気を一瞬で切り替えることができます。
                 気分転換の「夜空」、集中力を高めるシンプルな「ダーク」、明るくポップな「ゆめかわ」など、その時の気分や周囲の明るさに合わせて最適なUIを選択してください。
                 また、フォントサイズや表示の細部も、あなたが長く使い続けたいと思える心地よい空間になるよう調整されています。
             </p>
 </div></div>
-</div></details><details class="support-accordion-group"><summary>🧭 さらに詳しい機能ガイド</summary><div class="support-accordion-group-body">
-
+</div></details><details class="support-accordion-group support-one-level"><summary>🧭 さらに詳しい機能ガイド</summary><div class="support-accordion-group-body">
 <p>
         「でじ帖」には、日記を書く・読むだけではなく、長期間にわたって記録を整理し、探し、振り返り、保存するための細かな機能が用意されています。
         ここでは、通常の紹介では説明しきれていない便利な機能や、知っておくとより快適に使える仕組みをまとめます。
     </p>
-<div style="margin-left: 10px; border-left: 3px solid var(--accent-color); padding-left: 15px; margin-bottom: 2rem;">
-<summary class="support-accordion-summary">1. 日記を「探す」ための検索・絞り込み</summary><div class="support-accordion-body">
+<div style="margin-bottom: 2rem;">
+<details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">📝 記録を探す・整理する（1〜5）</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">1. 日記を「探す」ための検索・絞り込み</h4>
 <p>
             日記が増えても目的の記録を見つけやすいよう、「日記」ページには検索機能が用意されています。
             タイトルや本文だけでなく、登録したタグなども活用して、過去の記録を絞り込めます。
@@ -3692,14 +3719,14 @@ body[data-theme="cosmos"] {
             検索文字列は入力された表記をそのまま比較するだけではなく、検索用の正規化処理を通して扱われます。
             そのため、ひらがな・カタカナの表記ゆれや英字の大文字・小文字などを意識しすぎずに検索できるよう工夫されています。
         </p>
-</div><summary class="support-accordion-summary">2. タグで記録を「分類」する</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">2. タグで記録を「分類」する</h4>
 <p>
             日記には複数のタグを付けることができ、タグ一覧から特定のテーマだけをまとめて振り返れます。
             例えば「学校」「旅行」「音楽」「勉強」など、自分なりの分類を作っておくと、
             日付順だけでは見つけにくい記録をテーマ単位で読み返せます。
             タグ一覧にも並び替え・ページ移動の仕組みがあり、記録量が増えても一覧が一度に膨大にならないよう設計されています。
         </p>
-</div><summary class="support-accordion-summary">3. 日記・タグ・写真の「ページネーション」</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">3. 日記・タグ・写真の「ページネーション」</h4>
 <p>
             記録が何百件、何千件と増えた場合でも、すべてを一画面に一度に表示しない仕組みを採用しています。
             日記一覧とタグ一覧はページ単位で表示され、ギャラリーも別のページ単位で写真を表示します。
@@ -3708,7 +3735,7 @@ body[data-theme="cosmos"] {
 <p>
             一覧には並び替え機能もあり、新しい順・古い順などから目的に合った見方へ切り替えられます。
         </p>
-</div><summary class="support-accordion-summary">4. 「最近見た順」で写真を振り返るギャラリー</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">4. 「最近見た順」で写真を振り返るギャラリー</h4>
 <p>
             ギャラリーでは、日記に添付した写真を日記本文とは別に一覧で振り返れます。
             新しい順・古い順に加えて「最近見た順」に切り替えられるため、
@@ -3718,7 +3745,7 @@ body[data-theme="cosmos"] {
             写真は拡大表示にも対応しており、拡大画面では前後の画像へ移動できます。
             PC・スマートフォンのどちらでも写真を大きく確認しやすいように作られています。
         </p>
-</div><summary class="support-accordion-summary">5. カレンダーは「記録」と「予定」を同じ時間軸で管理</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">5. カレンダーは「記録」と「予定」を同じ時間軸で管理</h4>
 <p>
             カレンダーでは、過去の日記を日付から開くだけでなく、未来の日付に予定を登録できます。
             予定が存在する日はカレンダー上で視覚的に分かるようになっているため、
@@ -3728,7 +3755,8 @@ body[data-theme="cosmos"] {
             また、カレンダーから特定の日付を選んで、その日の日記を新規作成することもできます。
             「今日は何を書こう」と思ったときだけでなく、特定の日付の記録を先に用意したい場合にも利用できます。
         </p>
-</div><summary class="support-accordion-summary">6. 統計画面は「記録量」と「気分」の両方を見る</summary><div class="support-accordion-body">
+</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">📊 記録を振り返る（6〜9）</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">6. 統計画面は「記録量」と「気分」の両方を見る</h4>
 <p>
             統計では、単純な日記件数だけではなく、記録した日と気分の情報を組み合わせて振り返れます。
             1年間の記録をタイル状に表示するヒートマップでは、記録の密度を直感的に把握できます。
@@ -3739,7 +3767,7 @@ body[data-theme="cosmos"] {
             短期間の変化を細かく見る使い方と、長期間の傾向を見る使い方を切り替えられます。
             ヒートマップの各日付を操作して、その日の記録を確認することもできます。
         </p>
-</div><summary class="support-accordion-summary">7. 日記作成を助ける「テンプレート」</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">7. 日記作成を助ける「テンプレート」</h4>
 <p>
             編集画面にはテンプレート機能があり、毎回ゼロから文章を考えなくても、
             決まった形式の記録を書き始められます。
@@ -3749,7 +3777,7 @@ body[data-theme="cosmos"] {
             テンプレートは現在のカーソル位置を考慮して挿入されるため、
             すでに書き始めた文章の途中へ追加したり、必要な場所から記録を続けたりできます。
         </p>
-</div><summary class="support-accordion-summary">8. 写真は保存時に軽量化して容量を抑える</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">8. 写真は保存時に軽量化して容量を抑える</h4>
 <p>
             写真を添付するときは、画像プレビューで保存前の状態を確認できます。
             不要な写真はプレビュー段階で取り除くこともできます。
@@ -3759,16 +3787,17 @@ body[data-theme="cosmos"] {
             写真を多用する場合でも、アプリ側で一定の軽量化を行うことで、
             長期間の利用に伴うストレージ負荷を抑えることを意識した設計になっています。
         </p>
-</div><summary class="support-accordion-summary">9. 閲覧画面から写真・本文をまとめて振り返る</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">9. 閲覧画面から写真・本文をまとめて振り返る</h4>
 <p>
             保存した日記は閲覧画面で、日付・気分・本文・タグ・添付画像をまとめて確認できます。
             本文中のURLなどは閲覧時にリンクとして扱えるようになっており、
             記録の中に残しておいたWeb上の情報へアクセスしやすくしています。
         </p>
-</div><summary class="support-accordion-summary">10. 日記を「読み物」としてHTML書き出し</summary><div class="support-accordion-body">
+</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">💾 記録を保存・守る（10〜14）</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">10. 日記をアーカイブとしてHTML書き出し</h4>
 <p>
-            「日記を読み物として保存」では、蓄積した日記をアプリのデータそのものとは別に、
-            後からブラウザで読み返せるHTML形式の読み物として保存できます。
+            「日記をアーカイブ」では、蓄積した日記をアプリのデータそのものとは別に、
+            後からブラウザで読み返せるHTML形式のアーカイブとして保存できます。
             複数の日記をまとめて書き出すことで、「自分の記録集」のような形で残すことができます。
         </p>
 <p>
@@ -3782,7 +3811,7 @@ body[data-theme="cosmos"] {
             アプリへ戻すためのデータ保存には「データをバックアップ」を、
             人が読み返すための保存版を作るにはHTML書き出しを使い分けるのがおすすめです。
         </p>
-</div><summary class="support-accordion-summary">11. JSONバックアップとデータ読み込みによる引っ越し</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">11. JSONバックアップとデータ読み込みによる引っ越し</h4>
 <p>
             設定の「データをバックアップ」では、アプリ内のデータを復元可能な形式で書き出せます。
             「データ読み込み」からそのバックアップファイルを選択することで、
@@ -3793,13 +3822,13 @@ body[data-theme="cosmos"] {
             新しい端末で読み込む、という手順を取ることで記録を引き継げます。
             HTML書き出しは「読むため」、JSONバックアップは「戻すため」と考えると分かりやすいです。
         </p>
-</div><summary class="support-accordion-summary">12. バックアップ通知は「あとで保存する」にも対応</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">12. バックアップ通知は「あとで保存する」にも対応</h4>
 <p>
             長期間バックアップしていない場合には、ホーム画面でバックアップを促す通知が表示されます。
             すぐに保存できない場合は「あとで保存する」を利用でき、
             その日のうちは通知を抑えつつ、翌日以降はバックアップ状況に応じて再び確認できる仕組みになっています。
         </p>
-</div><summary class="support-accordion-summary">13. パスコード・本人確認・起動時スキップ</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">13. パスコード・本人確認・起動時スキップ</h4>
 <p>
             アプリには起動時のパスコード保護があり、設定からパスコードを変更できます。
             さらに本人確認用のパスコード・合言葉・ヒントを設定しておくことで、
@@ -3809,7 +3838,7 @@ body[data-theme="cosmos"] {
             一方、毎回の認証が不要だと感じる場合は、設定から起動時のパスコード画面をスキップする設定も選択できます。
             これは利便性を優先するための機能なので、共有端末などでは利用環境をよく確認して設定してください。
         </p>
-</div><summary class="support-accordion-summary">14. 「全データ初期化」は意図しない削除を防ぐ多段階確認</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">14. 「全データ初期化」は意図しない削除を防ぐ多段階確認</h4>
 <p>
             アプリ内の全データを消去する機能は、通常の削除とは区別されています。
             現在のパスコード、設定した本人確認パスコード、さらに最終確認の入力を順番に求めることで、
@@ -3819,7 +3848,8 @@ body[data-theme="cosmos"] {
             この操作はバックアップとは完全に別物で、一度実行するとアプリ内の記録をまとめて消去するため、
             実行前には必ず必要なバックアップが残っていることを確認してください。
         </p>
-</div><summary class="support-accordion-summary">15. 気分・連続記録・行動によって解放されるテーマ</summary><div class="support-accordion-body">
+</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">🎨 自分好みに使い続ける（15〜18）</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">15. 気分・連続記録・行動によって解放されるテーマ</h4>
 <p>
             「でじ帖」には、使い続けるほど選択肢が増えていくテーマ解放システムがあります。
             一定日数の連続記録、特定の気分の記録数、長文の日記、予定の登録数など、
@@ -3830,19 +3860,19 @@ body[data-theme="cosmos"] {
             小さなコレクション要素としても機能しています。
             解放されたテーマは設定画面から選択できます。
         </p>
-</div><summary class="support-accordion-summary">16. 気分に合わせてテーマとフォントを変更</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">16. 気分に合わせてテーマとフォントを変更</h4>
 <p>
             テーマは「クラシック」「ゆめかわ」「ダーク」「夜空」など、雰囲気の異なるデザインを切り替えられます。
             条件を満たして解放されるテーマも含め、記録するときの気分や時間帯に合わせてアプリの空気感を変えられます。
             また、文字の表示設定も用意されているため、長時間使う場合は読みやすさを優先した設定に調整できます。
         </p>
-</div><summary class="support-accordion-summary">17. ホーム画面は「今日の記録」だけでなく継続状況も確認</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">17. ホーム画面は「今日の記録」だけでなく継続状況も確認</h4>
 <p>
             ホームでは、保存した日記の状況や連続記録など、現在の利用状況をまとめて確認できます。
             今日まだ日記を書いていない場合と、すでに今日の記録を残している場合で表示内容が変わるため、
             「今日はまだ書いていない」ということにも気づきやすくなっています。
         </p>
-</div><summary class="support-accordion-summary">18. オフライン完結だからこそ、処理も端末内で完結</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">18. オフライン完結だからこそ、処理も端末内で完結</h4>
 <p>
             日記の保存、検索、タグ整理、統計の計算などは、基本的に利用している端末側で処理されます。
             外部サービスに依存せず、インターネット接続がない環境でも記録を扱えることが、
@@ -3853,15 +3883,15 @@ body[data-theme="cosmos"] {
             「便利だから何も管理しなくてよいアプリ」ではありません。
             大切な記録ほど定期的にバックアップを取り、写真や不要なデータを整理しながら使うことをおすすめします。
         </p>
-</div></div>
 </div></details>
-<details class="support-accordion-group"><summary>⚠️ 安全に使い続けるための重要事項</summary><div class="support-accordion-group-body">
-
+</div>
+</div></details>
+<details class="support-accordion-group support-one-level"><summary>⚠️ 安全に使い続けるための重要事項</summary><div class="support-accordion-group-body">
 <p>
         「でじ帖」を長期間使い続けるためには、オフラインアプリ特有の性質を理解し、適切な管理を行う必要があります。以下の4つのポイントを必ず守ってください。
     </p>
-<div style="margin-left: 10px; border-left: 3px solid var(--accent-color); padding-left: 15px; margin-bottom: 2rem;">
-<summary class="support-accordion-summary">1. データのバックアップと「消失」のリスク回避</summary><div class="support-accordion-body">
+<div style="margin-bottom: 2rem;">
+<div class="support-accordion-static-item"><div class="support-accordion-static-title">1. データのバックアップと「消失」のリスク回避</div>
 <p>
             本アプリは、Googleなどの外部サーバーにデータを保存しません。データはすべて、お使いのブラウザ内の「IndexedDB」という領域に隔離されて保存されています。これは高いプライバシーを保証する一方で、以下のような場合にデータが完全に消失するリスクを伴います。
         </p>
@@ -3875,7 +3905,7 @@ body[data-theme="cosmos"] {
 <strong>【対策】</strong><br/>
             設定画面の「データをバックアップ」機能を定期的に利用してください。基本的には2週間以上バックアップを実行しなかった場合にホーム画面の最上部に通知として表示され、ダウンロードを促されます。日記を書いた直後にJSONファイルを自分のメールアドレス宛に送信したり、信頼できるクラウドストレージ（iCloud / Google Drive等）などで保存する習慣をつけることで、データ紛失を防ぐより堅牢な防御策となります。制作者の経験上では、USBなどの外部デバイスでファイルを保存することを推奨します。ダウンロードしたデータが積み重なり、デバイスの容量を食う場合がありますが、そのときはお手数ですが、積み重なったバックアップデータを直接削除してください。
         </p>
-</div><summary class="support-accordion-summary">2. パスコードと本人確認設定の厳重管理</summary><div class="support-accordion-body">
+</div><div class="support-accordion-static-item"><div class="support-accordion-static-title">2. パスコードと本人確認設定の厳重管理</div>
 <p>
             あなたのプライバシーを守る「パスコード」は、強力な暗号化の役割を果たしています。開発者であっても、あなたの端末内のパスコードを外部からリセットすることは物理的に不可能です。
         </p>
@@ -3884,7 +3914,7 @@ body[data-theme="cosmos"] {
             合言葉やヒントを設定する際は、「自分にとってずっと変わることのない事実」かつ「他人が推測しにくいもの」を選んでください。
             また、パスコード自体を忘れないよう、物理的なノートやパスワード管理アプリに控えておくことを強く推奨します。
         </p>
-</div><summary class="support-accordion-summary">3. 動作環境の維持とブラウザの互換性</summary><div class="support-accordion-body">
+</div><div class="support-accordion-static-item"><div class="support-accordion-static-title">3. 動作環境の維持とブラウザの互換性</div>
 <p>
             ブラウザの技術は日々進化しています。現在は快適に動作していても、数年後のブラウザアップデートにより挙動が変わる可能性があります。
         </p>
@@ -3893,7 +3923,7 @@ body[data-theme="cosmos"] {
 <li><strong>機種変更時の移行：</strong> 新しい端末へ移行する際は、古い端末で「データをバックアップ」し、<strong>クラウドストレージや外部ストレージ(USBなど)</strong>の新しい端末でそのファイルを「読み込み」することで、これまでの記録をすべて引き継ぐことができます。</li>
 <li><strong>ストレージの空き容量：</strong> 画像を多く保存する場合、ブラウザの保存容量制限に達することがあります。定期的に不要な画像を整理するか、端末のストレージに余裕を持たせてください。</li>
 </ul>
-</div><summary class="support-accordion-summary">4. 長文・写真データの蓄積による「動作の重さ」と「容量制限」</summary><div class="support-accordion-body">
+</div><div class="support-accordion-static-item"><div class="support-accordion-static-title">4. 長文・写真データの蓄積による「動作の重さ」と「容量制限」</div>
 <p>
             「でじ帖」を数年使い続け、数千件の日記や数ギガバイトに及ぶ写真データを保存した場合、オフラインアプリ特有の挙動が発生することがあります。
         </p>
@@ -3911,13 +3941,12 @@ body[data-theme="cosmos"] {
 </div>
 </div></div>
 </div></details>
-<details class="support-accordion-group"><summary>⚖️ 利用ガイドラインと免責事項</summary><div class="support-accordion-group-body">
-
+<details class="support-accordion-group support-one-level"><summary>⚖️ 利用ガイドラインと免責事項</summary><div class="support-accordion-group-body">
 <p>
         「でじ帖」をご利用いただくにあたり、以下のガイドラインを遵守してください。本アプリは、ユーザーと開発者の信頼関係に基づいた安全な空間を目指しています。
     </p>
-<div style="margin-left: 10px; border-left: 3px solid var(--accent-color); padding-left: 15px; margin-bottom: 2rem;">
-<summary class="support-accordion-summary">1. 著作権と知的財産権の取り扱い</summary><div class="support-accordion-body">
+<div style="margin-bottom: 2rem;">
+<div class="support-accordion-static-item"><div class="support-accordion-static-title">1. 著作権と知的財産権の取り扱い</div>
 <p>
             本アプリ「でじ帖」を構成するプログラム、デザイン等の知的財産権は、開発者に帰属します。ユーザーは個人利用の範囲内で自由に本アプリを使用できますが、以下の行為を禁止します。
         </p>
@@ -3925,7 +3954,7 @@ body[data-theme="cosmos"] {
 <li>本アプリのプログラム（HTML/JS/CSS）を無断で改変し、自身のサービスとして再配布・販売すること。</li>
 <li>「でじ帖」の名称を使用して、公式であるかのように誤認させる活動を行うこと。</li>
 </ul>
-</div><summary class="support-accordion-summary">2. 自己責任の原則（重要）</summary><div class="support-accordion-body">
+</div><div class="support-accordion-static-item"><div class="support-accordion-static-title">2. 自己責任の原則（重要）</div>
 <p>
             「でじ帖」は、利便性とプライバシーを追求するために「オフライン完結型」を採用しています。そのため、以下の事項についてはユーザー自身の責任となります。
         </p>
@@ -3937,7 +3966,7 @@ body[data-theme="cosmos"] {
 <p>
             開発者は、本アプリの使用によって生じた直接的、間接的な損害（精神的苦痛、情報の流出、金銭的損失など）について、一切の賠償責任を負わないものとします。
         </p>
-</div><summary class="support-accordion-summary">3. データの取り扱いとプライバシー方針</summary><div class="support-accordion-body">
+</div><div class="support-accordion-static-item"><div class="support-accordion-static-title">3. データの取り扱いとプライバシー方針</div>
 <p>
             本アプリは、設計思想として「ユーザーのデータを収集しない」ことを掲げています。
         </p>
@@ -5364,6 +5393,23 @@ function zoomImage(src, diaryId = null, galleryIndex = null) {
         }
         closeImageModalDirect(event);
     });
+
+    // 写真の外側の黒い背景をクリック／タップしたら拡大表示を閉じる。
+    // 写真・前後移動ボタン・日記を開くボタンなどの操作要素は対象外。
+    modal.addEventListener('click', function(event) {
+        if (event.target !== modal) return;
+        closeImageModalDirect(event);
+    });
+
+    modal.addEventListener('touchend', function(event) {
+        if (event.target !== modal) return;
+        if (touchMoved || mouseMoved) {
+            touchMoved = false;
+            mouseMoved = false;
+            return;
+        }
+        closeImageModalDirect(event);
+    }, { passive: false });
 
     img.addEventListener('wheel', function(event) {
         event.preventDefault();
