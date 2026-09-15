@@ -3074,45 +3074,79 @@ body[data-theme="cosmos"] {
 }
 </style>
 <style id="stats-horizontal-scroll">
-/* 統計グラフ：7日間以外は横スクロールで見やすく表示 */
+/*
+ * 統計グラフ
+ * ・7日間：画面内に完全に収める
+ * ・それ以外：1ドットあたり固定幅で横方向だけに広げ、表示領域内を横スクロール
+ * ・縦方向にはスクロールを発生させない
+ */
 #mood-chart-scroll {
     width: 100%;
     max-width: 100%;
+    height: 310px;
     overflow-x: hidden;
     overflow-y: hidden;
     box-sizing: border-box;
+    position: relative;
 }
 
-/* 横スクロールは折れ線グラフだけ */
+/* 折れ線グラフの長期間だけ横スクロール */
 #mood-chart-scroll.line-chart-scroll {
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-x: contain;
     scrollbar-width: auto;
 }
 
+/*
+ * Chart.js が親要素の幅を勝手に縮めたり、
+ * モバイル側の aspect-ratio が固定幅設定を上書きしたりしないようにする。
+ */
 #mood-chart-inner {
     position: relative;
-    height: 280px;
+    height: 310px;
     width: 100%;
     min-width: 0;
+    max-width: none;
+    box-sizing: border-box;
 }
 
 #mood-chart-inner #moodChart {
     display: block;
     width: 100% !important;
-    height: 250px !important;
+    height: 280px !important;
+    max-width: none !important;
 }
 
-/* 7日間は今まで通り画面内に収める */
+/* 7日間は必ず画面内 */
+#mood-chart-scroll.stats-period-7 {
+    overflow-x: hidden;
+}
+
 #mood-chart-scroll.stats-period-7 #mood-chart-inner {
-    width: 100%;
-    min-width: 0;
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
 }
 
-/* 30日・100日・全期間・今月は横幅を確保してスクロール可能にする */
+/* 今月・30日・100日・全期間は横方向だけに拡張 */
+#mood-chart-scroll.stats-period-wide {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
 #mood-chart-scroll.stats-period-wide #mood-chart-inner {
-    width: 100%;
+    min-width: 0;
+    max-width: none !important;
+    height: 310px !important;
+    aspect-ratio: auto !important;
+    box-sizing: border-box;
+}
+
+#mood-chart-scroll.stats-period-wide #mood-chart-inner #moodChart {
+    height: 280px !important;
+    aspect-ratio: auto !important;
 }
 </style>
 <style id="html-export-ui">
@@ -3340,7 +3374,7 @@ body[data-theme="cosmos"] {
 </div>
 </div>
 <p style="font-size: 0.8rem; margin-bottom: 5px;">投稿数: <span id="stat-count-month">0</span>件</p>
-<div style="height: 340px; position: relative;">
+<div style="height: 370px; position: relative;">
 <div class="mood-chart-scroll" id="mood-chart-scroll">
 <div class="mood-chart-inner" id="mood-chart-inner">
 <canvas id="moodChart"></canvas>
@@ -6343,19 +6377,27 @@ function renderSchedules() {
             chartScroll.classList.toggle('stats-period-wide', isLineChart && !isSevenDays);
 
             if (isLineChart && !isSevenDays) {
-                // 取得済みのデータ件数だけを使い、同じ期間の検索・ソートを二重実行しない。
+                // ドットが増えても1マスの幅は変えない。
+                // 表示領域は固定のまま、必要な分だけグラフ本体を横へ伸ばす。
                 const pointCount = periodDiaries.length;
-                const baseChartWidth = chartScroll.clientWidth || window.innerWidth;
-                const pointSpacing = baseChartWidth / 6;
-                const chartWidth = pointCount <= 7
-                    ? baseChartWidth
-                    : baseChartWidth + (pointCount - 7) * pointSpacing;
+                const visibleWidth = chartScroll.clientWidth || window.innerWidth;
+                const POINT_SPACING = 60;
+                const chartWidth = Math.max(
+                    visibleWidth,
+                    pointCount > 1
+                        ? (pointCount - 1) * POINT_SPACING + 80
+                        : visibleWidth
+                );
 
                 chartInner.style.width = `${chartWidth}px`;
                 chartInner.style.minWidth = `${chartWidth}px`;
+                chartInner.style.maxWidth = 'none';
+                chartInner.style.height = '310px';
             } else {
                 chartInner.style.width = '100%';
                 chartInner.style.minWidth = '0';
+                chartInner.style.maxWidth = '100%';
+                chartInner.style.height = '310px';
             }
         }
 
