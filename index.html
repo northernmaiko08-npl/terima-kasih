@@ -1840,6 +1840,37 @@ body[data-theme="cosmos"] {
     display: block; 
     align-items: center;
 }
+        .lock-brand {
+            position: absolute;
+            left: 50%;
+            bottom: calc(50% + 225px);
+            transform: translateX(-50%);
+            text-align: center;
+            white-space: nowrap;
+            pointer-events: none;
+            color: var(--text-color);
+        }
+        .lock-brand-main {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            line-height: 1.15;
+        }
+        .lock-brand-sub {
+            margin-top: 6px;
+            font-size: 0.62rem;
+            font-weight: 600;
+            letter-spacing: 0.24em;
+            opacity: 0.58;
+            line-height: 1;
+        }
+        .lock-credit { position: absolute; left: 50%; top: calc(50% + 235px); transform: translateX(-50%); text-align: center; white-space: nowrap; pointer-events: none; color: var(--text-color); opacity: 0.48; }
+        .lock-credit-main { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; line-height: 1; }
+        @media (max-height: 650px) {
+            .lock-brand { bottom: calc(50% + 190px); }
+            .lock-brand-main { font-size: 1.7rem; }
+        }
+
         #lock-screen {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -2127,6 +2158,7 @@ body[data-theme="cosmos"] {
             gap: 15px;
             font-size: 1.5rem;
             margin: 10px 0;
+            justify-content: center;
         }
         .mood-item { cursor: pointer; opacity: 0.3; transition: 0.2s; }
         .mood-item.active { opacity: 1; transform: scale(1.2); }
@@ -2193,6 +2225,28 @@ body[data-theme="cosmos"] {
             align-items: center;
             padding: 0.8rem 0;
             border-bottom: 1px solid #eee;
+        }
+        /* 設定ページ：データ管理は説明を左、操作ボタンを右に配置 */
+        #view-settings .data-management-card .setting-row {
+            justify-content: space-between;
+            gap: 20px;
+        }
+        #view-settings .data-management-card .setting-row .data-management-description {
+            flex: 1;
+            min-width: 0;
+        }
+        #view-settings .data-management-card .setting-row > button,
+        #view-settings .data-management-card .setting-row > label {
+            margin-left: auto;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        #view-settings .data-management-card .data-management-help {
+            margin-top: 3px;
+            font-size: 0.78rem;
+            opacity: 0.65;
+            line-height: 1.4;
+            font-weight: normal;
         }
         .kawaii-select {
             appearance: none;
@@ -3290,6 +3344,11 @@ body[data-theme="cosmos"] {
 </style></head>
 <body class="font-standard">
 <div id="lock-screen">
+<div class="lock-brand" aria-label="でじ帖 DEJICHO・OFFLINE DIARY">
+<div class="lock-brand-main">でじ帖</div>
+<div class="lock-brand-sub">DEJICHO・OFFLINE DIARY</div>
+</div>
+<div class="lock-credit" aria-label="northern maiko / 北の舞妓さん"><div class="lock-credit-main">northern maiko / 北の舞妓さん</div></div>
 <div class="lock-container" id="lock-standard">
 <i data-lucide="lock" style="width: 1000px; height: 1000px; color: var(--primary-color);"></i>
 <h2 id="lock-title">パスコードを入力</h2>
@@ -3583,23 +3642,39 @@ body[data-theme="cosmos"] {
 <option id="option-cosmos" style="display: none;" value="cosmos">ギャラクシー</option>
 </select>
 </div>
-<div class="card">
+<div class="card data-management-card">
 <h4>データ管理</h4>
 <div class="setting-row">
+<div class="data-management-description">
+<strong>データをバックアップ</strong>
+<div class="data-management-help">日記や予定を復元できる形で保存します。</div>
+</div>
 <button class="btn btn-primary" onclick="exportData()">データをバックアップ</button>
 </div>
 <div class="setting-row">
+<div class="data-management-description">
+<strong>データ読み込み</strong>
+<div class="data-management-help">保存したバックアップをこの端末に戻します。</div>
+</div>
 <label class="btn btn-primary" style="display:inline-block;">
                         データ読み込み
                         <input class="hidden" id="import-file" onchange="importData(event)" type="file"/>
 </label>
 </div>
 <div class="setting-row export-settings-row">
+<div class="data-management-description">
+<strong>日記をアーカイブ</strong>
+<div class="data-management-help">日記を読み返せるHTMLとして保存します。</div>
+</div>
 <button class="btn export-settings-btn" onclick="exportAllDiariesHtml()" type="button">
 <span>日記をアーカイブ</span>
 </button>
 </div>
 <div class="setting-row">
+<div class="data-management-description">
+<strong>全データ初期化</strong>
+<div class="data-management-help">日記や予定など、すべての記録を削除します。</div>
+</div>
 <button class="btn btn-danger" onclick="startFullInitialization()" style="background-color: #e94560; color: white;">
     全データ初期化
 </button>
@@ -4263,7 +4338,7 @@ async function loadData() {
 }
 
 async function cleanupPassedSchedules(force = false) {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString(new Date());
     const passedSchedules = schedules.filter(s => s.date < todayStr);
     
     if (passedSchedules.length === 0) {
@@ -4722,7 +4797,7 @@ function openEditor(type = 'diary', id = null) {
         }
     } else {
         titleInput.value = ''; 
-        dateInput.value = new Date().toISOString().split('T')[0];
+        dateInput.value = getLocalDateString(new Date());
         
         if (type === 'diary') { 
             contentDiv.innerHTML = ''; 
@@ -4759,6 +4834,24 @@ function cancelEditor() {
     const returnView = editorReturnViewId || lastTabId || 'home';
     switchTab(returnView);
 }
+        // 通知メッセージは「開き直すたび」には変えず、2日間同じものを表示する。
+        // 日付の2日単位 + 予定IDから決定するため、再描画・タブ移動・アプリ再起動でも安定する。
+        function getStableNotificationMessage(messages, scheduleId, dateObj) {
+            const dateStr = getLocalDateString(dateObj);
+            const parts = dateStr.split('-').map(Number);
+            const utcDay = Math.floor(Date.UTC(parts[0], parts[1] - 1, parts[2]) / 86400000);
+            const dayBucket = Math.floor(utcDay / 2);
+            const key = `${dayBucket}:${scheduleId ?? ''}`;
+
+            let hash = 2166136261;
+            for (let i = 0; i < key.length; i++) {
+                hash ^= key.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            hash >>>= 0;
+            return messages[hash % messages.length];
+        }
+
         function renderNotifications() {
     const area = document.getElementById('notification-area');
     area.classList.remove('notification-special-fade-out');
@@ -4861,7 +4954,7 @@ else if (diffDays === 92) dayText = "3ヶ月後に";
 else if (diffDays === 183) dayText = "6ヶ月後に";
         if (dayText !== "") {
             const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","↑もしかして、ぼっち行動？","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは48万文字もあるんだよ","6000行のコードを全身で感じられているかな？","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","ヌバーン！！！👁️👄👁️","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
-            const randomMsg = messages[Math.floor(Math.random() * messages.length)];
+            const randomMsg = getStableNotificationMessage(messages, s.id, today);
             
             const card = document.createElement('div');
             card.style.borderBottom = "1px solid rgba(255,255,255,0.3)";
@@ -6277,7 +6370,7 @@ document.getElementById('status-greeting').innerText = greetingText;
                 if (p.days) targetDate.setDate(targetDate.getDate() - p.days);
                 if (p.months) targetDate.setMonth(targetDate.getMonth() - p.months);
                 if (p.years) targetDate.setFullYear(targetDate.getFullYear() - p.years);
-                const iso = targetDate.toISOString().split('T')[0];
+                const iso = getLocalDateString(targetDate);
         
                 const entry = diaryDateMap.get(iso); 
 if (entry && entry.length > 0) {
@@ -6302,7 +6395,7 @@ let html = '';
 for (let i = 99; i >= 0; i--) {
     const d = new Date(); 
     d.setDate(d.getDate() - i); 
-    const isoStr = d.toISOString().split('T')[0];
+    const isoStr = getLocalDateString(d);
     
     const entries = diaryDateMap.get(isoStr); 
     const entry = (entries && entries.length > 0) ? entries[0] : null;
@@ -6345,7 +6438,7 @@ function renderSchedules() {
     const container = document.getElementById('recent-schedules');
     if (!container) return;
 
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString(new Date());
     
     const upcoming = schedules
         .filter(s => s.date >= today)
