@@ -3554,9 +3554,9 @@ body[data-theme="cosmos"] {
 <option value="latestViewed">最近見た順</option>
 </select>
 </div>
-<div id="diary-pagination-top" style="display:none; justify-content:center; align-items:center; gap:12px; margin:0 0 20px; flex-wrap:wrap;">
+<div id="diary-pagination-top-area" style="display:none; justify-content:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
 <button class="btn" id="diary-prev-top-btn" onclick="prevDiaryPage()">◀ 前へ</button>
-<span id="diary-page-top-info"></span>
+<span id="diary-page-info-top"></span>
 <button class="btn" id="diary-next-top-btn" onclick="nextDiaryPage()">次へ ▶</button>
 </div>
 <div id="all-diaries-list"></div>
@@ -3679,13 +3679,13 @@ body[data-theme="cosmos"] {
 <option value="latestViewed">最近見た順</option>
 </select>
 </div>
-<div id="tag-pagination-top" style="display:none; justify-content:center; align-items:center; gap:12px; margin:0 0 20px; flex-wrap:wrap;">
+<div id="tag-pagination-top-area" style="display:none; justify-content:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
 <button class="btn" id="tag-prev-top-btn" onclick="prevTagPage()">◀ 前へ</button>
-<span id="tag-page-top-info"></span>
+<span id="tag-page-info-top"></span>
 <button class="btn" id="tag-next-top-btn" onclick="nextTagPage()">次へ ▶</button>
 </div>
 <div id="tag-filtered-results"></div>
-<div id="tag-pagination-area" style="display:none; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
+<div class="hidden" id="tag-pagination-area" style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
 <button class="btn" id="tag-prev-btn" onclick="prevTagPage()">◀ 前へ</button>
 <span id="tag-page-info"></span>
 <button class="btn" id="tag-next-btn" onclick="nextTagPage()">次へ ▶</button>
@@ -4548,8 +4548,11 @@ function checkNewYearFireworks() {
     renderAll();
     applyTheme();
 
-    // 起動時は常にホーム最上部へ。遅延スクロールは行わない。
-    window.scrollTo(0, 0);
+    // 起動時は常にホーム最上部へ。ブラウザのスクロール復元も上書きする。
+    requestAnimationFrame(() => {
+        window.scrollTo(0, 0);
+        setTimeout(() => window.scrollTo(0, 0), 50);
+    });
 
     checkNewYearFireworks(); 
 
@@ -4592,12 +4595,12 @@ function checkNewYearFireworks() {
             await saveConfig();
         }
 
-        async function unlockApp() {
+        function unlockApp() {
             const input = document.getElementById('pass-input').value;
             if (!config.password) {
                 if (input.length > 0) {
                     config.password = input;
-                    await saveConfig();
+                    saveConfig();
                     document.getElementById('lock-screen').style.transform = 'translateY(-100%)';
                     switchTab('home');
                     window.scrollTo(0, 0);
@@ -4712,11 +4715,6 @@ function checkNewYearFireworks() {
         document.getElementById('tag-filter-area').classList.add('hidden');
         document.getElementById('tag-filtered-results').innerHTML = '';
         document.getElementById('tag-pagination-area').classList.add('hidden');
-        const tagPaginationTop = document.getElementById('tag-pagination-top');
-        if (tagPaginationTop) {
-            tagPaginationTop.classList.add('hidden');
-            tagPaginationTop.style.display = 'none';
-        }
     }
 
     if (
@@ -4906,8 +4904,6 @@ function cancelEditor() {
     const returnView = editorReturnViewId || lastTabId || 'home';
     switchTab(returnView);
 }
-        // 通知メッセージは「開き直すたび」には変えず、2日間同じものを表示する。
-        // 日付の2日単位 + 予定IDから決定するため、再描画・タブ移動・アプリ再起動でも安定する。
         // 通知メッセージは「開き直すたび」には変えず、2日間同じものを表示する。
         // 日付の2日単位 + 予定IDから決定するため、再描画・タブ移動・アプリ再起動でも安定する。
         function getStableNotificationMessage(messages, scheduleId, dateObj) {
@@ -5199,7 +5195,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
     return wrapper.innerHTML;
 }
 
-async function openViewer(id, immediate = false) {
+async function openViewer(id, immediate = false, selectedImageIndex = null) {
     window.currentViewerDiaryId = id;
     saveCurrentListPageByDiary(id);
     let item = diaryMap.get(id);
@@ -5238,6 +5234,19 @@ async function openViewer(id, immediate = false) {
         `).join('');
 
         document.getElementById('viewer-images').innerHTML = imagesHtml;
+
+        // ギャラリーから「この写真の日記に移動」で開いた場合は、
+        // 選択していた写真が画面の中心付近に直接表示されるようにする。
+        if (selectedImageIndex != null) {
+            requestAnimationFrame(() => {
+                const viewerImages = document.querySelectorAll('#viewer-images .viewer-img');
+                const targetImage = viewerImages[Number(selectedImageIndex)];
+                if (targetImage) {
+                    targetImage.scrollIntoView({ behavior: 'auto', block: 'center' });
+                }
+            });
+        }
+
         document.getElementById('viewer-content').innerHTML = linkifyViewerContent(item.content || '');
         document.getElementById('viewer-tags').innerHTML = (item.tags || [])
             .map(t => `<span class="tag-badge">${t}</span>`).join('');
@@ -5728,17 +5737,37 @@ function zoomImage(src, diaryId = null, galleryIndex = null) {
     reset();
 })();
 
-function openCurrentImageDiary(event) {
+async function openCurrentImageDiary(event) {
     if (event) event.stopPropagation();
     if (!currentGalleryImage || currentGalleryImage.diaryId == null) return;
 
-    const diary = diaries.find(d => String(d.id) === String(currentGalleryImage.diaryId));
+    const diaryId = currentGalleryImage.diaryId;
+    const targetSrc = currentGalleryImage.src;
+    const diary = diaries.find(d => String(d.id) === String(diaryId));
     if (!diary) return;
 
-    // 拡大表示を閉じる処理と日記ページへの切り替えを同じクリック処理内で実行する
-    // immediate=true によりDB保存を待たず、視覚的にも同時に切り替わる
-    closeImageModalDirect(null, true);
-    openViewer(diary.id, true);
+    // 選択中の写真を保持したまま日記ビューへ移動する。
+    // モーダルの通常終了処理による余計な再描画・保存待ちを挟まない。
+    const imageIndex = (diary.images || []).findIndex(src => src === targetSrc);
+
+    const modal = document.getElementById('img-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.style.opacity = '0';
+    }
+
+    await openViewer(diaryId, true);
+
+    // 日記が描画されたあと、選択していた写真へ一度だけ滑らかに移動。
+    if (imageIndex >= 0) {
+        requestAnimationFrame(() => {
+            const images = document.querySelectorAll('#viewer-images .viewer-img');
+            const target = images[imageIndex];
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        });
+    }
 }
 
 function navigateGalleryImage(direction,event) {
@@ -6813,6 +6842,7 @@ function renderDiaryList() {
     // この状態では並び替え・ページネーションは表示しない。
     const diaryControls = document.getElementById('diary-controls');
     const diaryPaginationArea = document.getElementById('diary-pagination-area');
+    const diaryPaginationTopArea = document.getElementById('diary-pagination-top-area');
 
     if (diaries.length === 0) {
         document.getElementById('all-diaries-list').innerHTML =
@@ -6820,10 +6850,16 @@ function renderDiaryList() {
         document.getElementById('diary-total-count').textContent = '全 0 件の日記';
         if (diaryControls) diaryControls.style.display = 'none';
         if (diaryPaginationArea) diaryPaginationArea.style.display = 'none';
+        if (diaryPaginationTopArea) diaryPaginationTopArea.style.display = 'none';
         return;
     }
 
     if (diaryControls) diaryControls.style.display = 'flex';
+
+    // 日記が50件以下ならページネーションボタン自体を非表示
+    if (diaryPaginationArea) {
+        diaryPaginationArea.style.display = filtered.length <= DIARY_PAGE_SIZE ? 'none' : 'flex';
+    }
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / DIARY_PAGE_SIZE));
     if (diaryPage > totalPages) diaryPage = totalPages;
@@ -6831,11 +6867,11 @@ function renderDiaryList() {
     const start = (diaryPage - 1) * DIARY_PAGE_SIZE;
     const visible = filtered.slice(start, start + DIARY_PAGE_SIZE);
 
-    // 日記ページは1ページ目ではページネーションを表示しない。
-    // 2ページ目以降は下部を常に表示し、現在ページに5件以上ある場合だけ上部にも表示する。
-    if (diaryPaginationArea) diaryPaginationArea.style.display = (diaryPage > 1 || diaries.length >= DIARY_PAGE_SIZE) ? 'flex' : 'none';
-    const diaryPaginationTop = document.getElementById('diary-pagination-top');
-    if (diaryPaginationTop) diaryPaginationTop.style.display = (diaryPage > 1 && visible.length >= 5) || (diaryPage === 1 && diaries.length >= DIARY_PAGE_SIZE) ? 'flex' : 'none';
+    // 総ページ数が2ページ以上で、現在のページが7件以上ある場合に上部にも表示する。
+    if (diaryPaginationTopArea) {
+        const showTopPagination = totalPages > 1 && visible.length >= 7;
+        diaryPaginationTopArea.style.display = showTopPagination ? 'flex' : 'none';
+    }
 
     document.getElementById('all-diaries-list').innerHTML =
         visible.map(d => {
@@ -6868,47 +6904,47 @@ function renderDiaryList() {
 document.getElementById('diary-page-info').innerText =
     `${diaryPage} / ${totalPages}`;
 
-const diaryPageTopInfo = document.getElementById('diary-page-top-info');
-if (diaryPageTopInfo) diaryPageTopInfo.innerText = `${diaryPage} / ${totalPages}`;
-
 updatePaginationButtons(
     'diary-prev-btn',
     'diary-next-btn',
     diaryPage,
     totalPages
 );
+
+const diaryPageInfoTop = document.getElementById('diary-page-info-top');
+if (diaryPageInfoTop) {
+    diaryPageInfoTop.innerText = `${diaryPage} / ${totalPages}`;
+}
+
 updatePaginationButtons(
     'diary-prev-top-btn',
     'diary-next-top-btn',
     diaryPage,
     totalPages
-);
-    if (window.fadePaginationContainer) {
-        window.fadePaginationContainer(document.getElementById('diary-list') || document.getElementById('view-diary'));
-    }
-}
+);}
         function nextDiaryPage() {
-    const savedScrollY = window.scrollY;
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-
     diaryPage++;
-    sessionStorage.setItem('savedDiaryPage', diaryPage);
-    renderDiaryList();
 
-    restorePaginationScrollPosition(savedScrollY);
+    sessionStorage.setItem(
+        'savedDiaryPage',
+        diaryPage
+    );
+
+    renderDiaryList();
 }
 
 function prevDiaryPage() {
-    const savedScrollY = window.scrollY;
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 
     if (diaryPage > 1) {
         diaryPage--;
-        sessionStorage.setItem('savedDiaryPage', diaryPage);
+
+        sessionStorage.setItem(
+            'savedDiaryPage',
+            diaryPage
+        );
     }
 
     renderDiaryList();
-    restorePaginationScrollPosition(savedScrollY);
 }
 
 function changeDiarySort(order) {
@@ -6996,7 +7032,8 @@ function openEditorWithDate(type, date) {
     const dateInput = document.getElementById('diary-date-input');
     if (dateInput) dateInput.value = date;
 }
-function renderGallery() {
+
+        function renderGallery() {
     const savedOrder = sessionStorage.getItem('gallerySortOrder');
     if (savedOrder && ['latestViewed', 'new', 'old'].includes(savedOrder)) {
         gallerySortOrder = savedOrder;
@@ -7018,7 +7055,11 @@ function renderGallery() {
     }
 
     if (gallerySortArea) gallerySortArea.style.display = 'flex';
-    if (galleryPaginationArea) galleryPaginationArea.style.display = 'flex';
+
+    // 写真が30枚以下ならページネーションボタン自体を非表示
+    if (galleryPaginationArea) {
+        galleryPaginationArea.style.display = imgs.length <= GALLERY_PAGE_SIZE ? 'none' : 'flex';
+    }
 
     const totalPages = Math.max(1, Math.ceil(imgs.length / GALLERY_PAGE_SIZE));
     if (galleryPage > totalPages) galleryPage = totalPages;
@@ -7031,7 +7072,7 @@ function renderGallery() {
             <img
                 src="${obj.src}"
                 class="gallery-img"
-                loading="eager"
+                loading="lazy"
                 onclick="zoomImage('${obj.src}', ${obj.id}, ${start + index})"
             >
         `).join('');
@@ -7040,19 +7081,32 @@ function renderGallery() {
     document.getElementById('gallery-page-info').innerText = `${galleryPage} / ${totalPages}`;
 
     updatePaginationButtons('gallery-prev-btn', 'gallery-next-btn', galleryPage, totalPages);
-
 }
 
-
 function nextGalleryPage() {
-    const imgs = getGalleryImageList();
-    const totalPages = Math.max(1, Math.ceil(imgs.length / GALLERY_PAGE_SIZE));
-    if (galleryPage < totalPages) galleryPage++;
+
+    let totalImages = 0;
+
+    diaries.forEach(d => {
+        totalImages += (d.images || []).length;
+    });
+
+    const totalPages = Math.ceil(
+        totalImages / GALLERY_PAGE_SIZE
+    );
+
+    if (galleryPage < totalPages) {
+        galleryPage++;
+    }
+
     renderGallery();
 }
 
 function prevGalleryPage() {
-    if (galleryPage > 1) galleryPage--;
+    if (galleryPage > 1) {
+        galleryPage--;
+    }
+
     renderGallery();
 }
 
@@ -7149,11 +7203,8 @@ invalidateCaches();
         document.getElementById('tags-cloud').classList.remove('hidden');
         document.getElementById('tag-filter-area').classList.add('hidden');
         document.getElementById('tag-pagination-area').classList.add('hidden');
-        const tagPaginationTop = document.getElementById('tag-pagination-top');
-        if (tagPaginationTop) {
-            tagPaginationTop.classList.add('hidden');
-            tagPaginationTop.style.display = 'none';
-        }
+        const tagPaginationTopArea = document.getElementById('tag-pagination-top-area');
+        if (tagPaginationTopArea) tagPaginationTopArea.style.display = 'none';
         document.getElementById('tag-back-area').classList.add('hidden');
         document.getElementById('tag-filtered-results').innerHTML = '';
     }
@@ -7199,11 +7250,9 @@ function backToTagList() {
 
     document.getElementById('tag-pagination-area')
         .classList.add('hidden');
-    const tagPaginationTop = document.getElementById('tag-pagination-top');
-    if (tagPaginationTop) {
-        tagPaginationTop.classList.add('hidden');
-        tagPaginationTop.style.display = 'none';
-    }
+
+    const tagPaginationTopArea = document.getElementById('tag-pagination-top-area');
+    if (tagPaginationTopArea) tagPaginationTopArea.style.display = 'none';
 
     document.getElementById('tag-filtered-results')
         .innerHTML='';
@@ -7215,6 +7264,11 @@ function backToTagList() {
 }
 function renderTagPage() {
     if (!currentTag) return;
+
+    const tagResults = document.getElementById('tag-filtered-results');
+    const tagPaginationTopArea = document.getElementById('tag-pagination-top-area');
+    const tagPaginationArea = document.getElementById('tag-pagination-area');
+    const tagPageInfoTop = document.getElementById('tag-page-info-top');
 
     let filtered = diaries.filter(d => d.tags && d.tags.includes(currentTag));
 
@@ -7233,6 +7287,13 @@ function renderTagPage() {
     const start = (tagPage - 1) * TAG_PAGE_SIZE;
     const visible = filtered.slice(start, start + TAG_PAGE_SIZE);
 
+    // 1ページ目では上部を表示しない。
+    // 2ページ目以降は、そのページの表示件数が7件以上のときだけ上部にも表示する。
+    if (tagPaginationTopArea) {
+        const showTopPagination = totalPages > 1 && visible.length >= 7;
+        tagPaginationTopArea.style.display = showTopPagination ? 'flex' : 'none';
+    }
+
     let resultsHTML = visible.map(d => `
         <div class="card diary-item" onclick="openViewer(${d.id})">
             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -7242,8 +7303,6 @@ function renderTagPage() {
             <div class="diary-title">${d.title}</div>
         </div>
     `).join('');
-
-    const tagResults = document.getElementById('tag-filtered-results');
 
     // 日記を開いたときと同じ fadeIn を、タグ選択のたびに最初から再生する。
     tagResults.classList.remove('tag-selection-transition');
@@ -7256,27 +7315,26 @@ function renderTagPage() {
 
     document.getElementById('tag-filter-area').classList.remove('hidden');
 
-    // 日記ページとまったく同じページネーション表示ルール。
-    // 1ページ目は通常非表示、ただし50件以上なら上下を表示。
-    // 2ページ目以降は下部を常に表示し、現在ページが10件以上なら上部も表示。
-    const tagPaginationArea = document.getElementById('tag-pagination-area');
+    // タグ内の日記が30件以下ならページネーションボタン自体を非表示
     if (tagPaginationArea) {
-        // 以前の状態で付いていた hidden を必ず解除してから表示状態を決める。
-        tagPaginationArea.classList.remove('hidden');
-        tagPaginationArea.style.display = (tagPage > 1 || filtered.length >= TAG_PAGE_SIZE) ? 'flex' : 'none';
-    }
-    const tagPaginationTop = document.getElementById('tag-pagination-top');
-    if (tagPaginationTop) {
-        tagPaginationTop.classList.remove('hidden');
-        tagPaginationTop.style.display = (tagPage > 1 && visible.length >= 7) || (tagPage === 1 && filtered.length >= TAG_PAGE_SIZE) ? 'flex' : 'none';
+        tagPaginationArea.classList.toggle('hidden', filtered.length <= TAG_PAGE_SIZE);
+        tagPaginationArea.style.display = filtered.length <= TAG_PAGE_SIZE ? 'none' : 'flex';
     }
 
     document.getElementById('tag-page-info').innerText = `${tagPage} / ${totalPages}`;
-    const tagPageTopInfo = document.getElementById('tag-page-top-info');
-    if (tagPageTopInfo) tagPageTopInfo.innerText = `${tagPage} / ${totalPages}`;
 
     updatePaginationButtons('tag-prev-btn', 'tag-next-btn', tagPage, totalPages);
-    updatePaginationButtons('tag-prev-top-btn', 'tag-next-top-btn', tagPage, totalPages);
+
+    if (tagPageInfoTop) {
+        tagPageInfoTop.innerText = `${tagPage} / ${totalPages}`;
+    }
+
+    updatePaginationButtons(
+        'tag-prev-top-btn',
+        'tag-next-top-btn',
+        tagPage,
+        totalPages
+    );
 
     const savedScroll = sessionStorage.getItem('savedTagScroll');
     if (savedScroll !== null) {
@@ -7287,10 +7345,6 @@ function renderTagPage() {
             if (maxScroll - scroll < 120) window.scrollTo(0, maxScroll);
             sessionStorage.removeItem('savedTagScroll');
         });
-    }
-
-    if (window.fadePaginationContainer) {
-        window.fadePaginationContainer(document.getElementById('tag-list') || document.getElementById('view-tags'));
     }
 }
 
@@ -7322,100 +7376,34 @@ function changeTagSort(order) {
     renderTagPage();
 }
 
+        function nextDiaryPage() { diaryPage++; renderDiaryList(); }
+function prevDiaryPage() { if (diaryPage > 1) { diaryPage--; renderDiaryList(); } }
 
-function restorePaginationScrollPosition(scrollY) {
-    const targetY = Number.isFinite(scrollY) ? scrollY : 0;
-    const html = document.documentElement;
-    const body = document.body;
-    const previousBehavior = html.style.scrollBehavior;
-    const previousOverflowAnchor = html.style.overflowAnchor;
-    const previousBodyOverflowAnchor = body.style.overflowAnchor;
-
-    html.style.scrollBehavior = 'auto';
-    body.style.scrollBehavior = 'auto';
-    // ページ再描画時のブラウザによる scroll anchoring の自動補正を止める。
-    html.style.overflowAnchor = 'none';
-    body.style.overflowAnchor = 'none';
-
-    const restore = () => {
-        window.scrollTo(0, targetY);
-        // 一部ブラウザで visual viewport 側が遅れて更新される場合にも追従。
-        if (window.scrollY !== targetY) {
-            window.scrollTo(0, targetY);
-        }
-    };
-
-    // 描画直後だけでなく、レイアウト確定後にも同じ位置を保持する。
-    restore();
-    requestAnimationFrame(() => {
-        restore();
-        requestAnimationFrame(() => {
-            restore();
-            setTimeout(restore, 30);
-            setTimeout(restore, 100);
-            setTimeout(() => {
-                restore();
-                html.style.scrollBehavior = previousBehavior;
-                body.style.scrollBehavior = previousBehavior;
-                html.style.overflowAnchor = previousOverflowAnchor;
-                body.style.overflowAnchor = previousBodyOverflowAnchor;
-            }, 220);
-        });
-    });
-}
-
-function scrollToDiaryPageTop() {
-    const list = document.getElementById('all-diaries-list');
-    if (!list) return;
-    const y = Math.max(0, window.scrollY + list.getBoundingClientRect().top - 16);
-    window.scrollTo({ top: y, behavior: 'auto' });
-}
-
-function nextDiaryPage() {
-    diaryPage++;
-    sessionStorage.setItem('savedDiaryPage', diaryPage);
-    renderDiaryList();
-    requestAnimationFrame(scrollToDiaryPageTop);
-}
-function prevDiaryPage() {
-    if (diaryPage > 1) {
-        diaryPage--;
-        sessionStorage.setItem('savedDiaryPage', diaryPage);
-        renderDiaryList();
-        requestAnimationFrame(scrollToDiaryPageTop);
-    }
-}
-
-function nextGalleryPage() {
-    const imgs = getGalleryImageList();
-    const totalPages = Math.max(1, Math.ceil(imgs.length / GALLERY_PAGE_SIZE));
-    if (galleryPage < totalPages) galleryPage++;
-    renderGallery();
-}
-
+function nextGalleryPage() { galleryPage++; renderGallery(); }
 function prevGalleryPage() {
-    if (galleryPage > 1) galleryPage--;
-    renderGallery();
-}
+    const previousPage = galleryPage;
 
-function nextTagPage() {
-    const savedScrollY = window.scrollY;
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+    if (galleryPage > 1) {
+        galleryPage--;
+        renderGallery();
 
-    tagPage++;
-    renderTagPage();
-    restorePaginationScrollPosition(savedScrollY);
-}
-function prevTagPage() {
-    const savedScrollY = window.scrollY;
-    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
-
-    if (tagPage > 1) {
-        tagPage--;
-        renderTagPage();
+        // 最終ページから「前へ」で戻る場合だけ、
+        // 短い最終ページによるスクロール位置のずれを防いで最下部へ即時移動する。
+        if (previousPage > galleryPage && previousPage === Math.ceil(getGalleryImageList().length / GALLERY_PAGE_SIZE)) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.scrollTo(0, document.documentElement.scrollHeight);
+                    setTimeout(() => {
+                        window.scrollTo(0, document.documentElement.scrollHeight);
+                    }, 80);
+                });
+            });
+        }
     }
-    restorePaginationScrollPosition(savedScrollY);
 }
+
+function nextTagPage() { tagPage++; renderTagPage(); }
+function prevTagPage() { if (tagPage > 1) { tagPage--; renderTagPage(); } }
         
         async function setTheme(t) {
             config.theme = t;
@@ -7501,11 +7489,11 @@ function buildDiaryExportHtml(entries,{title='A Certain Day\'s Memories',include
 <style>.export-bg-pattern{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;pointer-events:none;z-index:0}.export-bg-pattern span{position:absolute;display:block;line-height:1;user-select:none;-webkit-user-select:none}.export-bg-edamame span{opacity:.24;filter:saturate(.95);text-shadow:0 1px 2px rgba(0,0,0,.04)}.export-bg-scholar span{font-family:"Times New Roman","Georgia",serif;font-weight:700;color:rgba(0,0,0,.14);opacity:1;text-shadow:0 1px 1px rgba(255,255,255,.45)}.export-page{position:relative;z-index:1}
 /* ページ切り替え時のフェードイン */
 @keyframes pageContentFadeIn {
-    from { opacity: 0; transform: translateY(10px); }
+    from { opacity: 0; transform: translateY(4px); }
     to { opacity: 1; transform: translateY(0); }
 }
 .page-content-fade-in {
-    animation: pageContentFadeIn 0.3s ease both;
+    animation: pageContentFadeIn 240ms ease-out both;
 }
 @media (prefers-reduced-motion: reduce) {
     .page-content-fade-in {
@@ -8243,13 +8231,25 @@ function applyTheme() {
 
 <script>
 (function setupPaginationFade() {
-    // ページ切り替えは各ページ描画関数側で確実にフェードさせる。
-    window.fadePaginationContainer = function(container) {
-        if (!container) return;
-        container.classList.remove('page-content-fade-in');
-        void container.offsetWidth;
-        requestAnimationFrame(() => container.classList.add('page-content-fade-in'));
-    };
+    const paginationSelector = '.pagination button, .pagination a, [class*="pagination"] button, [class*="pagination"] a';
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest(paginationSelector);
+        if (!target) return;
+        // Only animate actual page navigation controls.
+        const label = (target.textContent || '').trim();
+        const aria = target.getAttribute('aria-label') || '';
+        const cls = target.className || '';
+        const isPageNav = /^(次|前|‹|›|«|»|<|>|\d+)$/.test(label) ||
+                          /next|prev|page|ページ|次|前/i.test(label + ' ' + aria + ' ' + cls);
+        if (!isPageNav) return;
+        requestAnimationFrame(function() {
+            const container = target.closest('.view, main, section, .container, [id^="view-"]');
+            if (!container) return;
+            container.classList.remove('page-content-fade-in');
+            void container.offsetWidth;
+            container.classList.add('page-content-fade-in');
+        });
+    }, true);
 })();
 </script>
 
@@ -8261,27 +8261,20 @@ function applyTheme() {
             '#view-support a, .support a, [id*="support"] a, a[href^="#support"], a[href*="support"]'
         );
         if (!link) return;
-
-        // ブラウザのアンカー移動後、実際に表示された説明ブロックを取得してフェード。
-        setTimeout(function() {
+        requestAnimationFrame(function() {
             const href = link.getAttribute('href') || '';
             let destination = null;
-            if (href.startsWith('#')) {
-                try { destination = document.querySelector(href); } catch (_) {}
-            }
+            if (href.startsWith('#')) destination = document.querySelector(href);
             if (!destination) {
                 destination = document.querySelector(
                     '#view-support, .support, [id*="support"]'
                 );
             }
             if (!destination) return;
-
             destination.classList.remove('page-content-fade-in');
             void destination.offsetWidth;
-            requestAnimationFrame(function() {
-                destination.classList.add('page-content-fade-in');
-            });
-        }, 40);
+            destination.classList.add('page-content-fade-in');
+        });
     }, true);
 })();
 </script>
