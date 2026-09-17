@@ -1935,6 +1935,11 @@ body[data-theme="cosmos"] {
         .view.active {
             display: block;
         }
+
+        /* タグ選択時も、日記を開いたときとまったく同じアニメーションを使用 */
+        .tag-selection-transition {
+            animation: fadeIn 0.3s ease;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -2198,6 +2203,32 @@ body[data-theme="cosmos"] {
         }
         .calendar-day:hover { background: #f0f0f0; }
 
+        /* カレンダーで日にちを選択したとき、表示内容をふわっと表示 */
+        @keyframes calendarSelectionFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        #selected-day-entries.calendar-selection-fade-in > * {
+            animation: calendarSelectionFadeIn 240ms ease-out both;
+        }
+        #selected-day-entries.calendar-selection-fade-in > *:nth-child(2) {
+            animation-delay: 20ms;
+        }
+        #selected-day-entries.calendar-selection-fade-in > *:nth-child(3) {
+            animation-delay: 40ms;
+        }
+        #selected-day-entries.calendar-selection-fade-in > *:nth-child(4) {
+            animation-delay: 60ms;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #selected-day-entries.calendar-selection-fade-in > * {
+                animation: none !important;
+            }
+            #img-modal img {
+                transition: none !important;
+            }
+        }
+
 /* 日記がある日をホバーしたときも、白ではなく現在のテーマに対応した薄い色を維持 */
 .has-diary:hover {
     background: color-mix(in srgb, var(--primary-color) 70%, var(--card-bg)) !important;
@@ -2417,6 +2448,8 @@ body[data-theme="cosmos"] {
             align-items: center;
             justify-content: center;
             overflow: hidden;
+    opacity: 0;
+    transition: opacity 220ms ease-out;
         }
         #gallery-open-diary-btn {
             position: absolute;
@@ -3521,6 +3554,11 @@ body[data-theme="cosmos"] {
 <option value="latestViewed">最近見た順</option>
 </select>
 </div>
+<div id="diary-pagination-top" style="display:none; justify-content:center; align-items:center; gap:12px; margin:0 0 20px; flex-wrap:wrap;">
+<button class="btn" id="diary-prev-top-btn" onclick="prevDiaryPage()">◀ 前へ</button>
+<span id="diary-page-top-info"></span>
+<button class="btn" id="diary-next-top-btn" onclick="nextDiaryPage()">次へ ▶</button>
+</div>
 <div id="all-diaries-list"></div>
 <div id="diary-pagination-area" style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
 <button class="btn" id="diary-prev-btn" onclick="prevDiaryPage()">◀ 前へ</button>
@@ -3641,8 +3679,13 @@ body[data-theme="cosmos"] {
 <option value="latestViewed">最近見た順</option>
 </select>
 </div>
+<div id="tag-pagination-top" style="display:none; justify-content:center; align-items:center; gap:12px; margin:0 0 20px; flex-wrap:wrap;">
+<button class="btn" id="tag-prev-top-btn" onclick="prevTagPage()">◀ 前へ</button>
+<span id="tag-page-top-info"></span>
+<button class="btn" id="tag-next-top-btn" onclick="nextTagPage()">次へ ▶</button>
+</div>
 <div id="tag-filtered-results"></div>
-<div class="hidden" id="tag-pagination-area" style="display:flex; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
+<div id="tag-pagination-area" style="display:none; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
 <button class="btn" id="tag-prev-btn" onclick="prevTagPage()">◀ 前へ</button>
 <span id="tag-page-info"></span>
 <button class="btn" id="tag-next-btn" onclick="nextTagPage()">次へ ▶</button>
@@ -4251,7 +4294,7 @@ let diaryPage = 1;
 let tagPage = 1;
 const DIARY_PAGE_SIZE = 50;
 let diarySortOrder = 'new';
-const TAG_PAGE_SIZE = 50;
+const TAG_PAGE_SIZE = 30;
 let tagSortOrder = 'new';
 let currentTag = null;
         
@@ -4505,11 +4548,8 @@ function checkNewYearFireworks() {
     renderAll();
     applyTheme();
 
-    // 起動時は常にホーム最上部へ。ブラウザのスクロール復元も上書きする。
-    requestAnimationFrame(() => {
-        window.scrollTo(0, 0);
-        setTimeout(() => window.scrollTo(0, 0), 50);
-    });
+    // 起動時は常にホーム最上部へ。遅延スクロールは行わない。
+    window.scrollTo(0, 0);
 
     checkNewYearFireworks(); 
 
@@ -4552,12 +4592,12 @@ function checkNewYearFireworks() {
             await saveConfig();
         }
 
-        function unlockApp() {
+        async function unlockApp() {
             const input = document.getElementById('pass-input').value;
             if (!config.password) {
                 if (input.length > 0) {
                     config.password = input;
-                    saveConfig();
+                    await saveConfig();
                     document.getElementById('lock-screen').style.transform = 'translateY(-100%)';
                     switchTab('home');
                     window.scrollTo(0, 0);
@@ -4672,6 +4712,11 @@ function checkNewYearFireworks() {
         document.getElementById('tag-filter-area').classList.add('hidden');
         document.getElementById('tag-filtered-results').innerHTML = '';
         document.getElementById('tag-pagination-area').classList.add('hidden');
+        const tagPaginationTop = document.getElementById('tag-pagination-top');
+        if (tagPaginationTop) {
+            tagPaginationTop.classList.add('hidden');
+            tagPaginationTop.style.display = 'none';
+        }
     }
 
     if (
@@ -4861,6 +4906,8 @@ function cancelEditor() {
     const returnView = editorReturnViewId || lastTabId || 'home';
     switchTab(returnView);
 }
+        // 通知メッセージは「開き直すたび」には変えず、2日間同じものを表示する。
+        // 日付の2日単位 + 予定IDから決定するため、再描画・タブ移動・アプリ再起動でも安定する。
         // 通知メッセージは「開き直すたび」には変えず、2日間同じものを表示する。
         // 日付の2日単位 + 予定IDから決定するため、再描画・タブ移動・アプリ再起動でも安定する。
         function getStableNotificationMessage(messages, scheduleId, dateObj) {
@@ -5296,7 +5343,7 @@ function updateGalleryNavigation() {
     modal.classList.add('gallery-navigation-active');
 }
 
-function closeImageModalDirect(event) {
+function closeImageModalDirect(event, immediate = false) {
     if (event) event.stopPropagation();
 
     const modal = document.getElementById('img-modal');
@@ -5309,7 +5356,16 @@ function closeImageModalDirect(event) {
     const isGallery = document.getElementById('view-gallery')?.classList.contains('active');
     const shouldRefreshGallery = isGallery && gallerySortOrder === 'latestViewed';
 
-    modal.style.display = 'none';
+    if (immediate) {
+        modal.style.opacity = '0';
+        modal.style.display = 'none';
+    } else {
+        modal.style.opacity = '0';
+        setTimeout(() => {
+            // 閉じる途中で再び開かれていたら、古いタイマーでは隠さない。
+            if (modal.style.opacity === '0') modal.style.display = 'none';
+        }, 220);
+    }
     modal.classList.remove('gallery-navigation-active');
 
     const modalImg = document.getElementById('modal-img');
@@ -5404,12 +5460,23 @@ function zoomImage(src, diaryId = null, galleryIndex = null) {
     const modalImg=document.getElementById('modal-img');
 
     modal.style.display='flex';
-    modalImg.style.opacity='1';
+    modal.style.opacity='0';
+    // 拡大表示した瞬間に、画像そのものをふわっとフェードインさせる。
+    modalImg.style.transition='none';
+    modalImg.style.opacity='0';
     modalImageScale=1;
     modalImageTranslateX = 0;
     modalImageTranslateY = 0;
     modalImg.style.transform='translate3d(0,0,0) scale(1)';
     modalImg.src=src;
+
+    // reflow後にopacityを戻して、既存の拡大画像用トランジションでフェードイン。
+    void modalImg.offsetWidth;
+    modalImg.style.transition='opacity 220ms ease-out, transform 190ms cubic-bezier(0.22, 0.8, 0.28, 1)';
+    requestAnimationFrame(() => {
+        modal.style.opacity='1';
+        modalImg.style.opacity='1';
+    });
 
     const modalDate = document.getElementById('img-modal-date');
     const sourceDiary = diaryId != null
@@ -5670,7 +5737,7 @@ function openCurrentImageDiary(event) {
 
     // 拡大表示を閉じる処理と日記ページへの切り替えを同じクリック処理内で実行する
     // immediate=true によりDB保存を待たず、視覚的にも同時に切り替わる
-    closeImageModalDirect();
+    closeImageModalDirect(null, true);
     openViewer(diary.id, true);
 }
 
@@ -6757,13 +6824,18 @@ function renderDiaryList() {
     }
 
     if (diaryControls) diaryControls.style.display = 'flex';
-    if (diaryPaginationArea) diaryPaginationArea.style.display = 'flex';
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / DIARY_PAGE_SIZE));
     if (diaryPage > totalPages) diaryPage = totalPages;
 
     const start = (diaryPage - 1) * DIARY_PAGE_SIZE;
     const visible = filtered.slice(start, start + DIARY_PAGE_SIZE);
+
+    // 日記ページは1ページ目ではページネーションを表示しない。
+    // 2ページ目以降は下部を常に表示し、現在ページに5件以上ある場合だけ上部にも表示する。
+    if (diaryPaginationArea) diaryPaginationArea.style.display = (diaryPage > 1 || diaries.length >= DIARY_PAGE_SIZE) ? 'flex' : 'none';
+    const diaryPaginationTop = document.getElementById('diary-pagination-top');
+    if (diaryPaginationTop) diaryPaginationTop.style.display = (diaryPage > 1 && visible.length >= 5) || (diaryPage === 1 && diaries.length >= DIARY_PAGE_SIZE) ? 'flex' : 'none';
 
     document.getElementById('all-diaries-list').innerHTML =
         visible.map(d => {
@@ -6796,35 +6868,47 @@ function renderDiaryList() {
 document.getElementById('diary-page-info').innerText =
     `${diaryPage} / ${totalPages}`;
 
+const diaryPageTopInfo = document.getElementById('diary-page-top-info');
+if (diaryPageTopInfo) diaryPageTopInfo.innerText = `${diaryPage} / ${totalPages}`;
+
 updatePaginationButtons(
     'diary-prev-btn',
     'diary-next-btn',
     diaryPage,
     totalPages
-);}
+);
+updatePaginationButtons(
+    'diary-prev-top-btn',
+    'diary-next-top-btn',
+    diaryPage,
+    totalPages
+);
+    if (window.fadePaginationContainer) {
+        window.fadePaginationContainer(document.getElementById('diary-list') || document.getElementById('view-diary'));
+    }
+}
         function nextDiaryPage() {
+    const savedScrollY = window.scrollY;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+
     diaryPage++;
-
-    sessionStorage.setItem(
-        'savedDiaryPage',
-        diaryPage
-    );
-
+    sessionStorage.setItem('savedDiaryPage', diaryPage);
     renderDiaryList();
+
+    restorePaginationScrollPosition(savedScrollY);
 }
 
 function prevDiaryPage() {
+    const savedScrollY = window.scrollY;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
 
     if (diaryPage > 1) {
         diaryPage--;
-
-        sessionStorage.setItem(
-            'savedDiaryPage',
-            diaryPage
-        );
+        sessionStorage.setItem('savedDiaryPage', diaryPage);
     }
 
     renderDiaryList();
+    restorePaginationScrollPosition(savedScrollY);
 }
 
 function changeDiarySort(order) {
@@ -6894,7 +6978,14 @@ onclick="showCalendarEntries('${dateStr}')">
         });
     }
     
-    document.getElementById('selected-day-entries').innerHTML = html;
+    const selectedEntries = document.getElementById('selected-day-entries');
+    if (selectedEntries) {
+        selectedEntries.classList.remove('calendar-selection-fade-in');
+        // class再付与前にreflowして、同じ日に再タップした場合も毎回アニメーションさせる。
+        void selectedEntries.offsetWidth;
+        selectedEntries.innerHTML = html;
+        selectedEntries.classList.add('calendar-selection-fade-in');
+    }
 }
 
 function openEditorWithDate(type, date) {
@@ -6905,8 +6996,7 @@ function openEditorWithDate(type, date) {
     const dateInput = document.getElementById('diary-date-input');
     if (dateInput) dateInput.value = date;
 }
-
-        function renderGallery() {
+function renderGallery() {
     const savedOrder = sessionStorage.getItem('gallerySortOrder');
     if (savedOrder && ['latestViewed', 'new', 'old'].includes(savedOrder)) {
         gallerySortOrder = savedOrder;
@@ -6941,7 +7031,7 @@ function openEditorWithDate(type, date) {
             <img
                 src="${obj.src}"
                 class="gallery-img"
-                loading="lazy"
+                loading="eager"
                 onclick="zoomImage('${obj.src}', ${obj.id}, ${start + index})"
             >
         `).join('');
@@ -6950,32 +7040,19 @@ function openEditorWithDate(type, date) {
     document.getElementById('gallery-page-info').innerText = `${galleryPage} / ${totalPages}`;
 
     updatePaginationButtons('gallery-prev-btn', 'gallery-next-btn', galleryPage, totalPages);
+
 }
 
+
 function nextGalleryPage() {
-
-    let totalImages = 0;
-
-    diaries.forEach(d => {
-        totalImages += (d.images || []).length;
-    });
-
-    const totalPages = Math.ceil(
-        totalImages / GALLERY_PAGE_SIZE
-    );
-
-    if (galleryPage < totalPages) {
-        galleryPage++;
-    }
-
+    const imgs = getGalleryImageList();
+    const totalPages = Math.max(1, Math.ceil(imgs.length / GALLERY_PAGE_SIZE));
+    if (galleryPage < totalPages) galleryPage++;
     renderGallery();
 }
 
 function prevGalleryPage() {
-    if (galleryPage > 1) {
-        galleryPage--;
-    }
-
+    if (galleryPage > 1) galleryPage--;
     renderGallery();
 }
 
@@ -7072,6 +7149,11 @@ invalidateCaches();
         document.getElementById('tags-cloud').classList.remove('hidden');
         document.getElementById('tag-filter-area').classList.add('hidden');
         document.getElementById('tag-pagination-area').classList.add('hidden');
+        const tagPaginationTop = document.getElementById('tag-pagination-top');
+        if (tagPaginationTop) {
+            tagPaginationTop.classList.add('hidden');
+            tagPaginationTop.style.display = 'none';
+        }
         document.getElementById('tag-back-area').classList.add('hidden');
         document.getElementById('tag-filtered-results').innerHTML = '';
     }
@@ -7117,6 +7199,11 @@ function backToTagList() {
 
     document.getElementById('tag-pagination-area')
         .classList.add('hidden');
+    const tagPaginationTop = document.getElementById('tag-pagination-top');
+    if (tagPaginationTop) {
+        tagPaginationTop.classList.add('hidden');
+        tagPaginationTop.style.display = 'none';
+    }
 
     document.getElementById('tag-filtered-results')
         .innerHTML='';
@@ -7156,16 +7243,40 @@ function renderTagPage() {
         </div>
     `).join('');
 
-    document.getElementById('tag-filtered-results').innerHTML = `
+    const tagResults = document.getElementById('tag-filtered-results');
+
+    // 日記を開いたときと同じ fadeIn を、タグ選択のたびに最初から再生する。
+    tagResults.classList.remove('tag-selection-transition');
+    void tagResults.offsetWidth;
+    tagResults.innerHTML = `
         <h4>タグ: ${currentTag} (${filtered.length}件)</h4>
         ${resultsHTML || '<p style="opacity:0.6; padding:20px;">該当する日記はありません</p>'}
     `;
+    tagResults.classList.add('tag-selection-transition');
 
     document.getElementById('tag-filter-area').classList.remove('hidden');
-    document.getElementById('tag-pagination-area').classList.remove('hidden');
+
+    // 日記ページとまったく同じページネーション表示ルール。
+    // 1ページ目は通常非表示、ただし50件以上なら上下を表示。
+    // 2ページ目以降は下部を常に表示し、現在ページが10件以上なら上部も表示。
+    const tagPaginationArea = document.getElementById('tag-pagination-area');
+    if (tagPaginationArea) {
+        // 以前の状態で付いていた hidden を必ず解除してから表示状態を決める。
+        tagPaginationArea.classList.remove('hidden');
+        tagPaginationArea.style.display = (tagPage > 1 || filtered.length >= TAG_PAGE_SIZE) ? 'flex' : 'none';
+    }
+    const tagPaginationTop = document.getElementById('tag-pagination-top');
+    if (tagPaginationTop) {
+        tagPaginationTop.classList.remove('hidden');
+        tagPaginationTop.style.display = (tagPage > 1 && visible.length >= 7) || (tagPage === 1 && filtered.length >= TAG_PAGE_SIZE) ? 'flex' : 'none';
+    }
+
     document.getElementById('tag-page-info').innerText = `${tagPage} / ${totalPages}`;
+    const tagPageTopInfo = document.getElementById('tag-page-top-info');
+    if (tagPageTopInfo) tagPageTopInfo.innerText = `${tagPage} / ${totalPages}`;
 
     updatePaginationButtons('tag-prev-btn', 'tag-next-btn', tagPage, totalPages);
+    updatePaginationButtons('tag-prev-top-btn', 'tag-next-top-btn', tagPage, totalPages);
 
     const savedScroll = sessionStorage.getItem('savedTagScroll');
     if (savedScroll !== null) {
@@ -7176,6 +7287,10 @@ function renderTagPage() {
             if (maxScroll - scroll < 120) window.scrollTo(0, maxScroll);
             sessionStorage.removeItem('savedTagScroll');
         });
+    }
+
+    if (window.fadePaginationContainer) {
+        window.fadePaginationContainer(document.getElementById('tag-list') || document.getElementById('view-tags'));
     }
 }
 
@@ -7207,14 +7322,100 @@ function changeTagSort(order) {
     renderTagPage();
 }
 
-        function nextDiaryPage() { diaryPage++; renderDiaryList(); }
-function prevDiaryPage() { if (diaryPage > 1) { diaryPage--; renderDiaryList(); } }
 
-function nextGalleryPage() { galleryPage++; renderGallery(); }
-function prevGalleryPage() { if (galleryPage > 1) { galleryPage--; renderGallery(); } }
+function restorePaginationScrollPosition(scrollY) {
+    const targetY = Number.isFinite(scrollY) ? scrollY : 0;
+    const html = document.documentElement;
+    const body = document.body;
+    const previousBehavior = html.style.scrollBehavior;
+    const previousOverflowAnchor = html.style.overflowAnchor;
+    const previousBodyOverflowAnchor = body.style.overflowAnchor;
 
-function nextTagPage() { tagPage++; renderTagPage(); }
-function prevTagPage() { if (tagPage > 1) { tagPage--; renderTagPage(); } }
+    html.style.scrollBehavior = 'auto';
+    body.style.scrollBehavior = 'auto';
+    // ページ再描画時のブラウザによる scroll anchoring の自動補正を止める。
+    html.style.overflowAnchor = 'none';
+    body.style.overflowAnchor = 'none';
+
+    const restore = () => {
+        window.scrollTo(0, targetY);
+        // 一部ブラウザで visual viewport 側が遅れて更新される場合にも追従。
+        if (window.scrollY !== targetY) {
+            window.scrollTo(0, targetY);
+        }
+    };
+
+    // 描画直後だけでなく、レイアウト確定後にも同じ位置を保持する。
+    restore();
+    requestAnimationFrame(() => {
+        restore();
+        requestAnimationFrame(() => {
+            restore();
+            setTimeout(restore, 30);
+            setTimeout(restore, 100);
+            setTimeout(() => {
+                restore();
+                html.style.scrollBehavior = previousBehavior;
+                body.style.scrollBehavior = previousBehavior;
+                html.style.overflowAnchor = previousOverflowAnchor;
+                body.style.overflowAnchor = previousBodyOverflowAnchor;
+            }, 220);
+        });
+    });
+}
+
+function scrollToDiaryPageTop() {
+    const list = document.getElementById('all-diaries-list');
+    if (!list) return;
+    const y = Math.max(0, window.scrollY + list.getBoundingClientRect().top - 16);
+    window.scrollTo({ top: y, behavior: 'auto' });
+}
+
+function nextDiaryPage() {
+    diaryPage++;
+    sessionStorage.setItem('savedDiaryPage', diaryPage);
+    renderDiaryList();
+    requestAnimationFrame(scrollToDiaryPageTop);
+}
+function prevDiaryPage() {
+    if (diaryPage > 1) {
+        diaryPage--;
+        sessionStorage.setItem('savedDiaryPage', diaryPage);
+        renderDiaryList();
+        requestAnimationFrame(scrollToDiaryPageTop);
+    }
+}
+
+function nextGalleryPage() {
+    const imgs = getGalleryImageList();
+    const totalPages = Math.max(1, Math.ceil(imgs.length / GALLERY_PAGE_SIZE));
+    if (galleryPage < totalPages) galleryPage++;
+    renderGallery();
+}
+
+function prevGalleryPage() {
+    if (galleryPage > 1) galleryPage--;
+    renderGallery();
+}
+
+function nextTagPage() {
+    const savedScrollY = window.scrollY;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+
+    tagPage++;
+    renderTagPage();
+    restorePaginationScrollPosition(savedScrollY);
+}
+function prevTagPage() {
+    const savedScrollY = window.scrollY;
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+
+    if (tagPage > 1) {
+        tagPage--;
+        renderTagPage();
+    }
+    restorePaginationScrollPosition(savedScrollY);
+}
         
         async function setTheme(t) {
             config.theme = t;
@@ -7297,7 +7498,21 @@ function buildDiaryExportHtml(entries,{title='A Certain Day\'s Memories',include
   const schedulesHtml=includeSchedules&&(schedules||[]).length?`<section class="export-schedules"><div class="export-section-label">SCHEDULE</div><h2>予定</h2>${schedules.map(x=>`<article class="export-diary-card export-schedule-card"><div class="export-card-top"><div class="export-date">${escapeExportHtml(x.date||'')}</div></div><h2 class="export-title">${escapeExportHtml(x.title||'無題')}</h2><div class="export-content">${linkifyViewerContent(x.content||'')}</div></article>`).join('')}</section>`:'';
   return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>${escapeExportHtml(title)}</title><style>${getExportThemeStyles()}
 :root{color-scheme:light dark}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:var(--bg-color,#f6f4f1);color:var(--text-color,#292725);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}.export-page{width:min(980px,calc(100% - 32px));margin:0 auto;padding:34px 0 72px}.export-header{position:relative;text-align:center;padding:24px 22px 25px;margin:0 0 30px;background:var(--card-bg,#fff);border:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);border-radius:32px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}.export-header-brand{margin:0 0 8px;color:var(--text-color,#333);font-family:"Arial Rounded MT Bold","Trebuchet MS","Segoe UI",sans-serif;font-size:.68rem;font-weight:900;letter-spacing:.18em;line-height:1;text-transform:uppercase;opacity:.58}.export-header h1{margin:0;color:var(--primary-color,#333);font-size:clamp(1.65rem,4vw,2.45rem);line-height:1.2;letter-spacing:.025em}.export-header p{margin:10px 0 0;opacity:.55;font-size:.75rem}.export-header:after{content:"";display:block;margin:17px auto 0;width:58px;height:2px;background:var(--accent-color,var(--primary-color,#777));border-radius:99px}.export-diary-card{position:relative;margin:0 0 26px;padding:26px clamp(20px,4vw,34px);background:var(--card-bg,#fff);color:var(--text-color,#333);border:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);border-radius:24px;box-shadow:0 12px 35px rgba(0,0,0,.055);overflow:hidden}.export-card-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}.export-date{font-size:.78rem;font-weight:800;letter-spacing:.08em;opacity:.62}.export-mood{font-size:2rem;line-height:1}.export-heading{padding-bottom:16px;border-bottom:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);margin-bottom:18px}.export-title{margin:0 0 12px;color:var(--primary-color,#333);font-size:clamp(1.35rem,3vw,1.8rem);line-height:1.35;word-break:break-word}.export-content{line-height:1.95;word-break:break-word;overflow-wrap:normal;font-size:.96rem}.export-content p{margin:0 0 1em}.export-content a{color:var(--accent-color,#06c)}.export-tags{display:flex;flex-wrap:wrap;gap:7px}.export-tag{display:inline-block;padding:4px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent-color,#ddd) 18%,transparent);border:1px solid color-mix(in srgb,var(--accent-color,#ddd) 32%,transparent);color:var(--text-color,#333);font-size:.72rem;font-weight:700}.export-photo-album{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:minmax(90px,8vw);grid-auto-flow:dense;gap:8px;margin-top:24px;padding:8px;border-radius:20px;background:color-mix(in srgb,var(--text-color,#333) 4%,transparent)}.export-photo{position:relative;margin:0;min-width:0;overflow:hidden;border-radius:13px;background:var(--bg-color,#eee);box-shadow:0 3px 12px rgba(0,0,0,.08);cursor:zoom-in}.export-photo img{display:block;width:100%;height:100%;object-fit:cover}.export-photo figcaption{position:absolute;right:7px;bottom:7px;min-width:21px;height:21px;padding:0 5px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:.65rem;font-weight:800}.export-photo-album.count-1 .export-photo{grid-column:span 6;grid-row:span 4}.export-photo-album.count-2 .export-photo{grid-column:span 3;grid-row:span 4}.export-photo-album.count-3 .export-photo:first-child{grid-column:span 4;grid-row:span 5}.export-photo-album.count-3 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-4 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-4 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-5 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-5 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-6 .export-photo{grid-column:span 2;grid-row:span 2}.export-photo-album.count-7 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-7 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-8 .export-photo,.export-photo-album.count-9 .export-photo{grid-column:span 2;grid-row:span 2}.export-schedules{margin-top:44px}.export-section-label{font-size:.68rem;letter-spacing:.2em;font-weight:900;opacity:.5}.export-schedules>h2{margin:5px 0 18px;color:var(--primary-color,#333)}.export-schedule-card{padding:20px 24px;border-radius:20px}.export-schedule-card .export-title{font-size:1.15rem}.export-footer{text-align:center;margin-top:36px;font-size:.72rem;opacity:.45}.export-lightbox{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);z-index:2000;display:none;align-items:center;justify-content:center;overflow:hidden}.export-lightbox.is-open{display:flex}.export-lightbox.gallery-navigation-active .export-lb-img{max-width:calc(100% - 150px)}.export-lb-img{max-width:95%;max-height:95%;object-fit:contain;transition:opacity 180ms ease-out,transform 190ms cubic-bezier(.22,.8,.28,1);will-change:opacity,transform;border-radius:3px;box-shadow:0 10px 30px rgba(0,0,0,.6);touch-action:none;user-select:none;-webkit-user-select:none;cursor:default}.export-lb-btn{position:absolute;width:48px;height:48px;border:1px solid rgba(255,255,255,.24);border-radius:50%;background:rgba(20,20,20,.62);color:#fff;display:none;align-items:center;justify-content:center;padding:0;cursor:pointer;z-index:20;box-shadow:0 6px 20px rgba(0,0,0,.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background 140ms ease,opacity 140ms ease;-webkit-tap-highlight-color:transparent;font-size:30px;line-height:1}.export-lb-btn:hover:not(:disabled){background:rgba(255,255,255,.18)}.export-lb-btn:active:not(:disabled){transform:none}.export-lb-btn:disabled{opacity:.22;cursor:default}.export-lb-prev{right:70px;left:auto;bottom:16px;top:auto;transform:none}.export-lb-next{right:16px;left:auto;bottom:16px;top:auto;transform:none}.export-lb-counter{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);padding:5px 10px;border-radius:999px;background:rgba(0,0,0,.45);color:#fff;font-size:12px;z-index:22}.export-no-scroll{overflow:hidden}@media(max-width:600px){.export-page{width:min(100% - 20px,980px);padding-top:20px}.export-header{padding:21px 17px 22px;border-radius:26px}.export-diary-card{padding:20px 16px;border-radius:19px}.export-photo-album{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(100px,30vw);gap:6px;padding:6px;border-radius:16px}.export-photo-album .export-photo{grid-column:span 1!important;grid-row:span 1!important}.export-photo-album.count-1 .export-photo{grid-column:span 2!important;grid-row:span 3!important}.export-photo-album.count-2 .export-photo{grid-row:span 2!important}.export-photo-album.count-3 .export-photo:first-child,.export-photo-album.count-4 .export-photo:first-child,.export-photo-album.count-5 .export-photo:first-child{grid-column:span 2!important;grid-row:span 2!important}.export-lightbox.gallery-navigation-active .export-lb-img{max-width:94%;max-height:calc(100vh - 110px)}.export-lb-btn{width:46px;height:46px}.export-lb-prev{right:72px;left:auto;bottom:max(14px,env(safe-area-inset-bottom));top:auto;transform:none}.export-lb-next{right:16px;left:auto;bottom:max(14px,env(safe-area-inset-bottom));top:auto;transform:none}.export-lb-counter{bottom:22px}}@media print{body{background:#fff!important}.export-page{width:auto;padding:0}.export-diary-card{break-inside:avoid;box-shadow:none}.export-photo img{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
-<style>.export-bg-pattern{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;pointer-events:none;z-index:0}.export-bg-pattern span{position:absolute;display:block;line-height:1;user-select:none;-webkit-user-select:none}.export-bg-edamame span{opacity:.24;filter:saturate(.95);text-shadow:0 1px 2px rgba(0,0,0,.04)}.export-bg-scholar span{font-family:"Times New Roman","Georgia",serif;font-weight:700;color:rgba(0,0,0,.14);opacity:1;text-shadow:0 1px 1px rgba(255,255,255,.45)}.export-page{position:relative;z-index:1}</style></head><body data-theme="${theme}" class="${font}">${exportBg}<main class="export-page"><header class="export-header"><div class="export-header-brand">DEJICHO · OFFLINE DIARY</div><h1>${escapeExportHtml(title)}</h1><p>書き出し日 ${escapeExportHtml(exportedDate)}</p></header>${cards||'<p style="text-align:center;opacity:.6">日記はありません。</p>'}${schedulesHtml}<div class="export-footer">このページは「でじ帖」から書き出されました。</div></main><div class="export-lightbox" id="export-lightbox" aria-hidden="true"><button class="export-lb-btn export-lb-prev" id="export-lb-prev" aria-label="前の画像">‹</button><button class="export-lb-btn export-lb-next" id="export-lb-next" aria-label="次の画像">›</button><img id="export-lb-img" class="export-lb-img" src="" alt="拡大画像"></div><script>(function(){
+<style>.export-bg-pattern{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;pointer-events:none;z-index:0}.export-bg-pattern span{position:absolute;display:block;line-height:1;user-select:none;-webkit-user-select:none}.export-bg-edamame span{opacity:.24;filter:saturate(.95);text-shadow:0 1px 2px rgba(0,0,0,.04)}.export-bg-scholar span{font-family:"Times New Roman","Georgia",serif;font-weight:700;color:rgba(0,0,0,.14);opacity:1;text-shadow:0 1px 1px rgba(255,255,255,.45)}.export-page{position:relative;z-index:1}
+/* ページ切り替え時のフェードイン */
+@keyframes pageContentFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.page-content-fade-in {
+    animation: pageContentFadeIn 0.3s ease both;
+}
+@media (prefers-reduced-motion: reduce) {
+    .page-content-fade-in {
+        animation: none !important;
+    }
+}
+</style></head><body data-theme="${theme}" class="${font}">${exportBg}<main class="export-page"><header class="export-header"><div class="export-header-brand">DEJICHO · OFFLINE DIARY</div><h1>${escapeExportHtml(title)}</h1><p>書き出し日 ${escapeExportHtml(exportedDate)}</p></header>${cards||'<p style="text-align:center;opacity:.6">日記はありません。</p>'}${schedulesHtml}<div class="export-footer">このページは「でじ帖」から書き出されました。</div></main><div class="export-lightbox" id="export-lightbox" aria-hidden="true"><button class="export-lb-btn export-lb-prev" id="export-lb-prev" aria-label="前の画像">‹</button><button class="export-lb-btn export-lb-next" id="export-lb-next" aria-label="次の画像">›</button><img id="export-lb-img" class="export-lb-img" src="" alt="拡大画像"></div><script>(function(){
 const modal=document.getElementById('export-lightbox'),img=document.getElementById('export-lb-img'),prevBtn=document.getElementById('export-lb-prev'),nextBtn=document.getElementById('export-lb-next');
 if(!modal||!img)return;
 const images=Array.from(document.querySelectorAll('.export-photo img'));
@@ -8025,7 +8240,51 @@ function applyTheme() {
     updateCounter();
 })();
 </script>
+
+<script>
+(function setupPaginationFade() {
+    // ページ切り替えは各ページ描画関数側で確実にフェードさせる。
+    window.fadePaginationContainer = function(container) {
+        if (!container) return;
+        container.classList.remove('page-content-fade-in');
+        void container.offsetWidth;
+        requestAnimationFrame(() => container.classList.add('page-content-fade-in'));
+    };
+})();
+</script>
+
+
+<script>
+(function setupSupportNavigationFade() {
+    document.addEventListener('click', function(e) {
+        const link = e.target.closest(
+            '#view-support a, .support a, [id*="support"] a, a[href^="#support"], a[href*="support"]'
+        );
+        if (!link) return;
+
+        // ブラウザのアンカー移動後、実際に表示された説明ブロックを取得してフェード。
+        setTimeout(function() {
+            const href = link.getAttribute('href') || '';
+            let destination = null;
+            if (href.startsWith('#')) {
+                try { destination = document.querySelector(href); } catch (_) {}
+            }
+            if (!destination) {
+                destination = document.querySelector(
+                    '#view-support, .support, [id*="support"]'
+                );
+            }
+            if (!destination) return;
+
+            destination.classList.remove('page-content-fade-in');
+            void destination.offsetWidth;
+            requestAnimationFrame(function() {
+                destination.classList.add('page-content-fade-in');
+            });
+        }, 40);
+    }, true);
+})();
+</script>
+
 </body>
 </html>
-
-    
