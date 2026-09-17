@@ -4383,8 +4383,18 @@ if (config.hasUnlockedMaster) {
                     if (!db.objectStoreNames.contains('config')) db.createObjectStore('config', { keyPath: 'key' });
                     if (!db.objectStoreNames.contains('schedules')) db.createObjectStore('schedules', { keyPath: 'id' });
                 };
-                request.onsuccess = (e) => { db = e.target.result; resolve(); };
-                request.onerror = (e) => reject(e.target.error);
+                request.onsuccess = (e) => {
+                    db = e.target.result;
+                    db.onversionchange = () => {
+                        db.close();
+                        db = null;
+                    };
+                    db.onclose = () => {
+                        db = null;
+                    };
+                    resolve();
+                };
+                request.onerror = (e) => reject(e.target.error || new Error('IndexedDBの初期化に失敗しました'));
             });
         }
 
@@ -4427,12 +4437,6 @@ async function cleanupPassedSchedules(force = false) {
     
     invalidateCaches();
     
-    const isCalendarActive = document.getElementById('view-calendar').classList.contains('active');
-    const isHomeActive = document.getElementById('view-home').classList.contains('active');
-    
-    if (isCalendarActive) renderCalendar();
-    if (isHomeActive) renderDashboard();
-    
     console.log(`✅ ${passedSchedules.length}件の過去予定を削除完了`);
 }
         async function saveDataToDB(storeName, data) {
@@ -4467,18 +4471,34 @@ async function cleanupPassedSchedules(force = false) {
         }
 
         async function getAllFromDB(storeName) {
-            return new Promise((resolve) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const request = tx.objectStore(storeName).getAll();
-                request.onsuccess = () => resolve(request.result);
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                try {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const request = tx.objectStore(storeName).getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error || tx.error || new Error('データの読み込みに失敗しました'));
+                    tx.onerror = () => reject(tx.error || new Error('データの読み込みに失敗しました'));
+                    tx.onabort = () => reject(tx.error || new Error('データの読み込みが中断されました'));
+                } catch (error) {
+                    reject(error);
+                }
             });
         }
 
         async function getFromDB(storeName, id) {
-            return new Promise((resolve) => {
-                const tx = db.transaction(storeName, 'readonly');
-                const request = tx.objectStore(storeName).get(id);
-                request.onsuccess = () => resolve(request.result);
+            if (!db) await initDB();
+            return new Promise((resolve, reject) => {
+                try {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const request = tx.objectStore(storeName).get(id);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error || tx.error || new Error('データの読み込みに失敗しました'));
+                    tx.onerror = () => reject(tx.error || new Error('データの読み込みに失敗しました'));
+                    tx.onabort = () => reject(tx.error || new Error('データの読み込みが中断されました'));
+                } catch (error) {
+                    reject(error);
+                }
             });
         }
 
@@ -5031,7 +5051,7 @@ else if (diffDays === 183) dayText = "6ヶ月後に";
             card.style.padding = "4px 0";
             card.style.lineHeight = "1.4";
             card.style.cursor = "pointer";
-            card.innerHTML = `<strong>${dayText}「${s.title}」の予定があります。</strong><br>${randomMsg}`;　
+            card.innerHTML = `<strong>${escapeHTML(dayText)}「${escapeHTML(s.title)}」の予定があります。</strong><br>${escapeHTML(randomMsg)}`;　
             
             card.onclick = (e) => {
                 e.stopPropagation();
@@ -5090,7 +5110,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
         } else if (diarySortOrder === 'new') {
             filtered.sort((a, b) => b.date.localeCompare(a.date));
         } else {
-            filtered.sort((a, b) => b.date.localeCompare(a.date));
+            filtered.sort((a, b) => a.date.localeCompare(b.date));
         }
 
         const index = filtered.findIndex(d => d.id == id);
@@ -5249,7 +5269,7 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
 
         document.getElementById('viewer-content').innerHTML = linkifyViewerContent(item.content || '');
         document.getElementById('viewer-tags').innerHTML = (item.tags || [])
-            .map(t => `<span class="tag-badge">${t}</span>`).join('');
+            .map(t => `<span class="tag-badge">${escapeHTML(t)}</span>`).join('');
 
         
         charCountEl.style.display = 'block';
@@ -6482,7 +6502,7 @@ document.getElementById('status-greeting').innerText = greetingText;
                 entryDate.setHours(0,0,0,0); 
                 return entryDate >= threeDaysAgo; 
             });
-            document.getElementById('recent-diaries').innerHTML = recentFiltered.length ? recentFiltered.map(d => `<div class="diary-item" onclick="openViewer(${d.id})"><div class="diary-date">${d.date}</div><div class="diary-title">${d.title}</div><div class="diary-preview">${d.content.replace(/<[^>]*>/g, '')}</div></div>`).join('') : '<p style="font-size: 0.9rem; opacity: 0.6;">過去3日間の日記はありません。</p>';
+            document.getElementById('recent-diaries').innerHTML = recentFiltered.length ? recentFiltered.map(d => `<div class="diary-item" onclick="openViewer(${d.id})"><div class="diary-date">${escapeHTML(d.date)}</div><div class="diary-title">${escapeHTML(d.title)}</div><div class="diary-preview">${escapeHTML(d.content.replace(/<[^>]*>/g, ''))}</div></div>`).join('') : '<p style="font-size: 0.9rem; opacity: 0.6;">過去3日間の日記はありません。</p>';
 
             const flashbackContainer = document.getElementById('flashback-container');
             const periods = [{ label: '1週間前', days: 7 }, { label: '1ヶ月前', months: 1 }, { label: '3ヶ月前', months: 3 }, { label: '6ヶ月前', months: 6 }, { label: '1年前', years: 1 }, { label: '2年前', years: 2 }, { label: '3年前', years: 3 },{ label: '4年前', years: 4 }, { label: '5年前', years: 5 }, { label: '7年前', years: 7 }, { label: '10年前', years: 10 }, { label: '15年前', years: 15 },{ label: '20年前', years: 20 }];
@@ -6502,8 +6522,8 @@ if (entry && entry.length > 0) {
   foundCount++; 
   flashbackHtml += `
     <div class="flashback-item" onclick="openViewer(${d.id})">
-      <div class="flashback-label">${p.label} (${d.date})</div>
-      <div style="font-weight:bold;">${d.title}</div>
+      <div class="flashback-label">${escapeHTML(p.label)} (${escapeHTML(d.date)})</div>
+      <div style="font-weight:bold;">${escapeHTML(d.title)}</div>
     </div>`;
 }
 });
@@ -6575,8 +6595,8 @@ function renderSchedules() {
 
     container.innerHTML = upcoming.map(s => `
         <div class="diary-item" style="border-left: 4px solid var(--accent-color); cursor:pointer;" onclick="openViewer(${s.id})">
-            <div class="diary-date">${s.date}</div>
-            <div class="diary-title">${s.title}</div>
+            <div class="diary-date">${escapeHTML(s.date)}</div>
+            <div class="diary-title">${escapeHTML(s.title)}</div>
         </div>
     `).join('');
 }
@@ -6812,6 +6832,15 @@ function normalizeSearchText(value) {
         .trim();
 }
 
+function escapeHTML(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function renderDiaryList() {
     const search = normalizeSearchText(document.getElementById('search-input').value);
     const searchDate = document.getElementById('search-date-input').value;
@@ -6835,7 +6864,7 @@ function renderDiaryList() {
     } else if (diarySortOrder === 'new') {
         filtered.sort((a, b) => b.date.localeCompare(a.date));
     } else { 
-        filtered.sort((a, b) => b.date.localeCompare(a.date));
+        filtered.sort((a, b) => a.date.localeCompare(b.date));
     }
 
     // 日記がまだ1件も保存されていない場合は、タグページと同様の空状態UIにする。
@@ -6888,12 +6917,12 @@ function renderDiaryList() {
             return `
             <div class="card diary-item" onclick="saveDiaryListScroll(); openViewer(${d.id})">
                 <div style="display:flex; justify-content:space-between;">
-                    <span class="diary-date">${date}</span>
+                    <span class="diary-date">${escapeHTML(date)}</span>
                     <span>${['','😭','😡','😐','😊','🤩'][d.mood] || ''}</span>
                 </div>
-                <div class="diary-title">${title}</div>
+                <div class="diary-title">${escapeHTML(title)}</div>
                 <div class="diary-preview">${preview}${content.replace(/<[^>]*>/g,'').trim().length > 100 ? '...' : ''}</div>
-                <div style="margin-top:5px;">${tags.map(t=>`<span class="tag-badge">${String(t)}</span>`).join('')}</div>
+                <div style="margin-top:5px;">${tags.map(t=>`<span class="tag-badge">${escapeHTML(t)}</span>`).join('')}</div>
             </div>
             `;
         }).join('');
@@ -6960,8 +6989,8 @@ function filterBySpecificDate(date) {
     renderDiaryList();
 }
 
-        function renderCalendar() {
-            cleanupPassedSchedules();
+        async function renderCalendar() {
+            await cleanupPassedSchedules();
             const year = calendarDate.getFullYear(); const month = calendarDate.getMonth();
             document.getElementById('calendar-month-year').innerText = `${year}年${month + 1}月`;
             const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -6993,7 +7022,7 @@ onclick="showCalendarEntries('${dateStr}')">
     const dEntries = diaries.filter(d => d.date === date); 
     const sEntries = schedules.filter(s => s.date === date);
     
-    let html = `<h4>${date} の記録</h4>`;
+    let html = `<h4>${escapeHTML(date)} の記録</h4>`;
     
     if (dEntries.length === 0 && sEntries.length === 0) {
         html += `
@@ -7004,12 +7033,12 @@ onclick="showCalendarEntries('${dateStr}')">
     } else {
         dEntries.forEach(d => { 
             html += `<div class="card diary-item" onclick="openViewer(${d.id})">
-                <span style="font-size:0.8rem; color:var(--primary-color);">[日記]</span> ${d.title}
+                <span style="font-size:0.8rem; color:var(--primary-color);">[日記]</span> ${escapeHTML(d.title)}
             </div>`; 
         });
         sEntries.forEach(s => { 
             html += `<div class="card diary-item" onclick="openViewer(${s.id})">
-                <span style="font-size:0.8rem; color:var(--accent-color);">[予定]</span> ${s.title}
+                <span style="font-size:0.8rem; color:var(--accent-color);">[予定]</span> ${escapeHTML(s.title)}
             </div>`; 
         });
     }
@@ -7083,6 +7112,38 @@ function openEditorWithDate(type, date) {
     updatePaginationButtons('gallery-prev-btn', 'gallery-next-btn', galleryPage, totalPages);
 }
 
+function scrollGalleryToBottom() {
+    // ギャラリーのページ切り替えでは「スクロール」ではなく、
+    // 現在のドキュメント最下部へ瞬時にジャンプする。
+    // ページ全体に scroll-behavior:smooth が指定されていても
+    // この処理だけはアニメーションさせない。
+    const root = document.documentElement;
+    const body = document.body;
+    const previousRootBehavior = root.style.scrollBehavior;
+    const previousBodyBehavior = body ? body.style.scrollBehavior : '';
+
+    root.style.scrollBehavior = 'auto';
+    if (body) body.style.scrollBehavior = 'auto';
+
+    const bottom = Math.max(0, root.scrollHeight - window.innerHeight);
+    window.scrollTo({
+        left: 0,
+        top: bottom,
+        behavior: 'instant'
+    });
+
+    // ブラウザ実装差に備えてスクロール要素にも直接設定。
+    if (document.scrollingElement) {
+        document.scrollingElement.scrollTop = bottom;
+    }
+    if (body) {
+        body.scrollTop = bottom;
+    }
+
+    root.style.scrollBehavior = previousRootBehavior;
+    if (body) body.style.scrollBehavior = previousBodyBehavior;
+}
+
 function nextGalleryPage() {
 
     let totalImages = 0;
@@ -7100,6 +7161,7 @@ function nextGalleryPage() {
     }
 
     renderGallery();
+    scrollGalleryToBottom();
 }
 
 function prevGalleryPage() {
@@ -7108,6 +7170,7 @@ function prevGalleryPage() {
     }
 
     renderGallery();
+    scrollGalleryToBottom();
 }
 
 function changeGallerySort(order) {
@@ -7171,7 +7234,7 @@ invalidateCaches();
         .sort((a, b) => tagMap[b] - tagMap[a])
         .map(tag => {
             const safeTag = tag.replace(/'/g, "\\'");
-            return `<span class="tag-badge tag-page-badge" onclick="filterByTag('${safeTag}')">${tag} (${tagMap[tag]})</span>`;
+            return `<span class="tag-badge tag-page-badge" onclick="filterByTag('${safeTag}')">${escapeHTML(tag)} (${tagMap[tag]})</span>`;
         })
         .join('');
 
@@ -7278,7 +7341,7 @@ function renderTagPage() {
     } else if (tagSortOrder === 'new') {
         filtered.sort((a, b) => b.date.localeCompare(a.date));
     } else { 
-        filtered.sort((a, b) => b.date.localeCompare(a.date));
+        filtered.sort((a, b) => a.date.localeCompare(b.date));
     }
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / TAG_PAGE_SIZE));
@@ -7297,10 +7360,10 @@ function renderTagPage() {
     let resultsHTML = visible.map(d => `
         <div class="card diary-item" onclick="openViewer(${d.id})">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span class="diary-date">${d.date}</span>
+                <span class="diary-date">${escapeHTML(d.date)}</span>
                 <span>${['','😭','😡','😐','😊','🤩'][d.mood] || ''}</span>
             </div>
-            <div class="diary-title">${d.title}</div>
+            <div class="diary-title">${escapeHTML(d.title)}</div>
         </div>
     `).join('');
 
@@ -7308,7 +7371,7 @@ function renderTagPage() {
     tagResults.classList.remove('tag-selection-transition');
     void tagResults.offsetWidth;
     tagResults.innerHTML = `
-        <h4>タグ: ${currentTag} (${filtered.length}件)</h4>
+        <h4>タグ: ${escapeHTML(currentTag)} (${filtered.length}件)</h4>
         ${resultsHTML || '<p style="opacity:0.6; padding:20px;">該当する日記はありません</p>'}
     `;
     tagResults.classList.add('tag-selection-transition');
@@ -7376,35 +7439,6 @@ function changeTagSort(order) {
     renderTagPage();
 }
 
-        function nextDiaryPage() { diaryPage++; renderDiaryList(); }
-function prevDiaryPage() { if (diaryPage > 1) { diaryPage--; renderDiaryList(); } }
-
-function nextGalleryPage() { galleryPage++; renderGallery(); }
-function prevGalleryPage() {
-    const previousPage = galleryPage;
-
-    if (galleryPage > 1) {
-        galleryPage--;
-        renderGallery();
-
-        // 最終ページから「前へ」で戻る場合だけ、
-        // 短い最終ページによるスクロール位置のずれを防いで最下部へ即時移動する。
-        if (previousPage > galleryPage && previousPage === Math.ceil(getGalleryImageList().length / GALLERY_PAGE_SIZE)) {
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    window.scrollTo(0, document.documentElement.scrollHeight);
-                    setTimeout(() => {
-                        window.scrollTo(0, document.documentElement.scrollHeight);
-                    }, 80);
-                });
-            });
-        }
-    }
-}
-
-function nextTagPage() { tagPage++; renderTagPage(); }
-function prevTagPage() { if (tagPage > 1) { tagPage--; renderTagPage(); } }
-        
         async function setTheme(t) {
             config.theme = t;
             await saveConfig();
