@@ -37,6 +37,12 @@ const lucideSVGs = {
 
     "chevron-left": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-left"><path d="m15 18-6-6 6-6"/></svg>`,
     "chevron-right": `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chevron-right"><path d="m9 18 6-6-6-6"/></svg>`,
+    "edit-3": `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"></path></svg>`,
+    "arrow-left": `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"></path><path d="m12 19-7-7 7-7"></path></svg>`,
+    "x": `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>`,
+    "more-vertical": `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="12" cy="19" r="1.7"></circle></svg>`,
+    "memo": `<svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"></rect><path d="M8 8h8"></path><path d="M8 12h8"></path><path d="M8 16h5"></path></svg>`,
+    "bookmark": `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path></svg>`,
     "download": `<svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>`
 };
 
@@ -2907,6 +2913,27 @@ body[data-theme="cosmos"] {
         }
 
 </style>
+<style id="bookmark-styles">
+.bookmark-toggle-btn {
+    min-width:132px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+}
+.bookmark-toggle-btn.is-bookmarked {
+    background:var(--primary-color);
+    color:#fff;
+    border-color:var(--primary-color);
+}
+.bookmark-card-mark {
+    display:inline-flex;
+    align-items:center;
+    margin-left:6px;
+    color:var(--primary-color);
+    vertical-align:middle;
+}
+</style>
 <style id="anti-accidental-selection">
 /* 編集画面では文章を自由に選択・コピーできるようにする。
    それ以外の画面では、誤操作による文字選択を無効化する。 */
@@ -2994,18 +3021,19 @@ body[data-theme="cosmos"] {
     document.addEventListener('focusin', normalizeDiaryBlocks, true);
 })();
 </script>
+
 <script>
-// スマホのタップ・長押しによる「意図しない文字のマーク」をさらに防止。
+// スマホのタップ・長押しによる「意図しない文字のマーク」をさらに防止.
 // 編集画面の記録入力欄では選択・コピー・貼り付け等を妨げません。
 (function () {
     const isInsideActiveEditor = (node) => {
         if (!node) return false;
         const el = node.nodeType === 1 ? node : node.parentElement;
         if (!el || !el.closest) return false;
-        const editor = el.closest('#view-editor');
+        const editor = el.closest('#view-editor, #view-memo-editor');
         if (!editor) return false;
-        return document.getElementById('view-editor')?.classList.contains('active') &&
-               !!el.closest('#diary-content, input, textarea, [contenteditable="true"]');
+        return editor.classList.contains('active') &&
+               !!el.closest('#diary-content, #memo-content, input, textarea, [contenteditable="true"]');
     };
 
     // 編集画面の本文・入力欄では選択を邪魔しない。
@@ -3148,10 +3176,14 @@ body[data-theme="cosmos"] {
 }
 
 @media (max-width: 600px) {
+    /* モバイルではカレンダーの日付セルを一回り大きくしてタップしやすくする */
+    #view-calendar .calendar-grid {
+        gap: 3px !important;
+    }
     #view-calendar .calendar-day {
-        min-height: 48px !important;
-        padding: 6px 1px !important;
-        font-size: 1.1rem !important;
+        min-height: 64px !important;
+        padding: 8px 2px !important;
+        font-size: 1.2rem !important;
     }
 }
 
@@ -3401,6 +3433,323 @@ body[data-theme="cosmos"] {
 }
 </style>
 
+
+<style id="icon-navigation-styles">
+.icon-only-btn {
+    width:40px; height:40px; min-width:40px; padding:0;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:10px;
+}
+.home-quick-actions {
+    display:none;
+    position:absolute; top:50%; right:10px; transform:translateY(-50%);
+    align-items:center; gap:4px; z-index:10;
+}
+.home-quick-actions .icon-only-btn { width:38px; height:38px; min-width:38px; }
+#app-header {
+    position:relative;
+    padding-left:0;
+    padding-right:0;
+    text-align:center;
+}
+.viewer-header-bookmark {
+    position:absolute !important;
+    top:50%;
+    right:10px;
+    transform:translateY(-50%);
+    width:32px !important;
+    height:32px !important;
+    min-width:32px !important;
+    padding:0 !important;
+    margin:0 !important;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:8px;
+    z-index:11;
+}
+.viewer-header-bookmark svg { width:18px; height:18px; }
+.viewer-export-btn svg { width:18px; height:18px; }
+.viewer-export-btn {
+    flex:0 0 40px;
+}
+.back-icon-btn { width:40px; height:40px; min-width:40px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
+.back-text-btn { display:inline-flex; align-items:center; justify-content:center; }
+.viewer-card { position:relative; padding-bottom:76px !important; }
+.viewer-bookmark-icon-btn { width:46px; height:46px; min-width:46px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:50%; }
+.viewer-bookmark-icon-btn.is-bookmarked { background:var(--primary-color); color:#fff; border-color:var(--primary-color); }
+</style>
+
+<style id="bookmark-button-no-jump">
+/* 閲覧ページのブックマーク追加ボタンは、ホバー・タップ時に移動/拡大しない。
+   ヘッダー内の中央位置を常に維持する。 */
+.viewer-header-bookmark:hover,
+.viewer-header-bookmark:active,
+.viewer-header-bookmark:focus,
+.viewer-header-bookmark:focus-visible {
+    transform: translateY(-50%) !important;
+}
+
+/* テーマ側の .btn:hover / button:active による transform を無効化 */
+[data-theme="edamame"] .viewer-header-bookmark:hover,
+[data-theme="lucky"] .viewer-header-bookmark:hover,
+[data-theme="master"] .viewer-header-bookmark:hover,
+[data-theme="devil"] .viewer-header-bookmark:hover,
+[data-theme="edamame"] .viewer-header-bookmark:active,
+[data-theme="lucky"] .viewer-header-bookmark:active,
+[data-theme="master"] .viewer-header-bookmark:active,
+[data-theme="devil"] .viewer-header-bookmark:active {
+    transform: translateY(-50%) !important;
+}
+</style>
+
+
+<style id="bookmark-page-readability">
+/* ブックマーク一覧：情報を整理して見やすく */
+#view-bookmarks .page-title {
+  margin-bottom: 8px;
+}
+#view-bookmarks #bookmark-total-count {
+  display:inline-flex; align-items:center; gap:6px;
+  margin: 0 0 18px; padding: 7px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+  color: var(--primary-color); font-weight:700; font-size:.9rem;
+}
+#view-bookmarks #bookmark-sort { margin-left:auto; }
+#view-bookmarks #bookmark-list {
+  display:block;
+}
+#view-bookmarks #bookmark-list .diary-item,
+#view-bookmarks #bookmark-list .bookmark-diary-item {
+  position:relative;
+  display:block !important;
+  width:100% !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  box-sizing:border-box !important;
+  padding:12px 16px 10px !important;
+  margin:0 0 16px !important;
+  cursor:pointer;
+  overflow:hidden;
+}
+#view-bookmarks #bookmark-list .diary-item:hover,
+#view-bookmarks #bookmark-list .diary-item:active {
+  transform:none !important;
+}
+#view-bookmarks #bookmark-list .bookmark-diary-item > div {
+  max-height:none;
+}
+#view-bookmarks #bookmark-list .bookmark-diary-item .diary-date {
+  line-height:1.2 !important;
+}
+#view-bookmarks #bookmark-list .bookmark-diary-item .diary-title {
+  margin:4px 0 3px !important;
+  line-height:1.3 !important;
+}
+#view-bookmarks #bookmark-list .bookmark-diary-item .diary-preview {
+  margin:0 !important;
+  line-height:1.35 !important;
+  min-height:0 !important;
+}
+#view-bookmarks #bookmark-list .bookmark-diary-item > div:last-child {
+  margin-top:4px !important;
+  min-height:0 !important;
+}
+#view-bookmarks .bookmark-card-mark {
+  width:30px; height:30px; flex:0 0 30px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:50%;
+  background:color-mix(in srgb, var(--primary-color) 11%, transparent);
+  color:var(--primary-color);
+}
+#view-bookmarks .bookmark-card-mark svg { width:16px; height:16px; }
+#view-bookmarks #bookmark-list .diary-date {
+  font-size:.82rem; opacity:.72; font-variant-numeric:tabular-nums;
+}
+#view-bookmarks #bookmark-list .diary-title {
+  margin:2px 0 !important; font-size:1.05rem; line-height:1.35; font-weight:800;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  padding-right:2px;
+}
+#view-bookmarks #bookmark-list .diary-preview {
+  margin:0 !important; font-size:.86rem; line-height:1.5; opacity:.78;
+  display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; overflow:hidden;
+  min-height:0 !important;
+}
+#view-bookmarks #bookmark-list .tag-badge {
+  display:inline-flex; margin:6px 5px 0 0; font-size:.72rem;
+}
+#view-bookmarks #bookmark-pagination-area {
+  margin-top:22px;
+}
+@media (max-width:700px) {
+  #view-bookmarks #bookmark-sort { margin-left:auto; }
+  #view-bookmarks #bookmark-list .diary-title { font-size:1rem; }
+  #view-bookmarks #bookmark-list .diary-preview { font-size:.86rem; }
+}
+@media (prefers-reduced-motion:reduce) {
+  #view-bookmarks #bookmark-list .diary-item { transition:none !important; }
+}
+</style>
+
+<style id="memo-feature-style">
+#view-memos .memo-page-card,
+#view-memo-editor .memo-editor-card { padding: 18px; }
+
+.memo-page-header {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom:16px;
+}
+.memo-back-btn { white-space:nowrap; }
+.memo-new-btn { white-space:nowrap; display:inline-flex; align-items:center; gap:6px; }
+
+#memo-list { display:block; }
+.memo-card {
+    position:relative; display:block; width:100%; box-sizing:border-box;
+    padding:14px 16px 13px; margin:0 0 14px; border-radius:14px;
+    background:var(--card-bg,#fff); border:1px solid var(--border-color,#ddd);
+    box-shadow:0 5px 18px rgba(0,0,0,.045); cursor:pointer;
+}
+.memo-card:hover, .memo-card:active { transform:none !important; }
+.memo-card-top {
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    margin-bottom:5px;
+}
+.memo-card-title {
+    margin:0; min-width:0; font-size:1.05rem; line-height:1.35; font-weight:800;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.memo-card-date { font-size:.75rem; opacity:.58; white-space:nowrap; }
+.memo-card-preview {
+    margin:0; font-size:.86rem; line-height:1.5; opacity:.78;
+    display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden;
+}
+.memo-card-checklist {
+    display:inline-flex; align-items:center; gap:5px; margin-top:7px; font-size:.73rem;
+    color:var(--primary-color); font-weight:700;
+}
+.memo-empty-new {
+    margin-top:8px;
+}
+
+.memo-editor-top {
+    display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px;
+}
+.memo-title-input {
+    width:100%; box-sizing:border-box; font-size:1.2rem; padding:10px 4px;
+    border:none; border-bottom:2px solid var(--primary-color); outline:none;
+    background:transparent; color:var(--text-color,inherit);
+}
+.memo-editor-tools {
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:12px 0 10px;
+}
+.memo-checklist-toggle.active {
+    background:color-mix(in srgb,var(--primary-color) 14%,transparent);
+    border-color:var(--primary-color); color:var(--primary-color);
+}
+.memo-content-editor {
+    min-height:280px; padding:12px 2px; line-height:1.75;
+    outline:none; white-space:pre-wrap; word-break:normal; overflow-wrap:anywhere;
+}
+.memo-content-editor:empty::before { content:attr(data-placeholder); opacity:.42; pointer-events:none; }
+.memo-checklist-panel {
+    margin-top:12px; padding:13px; border-radius:12px;
+    background:color-mix(in srgb,var(--primary-color) 5%,transparent);
+    border:1px solid color-mix(in srgb,var(--primary-color) 12%,transparent);
+}
+.memo-checklist-heading {
+    display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;
+}
+.memo-checklist-add { white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+.memo-checklist-item {
+    display:flex; align-items:center; gap:10px; margin:8px 0; padding:4px 2px;
+}
+.memo-checklist-item input[type="checkbox"] {
+    width:20px; height:20px; flex:0 0 20px; accent-color:var(--primary-color); cursor:pointer;
+}
+.memo-checklist-item input[type="text"] {
+    flex:1; min-width:0; box-sizing:border-box; padding:10px 12px;
+    border:1px solid var(--border-color,#ddd); border-radius:10px;
+    background:var(--card-bg,#fff); color:var(--text-color,inherit);
+    font-size:.92rem; line-height:1.45; outline:none;
+}
+.memo-checklist-item input[type="text"]:focus {
+    border-color:var(--primary-color); box-shadow:0 0 0 2px color-mix(in srgb,var(--primary-color) 12%,transparent);
+}
+.memo-checklist-item.is-done input[type="text"] { text-decoration:line-through; opacity:.52; }
+.memo-checklist-remove {
+    flex:0 0 34px; width:34px; height:34px; border:0; border-radius:8px;
+    background:transparent; color:var(--text-color); opacity:.55; cursor:pointer;
+    font-size:20px; line-height:1;
+}
+.memo-checklist-remove:hover { opacity:1; background:rgba(127,127,127,.12); }
+.memo-checklist-add { margin-top:10px; }
+
+.memo-new-btn:disabled,
+.memo-new-btn[aria-disabled="true"] {
+    background:#b8b8b8 !important;
+    border-color:#b8b8b8 !important;
+    color:#fff !important;
+    opacity:1 !important;
+    cursor:not-allowed !important;
+    box-shadow:none !important;
+    transform:none !important;
+}
+.memo-content-editor {
+    user-select:text !important;
+    -webkit-user-select:text !important;
+    -webkit-touch-callout:default !important;
+    cursor:text;
+}
+
+.memo-char-count { margin-top:10px; text-align:left; color:var(--primary-color); font-size:.82rem; font-weight:700; opacity:.82; }
+.memo-content-editor a, .memo-viewer-content a { color:#06c !important; text-decoration:underline; cursor:pointer; }
+.memo-viewer-top {
+    display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;
+}
+.memo-viewer-date { font-size:.8rem; opacity:.58; margin-bottom:5px; }
+.memo-viewer-title { margin:0 0 16px; font-size:1.35rem; line-height:1.4; }
+.memo-viewer-content {
+    line-height:1.75; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere;
+    user-select:text; -webkit-user-select:text;
+}
+.memo-viewer-checklist {
+    margin-top:20px; padding:15px; border-radius:13px;
+    background:color-mix(in srgb,var(--primary-color) 5%,transparent);
+    border:1px solid color-mix(in srgb,var(--primary-color) 12%,transparent);
+}
+.memo-viewer-checklist-heading { margin-bottom:8px; }
+.memo-viewer-checklist-item {
+    display:flex; align-items:center; gap:11px; padding:11px 4px;
+    border-bottom:1px solid color-mix(in srgb,var(--border-color,#ddd) 70%,transparent);
+}
+.memo-viewer-checklist-item:last-child { border-bottom:none; }
+.memo-viewer-checklist-item input[type="checkbox"] {
+    width:22px; height:22px; flex:0 0 22px; accent-color:var(--primary-color); cursor:pointer;
+}
+.memo-viewer-checklist-item span {
+    flex:1; min-width:0; line-height:1.5; font-size:.94rem; word-break:break-word;
+}
+.memo-viewer-checklist-item.is-done span { text-decoration:line-through; opacity:.5; }
+@media (max-width:700px) {
+    .memo-viewer-top { margin-bottom:14px; }
+    .memo-viewer-title { font-size:1.2rem; }
+    .memo-viewer-checklist-item { padding:12px 2px; }
+}
+
+@media (max-width:700px) {
+    #view-memos .memo-page-card, #view-memo-editor .memo-editor-card { padding:14px; }
+    .memo-page-header { flex-wrap:wrap; }
+    .memo-page-header h3 { order:2; width:100%; text-align:center; }
+    .memo-card { padding:13px 14px; }
+    .memo-card-title { font-size:1rem; }
+    .memo-card-preview { font-size:.84rem; }
+    .memo-content-editor { min-height:240px; }
+}
+</style>
+
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -3430,7 +3779,7 @@ body[data-theme="cosmos"] {
 <br/>
 <button class="btn btn-primary" onclick="verifyRecovery()">確認</button>
 <br/>
-<button class="forget-btn" onclick="hideRecovery()">戻る</button>
+<button class="forget-btn icon-only-btn" aria-label="戻る" title="戻る" onclick="hideRecovery()"><i data-lucide="arrow-left"></i></button>
 </div>
 </div>
 <div id="img-modal">
@@ -3456,7 +3805,13 @@ body[data-theme="cosmos"] {
                 will-change: transform;
             "/>
 </div>
-<header id="app-header">ホーム</header>
+<header id="app-header"><span id="app-header-title">ホーム</span>
+<button class="btn viewer-bookmark-icon-btn viewer-header-bookmark" id="viewer-bookmark-btn" onclick="toggleCurrentViewerBookmark(event)" type="button" aria-label="ブックマークに追加" title="ブックマークに追加" style="display:none !important;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path></svg></button>
+<div class="home-quick-actions" aria-label="クイック操作">
+<button class="btn icon-only-btn" type="button" aria-label="メモ" title="メモ" onclick="openMemoPage()"><i data-lucide="memo"></i></button>
+<button class="btn icon-only-btn" type="button" aria-label="ブックマーク" title="ブックマーク" onclick="openBookmarkPage()"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path></svg></button>
+</div>
+</header>
 <main id="app-main">
 <section class="view active" id="view-home">
 <div class="notification-bar" id="notification-area"></div>
@@ -3488,14 +3843,14 @@ body[data-theme="cosmos"] {
 <div id="flashback-container"></div>
 </div>
 <div class="card">
-<h3>100日感情ヒートマップ</h3>
+<h3>100日の感情記録</h3>
 <div id="streak-display" style="text-align: right; margin-bottom: 8px; font-weight: bold; font-size: 0.9em;"></div>
 <div class="heatmap-container" id="heatmap"></div>
 <div style="font-size: 0.7rem; margin-top:10px; display:flex; gap:10px; justify-content: center;">
 <div id="streak-container" style="text-align: right; margin-bottom: 8px; font-weight: bold; color: var(--primary-color);">
 </div>
 </div>
-<b><span>ちょっとずつカラフルに染まるの、ワクワクしない？</span></b>
+<b><span>今日の記録が、明日の彩りになる。</span></b>
 </div>
 <div class="card">
 <div class="stats-chart-header">
@@ -3503,8 +3858,8 @@ body[data-theme="cosmos"] {
 <div class="stats-chart-period">
 <select aria-label="統計期間" id="stats-period-select" onchange="setChartPeriod(this.value)" style="padding:5px 8px; border-radius:7px; border:1px solid var(--border-color, #ddd); background:var(--card-bg, #fff); color:var(--text-color, inherit); font-size:1em; font-weight:bold; cursor:pointer;">
 <option value="month">今月</option>
-<option value="7">過去7日間</option>
-<option value="30">過去30日間</option>
+<option value="7">過去1週間</option>
+<option value="30">過去1ヶ月間</option>
 <option value="100">過去100日間</option>
 <option value="all">すべての期間</option>
 </select>
@@ -3566,11 +3921,110 @@ body[data-theme="cosmos"] {
 <button class="btn" id="diary-next-btn" onclick="nextDiaryPage()">次へ ▶</button>
 </div>
 </section>
+<section class="view" id="view-bookmarks">
+<div class="card">
+<div id="bookmark-controls" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:10px; flex-wrap:wrap;">
+<div style="display:flex; align-items:center; gap:8px;">
+<button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="switchTab('home')" type="button">戻る</button>
+<h3 id="bookmark-total-count" style="margin:0;">ブックマーク 0 件</h3>
+</div>
+<select class="kawaii-select" id="bookmark-sort" onchange="changeBookmarkSort(this.value)">
+<option value="new">新しい順</option>
+<option value="old">古い順</option>
+<option value="latestViewed">最近見た順</option>
+</select>
+</div>
+<div id="bookmark-pagination-top" style="display:none; justify-content:center; gap:12px; margin:0 0 20px; flex-wrap:wrap;">
+<button class="btn" id="bookmark-top-prev-btn" onclick="prevBookmarkPage()">◀ 前へ</button>
+<span id="bookmark-top-page-info"></span>
+<button class="btn" id="bookmark-top-next-btn" onclick="nextBookmarkPage()">次へ ▶</button>
+</div>
+<div id="bookmark-list"></div>
+<div id="bookmark-pagination-area" style="display:none; justify-content:center; gap:12px; margin-top:20px; flex-wrap:wrap;">
+<button class="btn" id="bookmark-prev-btn" onclick="prevBookmarkPage()">◀ 前へ</button>
+<span id="bookmark-page-info"></span>
+<button class="btn" id="bookmark-next-btn" onclick="nextBookmarkPage()">次へ ▶</button>
+</div>
+</div>
+</section>
+
+<section class="view" id="view-memos">
+<div class="card memo-page-card">
+    <div class="memo-page-header">
+        <button class="btn memo-back-btn" type="button" onclick="closeMemoPage()" aria-label="戻る" title="戻る">戻る</button>
+        <h3 id="memo-total-count" style="margin:0;">メモ 0 件</h3>
+        <button class="btn btn-primary memo-new-btn" type="button" onclick="openMemoEditor()" aria-label="新規作成" title="新規作成">
+            <i data-lucide="plus"></i> 新規作成
+        </button>
+    </div>
+
+    <div id="memo-list"></div>
+    <div id="memo-empty" style="display:none; text-align:center; opacity:.6; padding:40px 20px;">
+        メモはまだありません
+    </div>
+</div>
+</section>
+
+<section class="view" id="view-memo-editor">
+<div class="card memo-editor-card">
+    <div class="memo-editor-top">
+        <button class="btn" type="button" onclick="cancelMemoEditor()" aria-label="戻る" title="戻る">戻る</button>
+        <button class="btn btn-primary" type="button" onclick="saveMemo()">保存</button>
+    </div>
+
+    <input id="memo-title-input" class="memo-title-input" type="text" placeholder="タイトル" autocomplete="off"/>
+    <div class="memo-editor-tools">
+        <button class="tool-btn" type="button" onclick="execCmd('bold')"><b>B</b></button>
+        <button class="tool-btn" type="button" onclick="execCmd('italic')"><i>I</i></button>
+        <button class="tool-btn memo-checklist-toggle" id="memo-checklist-toggle" type="button" onclick="toggleMemoChecklistMode()">
+            <span aria-hidden="true">☑</span> チェックリスト
+        </button>
+    </div>
+
+    <div id="memo-content" class="memo-content-editor" contenteditable="true" data-placeholder="ここにメモを書きましょう..."></div>
+    <div id="memo-editor-char-count" class="memo-char-count">0文字</div>
+
+    <div id="memo-checklist-panel" class="memo-checklist-panel" style="display:none;">
+        <div class="memo-checklist-heading">
+            <strong>チェックリスト</strong>
+            <button class="btn memo-checklist-add" type="button" onclick="addMemoChecklistItem()"><i data-lucide="plus"></i> 項目を追加</button>
+        </div>
+        <div id="memo-checklist-items"></div>
+    </div>
+
+    <div id="memo-delete-area" style="display:none; margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border-color, #ddd);">
+        <button class="btn btn-danger" id="memo-delete-btn" style="width:100%;" type="button">削除</button>
+    </div>
+</div>
+</section>
+
+<section class="view" id="view-memo-viewer">
+<div class="card memo-viewer-card">
+    <div class="memo-viewer-top">
+        <button class="btn" type="button" onclick="closeMemoViewer()" aria-label="戻る" title="戻る">戻る</button>
+        <button class="btn btn-primary" id="memo-viewer-edit-btn" type="button" onclick="editCurrentMemo()">
+            編集する
+        </button>
+    </div>
+    <div class="memo-viewer-date" id="memo-viewer-date"></div>
+    <h2 id="memo-viewer-title" class="memo-viewer-title"></h2>
+    <div id="memo-viewer-content" class="memo-viewer-content"></div>
+    <div id="memo-viewer-char-count" class="memo-char-count">0文字</div>
+    <div id="memo-viewer-checklist" class="memo-viewer-checklist" style="display:none;">
+        <div class="memo-viewer-checklist-heading"><strong>チェックリスト</strong></div>
+        <div id="memo-viewer-checklist-items"></div>
+    </div>
+</div>
+</section>
+
 <section class="view" id="view-viewer">
 <div class="card">
 <div style="display:flex; justify-content: space-between; margin-bottom:1rem;">
 <button class="btn" onclick="switchTab('lastTabId')">戻る</button>
 <div style="display:flex; align-items:center; gap:8px;">
+<button class="btn icon-only-btn viewer-export-btn" id="viewer-export-btn" onclick="exportCurrentViewerDiaryHtml(event)" type="button" aria-label="この日記をHTMLとして書き出す" title="この日記をHTMLとして書き出す" style="display:none;">
+<i data-lucide="download"></i>
+</button>
 <button class="btn btn-primary" id="viewer-edit-btn">編集する</button>
 </div>
 </div>
@@ -3634,7 +4088,7 @@ body[data-theme="cosmos"] {
 <h3 id="gallery-total-count" style="margin:0 0 12px 0;">全 0 枚のギャラリー</h3>
 <div id="gallery-sort-area" style="
         display:flex;
-        justify-content:space-between;
+        justify-content:flex-end;
         align-items:center;
         margin-bottom:12px;
         gap:10px;
@@ -3664,9 +4118,7 @@ body[data-theme="cosmos"] {
 <section class="view" id="view-tags">
 <h3 id="tag-total-count" style="margin:0 0 12px 0;">全 0 件のタグ</h3>
 <div class="hidden" id="tag-back-area" style="margin-bottom:12px;">
-<button class="btn" onclick="backToTagList()">
-            戻る
-        </button>
+<button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="backToTagList()">戻る</button>
 </div>
 <div class="card" id="tags-cloud"></div>
 <div class="hidden" id="tag-filter-area" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px; flex-wrap:wrap;">
@@ -3775,8 +4227,8 @@ body[data-theme="cosmos"] {
 <section class="view" id="view-about">
 <div class="card">
 <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-<button class="btn" onclick="switchTab('settings')">戻る</button>
-<h3 style="margin:0;">このアプリについて</h3>
+<button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="switchTab('settings')">戻る</button>
+<h3 style="margin:0;">サポート</h3>
 </div>
 <div style="line-height: 1.8; font-size: 0.95rem;">
 <div class="support-accordion-group support-overview-fixed"><div class="support-accordion-summary">📓 でじ帖 - Offline Diary とは</div><div class="support-accordion-group-body">
@@ -3849,7 +4301,7 @@ body[data-theme="cosmos"] {
         ここでは、通常の紹介では説明しきれていない便利な機能や、知っておくとより快適に使える仕組みをまとめます。
     </p>
 <div style="margin-bottom: 2rem;">
-<details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">📝 記録を探す・整理する（1〜5）</summary><div class="support-accordion-body">
+<details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">📝 記録を探す・整理する</summary><div class="support-accordion-body">
 <h4 style="margin: 16px 0 8px;">1. 日記を「探す」ための検索・絞り込み</h4>
 <p>
             日記が増えても目的の記録を見つけやすいよう、「日記」ページには検索機能が用意されています。
@@ -3861,6 +4313,7 @@ body[data-theme="cosmos"] {
             検索文字列は入力された表記をそのまま比較するだけではなく、検索用の正規化処理を通して扱われます。
             そのため、ひらがな・カタカナの表記ゆれや英字の大文字・小文字などを意識しすぎずに検索できるよう工夫されています。
         </p>
+
 <h4 style="margin: 16px 0 8px;">2. タグで記録を「分類」する</h4>
 <p>
             日記には複数のタグを付けることができ、タグ一覧から特定のテーマだけをまとめて振り返れます。
@@ -3897,8 +4350,29 @@ body[data-theme="cosmos"] {
             また、カレンダーから特定の日付を選んで、その日の日記を新規作成することもできます。
             「今日は何を書こう」と思ったときだけでなく、特定の日付の記録を先に用意したい場合にも利用できます。
         </p>
-</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">📊 記録を振り返る（6〜9）</summary><div class="support-accordion-body">
-<h4 style="margin: 16px 0 8px;">6. 統計画面は「記録量」と「気分」の両方を見る</h4>
+      <h4 style="margin: 16px 0 8px;">6. ブックマークで大切な日記をすぐ見つける</h4>
+<p>
+            「あとでもう一度読み返したい」「特に大切な記録として残しておきたい」という日記には、ブックマークを付けられます。
+            日記の閲覧画面にあるブックマークボタンから追加・解除でき、ブックマークした日記は専用の「ブックマーク」ページにまとめて表示されます。
+        </p>
+<p>
+            ブックマーク一覧では、日付順などの並び替えにも対応しているため、保存しておきたい記録が増えても目的の日記を探しやすくなっています。
+            ブックマークは日記そのものに紐づいて保存されるため、日記を編集してもブックマーク状態は維持されます。
+        </p>
+      <h4 style="margin: 16px 0 8px;">7. すぐに残したい情報を保存する「メモ」</h4>
+<p>
+        「メモ」は、日記とは分けて、ちょっとした文章や一時的に残しておきたい情報をすぐ保存できる独立した記録機能です。
+        ホーム画面のメモボタンから開くことができ、メモにはタイトルと本文を付けて保存できます。
+        メモ一覧では更新日時の新しいものから表示され、メモをタップすると閲覧画面で本文を読み返せます。
+    </p>
+<p>
+        メモにはチェックリストも追加でき、項目ごとの完了状態を閲覧画面から切り替えられます。
+        本文中にURLを入力した場合は閲覧時にリンクとして扱われるため、参照先をすぐ開くこともできます。
+        作成できるメモは最大5個までで、不要になったメモは編集画面から削除できます。
+        日記とは別枠で管理されるため、「日記として残すほどではないが、今すぐ手元に置いておきたい情報」を記録する用途に向いています。
+    </p>
+</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">📊 記録を振り返る</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">8. 統計画面は「記録量」と「気分」の両方を見る</h4>
 <p>
             統計では、単純な日記件数だけではなく、記録した日と気分の情報を組み合わせて振り返れます。
             1年間の記録をタイル状に表示するヒートマップでは、記録の密度を直感的に把握できます。
@@ -3909,7 +4383,7 @@ body[data-theme="cosmos"] {
             短期間の変化を細かく見る使い方と、長期間の傾向を見る使い方を切り替えられます。
             ヒートマップの各日付を操作して、その日の記録を確認することもできます。
         </p>
-<h4 style="margin: 16px 0 8px;">7. 日記作成を助ける「テンプレート」</h4>
+<h4 style="margin: 16px 0 8px;">9. 日記作成を助ける「テンプレート」</h4>
 <p>
             編集画面にはテンプレート機能があり、毎回ゼロから文章を考えなくても、
             決まった形式の記録を書き始められます。
@@ -3919,7 +4393,7 @@ body[data-theme="cosmos"] {
             テンプレートは現在のカーソル位置を考慮して挿入されるため、
             すでに書き始めた文章の途中へ追加したり、必要な場所から記録を続けたりできます。
         </p>
-<h4 style="margin: 16px 0 8px;">8. 写真は保存時に軽量化して容量を抑える</h4>
+<h4 style="margin: 16px 0 8px;">10. 写真は保存時に軽量化して容量を抑える</h4>
 <p>
             写真を添付するときは、画像プレビューで保存前の状態を確認できます。
             不要な写真はプレビュー段階で取り除くこともできます。
@@ -3929,14 +4403,14 @@ body[data-theme="cosmos"] {
             写真を多用する場合でも、アプリ側で一定の軽量化を行うことで、
             長期間の利用に伴うストレージ負荷を抑えることを意識した設計になっています。
         </p>
-<h4 style="margin: 16px 0 8px;">9. 閲覧画面から写真・本文をまとめて振り返る</h4>
+<h4 style="margin: 16px 0 8px;">11. 閲覧画面から写真・本文をまとめて振り返る</h4>
 <p>
             保存した日記は閲覧画面で、日付・気分・本文・タグ・添付画像をまとめて確認できます。
             本文中のURLなどは閲覧時にリンクとして扱えるようになっており、
             記録の中に残しておいたWeb上の情報へアクセスしやすくしています。
         </p>
-</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">💾 記録を保存・守る（10〜14）</summary><div class="support-accordion-body">
-<h4 style="margin: 16px 0 8px;">10. 日記をエクスポート</h4>
+</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">💾 記録を保存・守る</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">12. 日記をエクスポート</h4>
 <p>
             「日記をエクスポート」では、蓄積した<strong>すべての日記</strong>を、アプリのデータそのものとは別に、
             後からブラウザで読み返せるHTML形式としてひとつにまとめて保存できます。
@@ -3951,7 +4425,7 @@ body[data-theme="cosmos"] {
             アプリへ戻すためのデータ保存には「データをバックアップ」を、
             人が読み返すための保存版を作るには「日記をエクスポート」を使い分けてください。
         </p>
-<h4 style="margin: 16px 0 8px;">11. JSONバックアップとデータ読み込みによる引っ越し</h4>
+<h4 style="margin: 16px 0 8px;">13. JSONバックアップとデータ読み込みによる引っ越し</h4>
 <p>
             設定の「データをバックアップ」では、アプリ内のデータを復元可能な形式で書き出せます。
             「データ読み込み」からそのバックアップファイルを選択することで、
@@ -3962,13 +4436,13 @@ body[data-theme="cosmos"] {
             新しい端末で読み込む、という手順を取ることで記録を引き継げます。
             HTML書き出しは「読むため」、JSONバックアップは「戻すため」と考えると分かりやすいです。
         </p>
-<h4 style="margin: 16px 0 8px;">12. バックアップ通知は「あとで保存する」にも対応</h4>
+<h4 style="margin: 16px 0 8px;">14. バックアップ通知は「あとで保存する」にも対応</h4>
 <p>
             長期間バックアップしていない場合には、ホーム画面でバックアップを促す通知が表示されます。
             すぐに保存できない場合は「あとで保存する」を利用でき、
             その日のうちは通知を抑えつつ、翌日以降はバックアップ状況に応じて再び確認できる仕組みになっています。
         </p>
-<h4 style="margin: 16px 0 8px;">13. パスコード・本人確認・起動時スキップ</h4>
+<h4 style="margin: 16px 0 8px;">15. パスコード・本人確認・起動時スキップ</h4>
 <p>
             アプリには起動時のパスコード保護があり、設定からパスコードを変更できます。
             さらに本人確認用のパスコード・合言葉・ヒントを設定しておくことで、
@@ -3978,7 +4452,7 @@ body[data-theme="cosmos"] {
             一方、毎回の認証が不要だと感じる場合は、設定から起動時のパスコード画面をスキップする設定も選択できます。
             これは利便性を優先するための機能なので、共有端末などでは利用環境をよく確認して設定してください。
         </p>
-<h4 style="margin: 16px 0 8px;">14. 「全データ初期化」は意図しない削除を防ぐ多段階確認</h4>
+<h4 style="margin: 16px 0 8px;">16. 「全データ初期化」は意図しない削除を防ぐ多段階確認</h4>
 <p>
             アプリ内の全データを消去する機能は、通常の削除とは区別されています。
             現在のパスコード、設定した本人確認パスコード、さらに最終確認の入力を順番に求めることで、
@@ -3988,8 +4462,8 @@ body[data-theme="cosmos"] {
             この操作はバックアップとは完全に別物で、一度実行するとアプリ内の記録をまとめて消去するため、
             実行前には必ず必要なバックアップが残っていることを確認してください。
         </p>
-</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">🎨 自分好みに使い続ける（15〜18）</summary><div class="support-accordion-body">
-<h4 style="margin: 16px 0 8px;">15. 気分・連続記録・行動によって解放されるテーマ</h4>
+</div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">🎨 自分好みに使い続ける</summary><div class="support-accordion-body">
+<h4 style="margin: 16px 0 8px;">17. 気分・連続記録・行動によって解放されるテーマ</h4>
 <p>
             「でじ帖」には、使い続けるほど選択肢が増えていくテーマ解放システムがあります。
             一定日数の連続記録、特定の気分の記録数、長文の日記、予定の登録数など、
@@ -4000,19 +4474,19 @@ body[data-theme="cosmos"] {
             小さなコレクション要素としても機能しています。
             解放されたテーマは設定画面から選択できます。
         </p>
-<h4 style="margin: 16px 0 8px;">16. 気分に合わせてテーマとフォントを変更</h4>
+<h4 style="margin: 16px 0 8px;">18. 気分に合わせてテーマとフォントを変更</h4>
 <p>
             テーマは「クラシック」「ゆめかわ」「ダーク」「夜空」など、雰囲気の異なるデザインを切り替えられます。
             条件を満たして解放されるテーマも含め、記録するときの気分や時間帯に合わせてアプリの空気感を変えられます。
             また、文字の表示設定も用意されているため、長時間使う場合は読みやすさを優先した設定に調整できます。
         </p>
-<h4 style="margin: 16px 0 8px;">17. ホーム画面は「今日の記録」だけでなく継続状況も確認</h4>
+<h4 style="margin: 16px 0 8px;">19. ホーム画面は「今日の記録」だけでなく継続状況も確認</h4>
 <p>
             ホームでは、保存した日記の状況や連続記録など、現在の利用状況をまとめて確認できます。
             今日まだ日記を書いていない場合と、すでに今日の記録を残している場合で表示内容が変わるため、
             「今日はまだ書いていない」ということにも気づきやすくなっています。
         </p>
-<h4 style="margin: 16px 0 8px;">18. オフライン完結だからこそ、処理も端末内で完結</h4>
+<h4 style="margin: 16px 0 8px;">20. オフライン完結だからこそ、処理も端末内で完結</h4>
 <p>
             日記の保存、検索、タグ整理、統計の計算などは、基本的に利用している端末側で処理されます。
             外部サービスに依存せず、インターネット接続がない環境でも記録を扱えることが、
@@ -4224,6 +4698,16 @@ body[data-theme="cosmos"] {
         
         let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', chartPeriod: 'month', lastBackup: null, backupReminderSkippedAt: null, recoverySet: false, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false, scheduleCreationCount: 0 };
         let currentEditingId = null;
+        let bookmarkPage = 1;
+        const BOOKMARK_PAGE_SIZE = 30;
+        let bookmarkSortOrder = 'new';
+        let memos = [];
+        let memoTabs = [];
+        let activeMemoTabId = null;
+        let currentEditingMemoId = null;
+        let memoEditorReturnViewId = 'memos';
+        let memoChecklistDraft = [];
+
 
         // 通常の通知操作ではフェードアウトせず、即座に閉じる。
         function dismissNotificationImmediately(area, callback) {
@@ -4294,7 +4778,7 @@ let tagSortOrder = 'new';
 let currentTag = null;
         
         const DB_NAME = 'でじでじDB';
-        const DB_VERSION = 2;
+        const DB_VERSION = 3;
         let db;
 
         function setMood(n) {
@@ -4377,6 +4861,7 @@ if (config.hasUnlockedMaster) {
                     if (!db.objectStoreNames.contains('diaries')) db.createObjectStore('diaries', { keyPath: 'id' });
                     if (!db.objectStoreNames.contains('config')) db.createObjectStore('config', { keyPath: 'key' });
                     if (!db.objectStoreNames.contains('schedules')) db.createObjectStore('schedules', { keyPath: 'id' });
+                    if (!db.objectStoreNames.contains('memos')) db.createObjectStore('memos', { keyPath: 'id' });
                 };
                 request.onsuccess = (e) => {
                     db = e.target.result;
@@ -4396,6 +4881,7 @@ if (config.hasUnlockedMaster) {
 async function loadData() {
     diaries = await getAllFromDB('diaries');
     schedules = await getAllFromDB('schedules');
+    memos = await getAllFromDB('memos');
    for (let d of diaries) {
         if (!d.lastViewed) {
             d.lastViewed = d.updatedAt || new Date(d.date).getTime();
@@ -4406,7 +4892,7 @@ async function loadData() {
         delete storedConfig.key; 
         config = { ...config, ...storedConfig }; 
     }
-    
+
     // 予定アンロック用の累計作成数を、過去予定の自動削除より先に確定する。
     // 旧バージョンから移行した場合は、移行時点でDBに存在する予定数を
     // 「これまでに作成した予定数」の最低値として引き継ぐ。
@@ -4578,6 +5064,8 @@ function checkNewYearFireworks() {
     }
     
     renderAll();
+    const startupViewerBookmarkBtn = document.getElementById('viewer-bookmark-btn');
+    if (startupViewerBookmarkBtn) startupViewerBookmarkBtn.style.setProperty('display', 'none', 'important');
     applyTheme();
 
     // 起動時は常にホーム最上部へ。ブラウザのスクロール復元も上書きする。
@@ -4751,7 +5239,8 @@ function checkNewYearFireworks() {
 
     if (
         targetId !== 'diaries' &&
-        targetId !== 'tags'
+        targetId !== 'tags' &&
+        targetId !== 'memos'
     ) {
         window.scrollTo(0, 0);
     }
@@ -4764,10 +5253,33 @@ function checkNewYearFireworks() {
 
     const titles = { 
         home: 'ホーム', diaries: '日記一覧', calendar: 'カレンダー', 
-        gallery: 'ギャラリー', tags: 'タグ一覧', settings: '設定', 
-        editor: '編集する', viewer: '記録を見る' 
+        gallery: 'ギャラリー', tags: 'タグ一覧', settings: '設定', bookmarks: 'ブックマーク', 
+        memos: 'メモ', 'memo-editor': 'メモを編集', 'memo-viewer': '記録を見る', editor: '編集する', viewer: '記録を見る',
+        about: 'サポート' 
     };
-    document.getElementById('app-header').innerText = titles[targetId] || 'サポート';
+    const appHeaderTitle = document.getElementById('app-header-title');
+    if (appHeaderTitle) appHeaderTitle.innerText = titles[targetId] || '記録を見る';
+    const homeQuickActions = document.querySelector('.home-quick-actions');
+    if (homeQuickActions) homeQuickActions.style.display = (targetId === 'home') ? 'flex' : 'none';
+
+    // 閲覧ページのブックマークボタンは「特定の日記」を表示中だけ表示する
+    const viewerBookmarkBtn = document.getElementById('viewer-bookmark-btn');
+    if (viewerBookmarkBtn) {
+        const viewingDiary = targetId === 'viewer'
+            && window.currentViewerDiaryId != null
+            && diaryMap.has(window.currentViewerDiaryId);
+        // 「記録を見る」かつ実在する日記を閲覧中だけ表示。それ以外は強制的に非表示。
+        viewerBookmarkBtn.style.setProperty('display', viewingDiary ? 'inline-flex' : 'none', 'important');
+    }
+    if (typeof createIcons === 'function') createIcons();
+
+    if (targetId === 'bookmarks') {
+        renderBookmarkList();
+    }
+
+    if (targetId === 'memos') {
+        renderMemoPage();
+    }
 
     if (targetId === 'settings') {
         const themeSelect = document.getElementById('theme-select');
@@ -5055,7 +5567,7 @@ else if (diffDays === 30) dayText = "1ヶ月後に";
 else if (diffDays === 92) dayText = "3ヶ月後に";
 else if (diffDays === 183) dayText = "6ヶ月後に";
         if (dayText !== "") {
-            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","↑もしかして、ぼっち行動？","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは48万文字もあるんだよ","6000行のコードを全身で感じられているかな？","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","ヌバーン！！！👁️👄👁️","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
+            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","↑もしかして、ぼっち行動？","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは55万文字もあるんだよ！","9600行のコードを全身で感じられているかな？","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","ヌバーン！！！👁️👄👁️","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
             const randomMsg = getStableNotificationMessage(messages, s.id, today);
             
             const card = document.createElement('div');
@@ -5236,7 +5748,30 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
         item = scheduleMap.get(id); 
         isDiary = false; 
     }
-    if (!item) return;
+    if (!item) {
+        const viewerExportBtn = document.getElementById('viewer-export-btn');
+        if (viewerExportBtn) viewerExportBtn.style.display = 'none';
+        const viewerBookmarkBtn = document.getElementById('viewer-bookmark-btn');
+        if (viewerBookmarkBtn) viewerBookmarkBtn.style.setProperty('display', 'none', 'important');
+        return;
+    }
+
+    const viewerExportBtn = document.getElementById('viewer-export-btn');
+    if (viewerExportBtn) {
+        viewerExportBtn.style.display = isDiary ? 'inline-flex' : 'none';
+    }
+
+    const viewerBookmarkBtn = document.getElementById('viewer-bookmark-btn');
+    if (viewerBookmarkBtn) {
+        viewerBookmarkBtn.style.setProperty('display', isDiary ? 'inline-flex' : 'none', 'important');
+        const bookmarked = isDiary && !!item.bookmarked;
+        viewerBookmarkBtn.classList.toggle('is-bookmarked', bookmarked);
+        viewerBookmarkBtn.setAttribute('aria-pressed', bookmarked ? 'true' : 'false');
+        viewerBookmarkBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path></svg>`;
+        viewerBookmarkBtn.setAttribute('aria-label', bookmarked ? 'ブックマークを解除' : 'ブックマークに追加');
+        viewerBookmarkBtn.setAttribute('title', bookmarked ? 'ブックマークを解除' : 'ブックマークに追加');
+        createIcons();
+    }
 
     // ギャラリーから開く場合は、拡大表示を閉じた直後に日記ビューへ切り替える
     // DB保存を待ってから画面遷移することで一瞬ギャラリーが残るのを防ぐ
@@ -5495,7 +6030,7 @@ function getTouchDistance(t1, t2) {
     return Math.hypot(dx, dy);
 }
 
-function zoomImage(src, diaryId = null, galleryIndex = null) {
+function zoomImage(src, diaryId = null, galleryIndex = null, sourceType = 'diary') {
     const modal=document.getElementById('img-modal');
     const modalImg=document.getElementById('modal-img');
 
@@ -5552,7 +6087,7 @@ function zoomImage(src, diaryId = null, galleryIndex = null) {
     const openDiaryBtn = document.getElementById('gallery-open-diary-btn');
     if (openDiaryBtn) openDiaryBtn.style.display = (isGallery && diaryId != null) ? 'flex' : 'none';
 
-    if (diaryId) {
+    if (diaryId && sourceType !== 'memo') {
         const diary=diaries.find(d=>String(d.id)===String(diaryId));
         if (diary) {
             if (!diary.imageViewHistory) diary.imageViewHistory={};
@@ -5983,7 +6518,13 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
             renderDiaryList();
         }
 
-        function execCmd(cmd) { document.execCommand(cmd, false, null); }
+        function execCmd(cmd) {
+    const activeEditor = document.getElementById('memo-content');
+    if (activeEditor && document.getElementById('view-memo-editor')?.classList.contains('active')) {
+        activeEditor.focus();
+    }
+    document.execCommand(cmd, false, null);
+}
 
         function insertTemplate(type) {
     const temps = {
@@ -6179,6 +6720,10 @@ async function saveDiaryInternal() {
     if (currentEditingType === 'diary') {
         const tags = document.getElementById('diary-tags').value.split(',').map(t => t.trim()).filter(t => t);
         
+        const existingDiary = currentEditingId
+            ? diaries.find(d => String(d.id) === String(currentEditingId))
+            : null;
+
         const entry = { 
             id: currentEditingId || Date.now(), 
             title, 
@@ -6187,6 +6732,7 @@ async function saveDiaryInternal() {
             tags, 
             mood: selectedMood, 
             images: tempImages, 
+            bookmarked: existingDiary ? !!existingDiary.bookmarked : false,
             updatedAt: Date.now(), 
             searchText: (title + (tags ? tags.join(' ') : '')).toLowerCase()
         };
@@ -6536,7 +7082,7 @@ document.getElementById('status-greeting').innerText = greetingText;
                 entryDate.setHours(0,0,0,0); 
                 return entryDate >= threeDaysAgo; 
             });
-            document.getElementById('recent-diaries').innerHTML = recentFiltered.length ? recentFiltered.map(d => `<div class="diary-item" onclick="openViewer(${d.id})"><div class="diary-date">${escapeHTML(d.date)}</div><div class="diary-title">${escapeHTML(d.title)}</div><div class="diary-preview">${escapeHTML(d.content.replace(/<[^>]*>/g, ''))}</div></div>`).join('') : '<p style="font-size: 0.9rem; opacity: 0.6;">過去3日間の日記はありません。</p>';
+            document.getElementById('recent-diaries').innerHTML = recentFiltered.length ? recentFiltered.map(d => `<div class="diary-item" onclick="openViewer(${d.id})"><div class="diary-date">${escapeHTML(d.date)}</div><div class="diary-title">${escapeHTML(d.title)}</div><div class="diary-preview">${escapeHTML(d.content.replace(/<[^>]*>/g, ''))}</div></div>`).join('') : '<p style="font-size: 0.9rem; opacity: 0.6;">過去3日間の日記はありません</p>';
 
             const flashbackContainer = document.getElementById('flashback-container');
             const periods = [{ label: '1週間前', days: 7 }, { label: '1ヶ月前', months: 1 }, { label: '3ヶ月前', months: 3 }, { label: '6ヶ月前', months: 6 }, { label: '1年前', years: 1 }, { label: '2年前', years: 2 }, { label: '3年前', years: 3 },{ label: '4年前', years: 4 }, { label: '5年前', years: 5 }, { label: '7年前', years: 7 }, { label: '10年前', years: 10 }, { label: '15年前', years: 15 },{ label: '20年前', years: 20 }];
@@ -6907,6 +7453,10 @@ function renderDiaryList() {
     const diaryPaginationArea = document.getElementById('diary-pagination-area');
     const diaryPaginationTopArea = document.getElementById('diary-pagination-top-area');
 
+    const diarySortSelect = document.getElementById('diary-sort');
+
+    if (diarySortSelect) diarySortSelect.style.display = ((diaries && diaries.length > 0) ? '' : 'none');
+
     if (diaries.length === 0) {
         document.getElementById('all-diaries-list').innerHTML =
             '<p style="opacity:0.6; text-align:center; padding:40px 20px;">まだ日記が保存されていません</p>';
@@ -6985,6 +7535,217 @@ updatePaginationButtons(
     diaryPage,
     totalPages
 );}
+async function toggleBookmark(id, event) {
+    if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+    }
+
+    const diary = diaries.find(d => String(d.id) === String(id));
+    if (!diary) return;
+
+    diary.bookmarked = !diary.bookmarked;
+    await saveDataToDB('diaries', diary);
+    diaryMap.set(diary.id, diary);
+    invalidateCaches();
+
+    if (document.getElementById('view-bookmarks')?.classList.contains('active')) {
+        renderBookmarkList();
+    }
+
+    if (String(window.currentViewerDiaryId) === String(diary.id)) {
+        const btn = document.getElementById('viewer-bookmark-btn');
+        if (btn) {
+            btn.classList.toggle('is-bookmarked', !!diary.bookmarked);
+            btn.setAttribute('aria-pressed', diary.bookmarked ? 'true' : 'false');
+            btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path></svg>`;
+            btn.setAttribute('aria-label', diary.bookmarked ? 'ブックマークを解除' : 'ブックマークに追加');
+            btn.setAttribute('title', diary.bookmarked ? 'ブックマークを解除' : 'ブックマークに追加');
+            createIcons();
+        }
+    }
+
+    if (document.getElementById('view-diaries')?.classList.contains('active')) {
+        renderDiaryList();
+    }
+}
+
+function toggleCurrentViewerBookmark(event) {
+    if (event) event.stopPropagation();
+    const id = window.currentViewerDiaryId;
+    if (id == null) return;
+    toggleBookmark(id, event);
+}
+
+
+
+/* ===== 日記一覧・ブックマーク一覧 共通処理 ===== */
+function sortDiaryLikeItems(items, order) {
+    const list = Array.isArray(items) ? items.slice() : [];
+    if (order === 'latestViewed') {
+        return list.sort((a, b) => (Number(b?.lastViewed) || 0) - (Number(a?.lastViewed) || 0));
+    }
+    if (order === 'old') {
+        return list.sort((a, b) => String(a?.date || '').localeCompare(String(b?.date || '')));
+    }
+    return list.sort((a, b) => String(b?.date || '').localeCompare(String(a?.date || '')));
+}
+
+function renderCommonPagination({
+    pagination,
+    pageInfo,
+    prevBtn,
+    nextBtn,
+    page,
+    totalPages,
+    totalItems,
+    pageSize
+}) {
+    if (pagination) {
+        pagination.style.display = totalItems > pageSize ? 'flex' : 'none';
+    }
+    if (pageInfo) {
+        pageInfo.innerText = `${page} / ${totalPages}`;
+    }
+    updatePaginationButtons(prevBtn, nextBtn, page, totalPages);
+}
+
+function getCommonPage(items, page, pageSize) {
+    const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+    const safePage = Math.min(Math.max(1, page), totalPages);
+    const start = (safePage - 1) * pageSize;
+    return {
+        items: items.slice(start, start + pageSize),
+        page: safePage,
+        totalPages
+    };
+}
+
+function openBookmarkPage() {
+    bookmarkPage = 1;
+    lastTabId = 'bookmarks';
+    switchTab('bookmarks');
+    const sortSelect = document.getElementById('bookmark-sort');
+    if (sortSelect) sortSelect.value = bookmarkSortOrder || 'new';
+    renderBookmarkList();
+}
+
+function renderBookmarkList() {
+    const container = document.getElementById('bookmark-list');
+    const countEl = document.getElementById('bookmark-total-count');
+    const pagination = document.getElementById('bookmark-pagination-area');
+    const topPagination = document.getElementById('bookmark-pagination-top');
+    const controls = document.getElementById('bookmark-controls');
+    const sortSelect = document.getElementById('bookmark-sort');
+
+    if (!container) return;
+
+    const bookmarked = sortDiaryLikeItems(
+        (Array.isArray(diaries) ? diaries : []).filter(d => !!d && !!d.bookmarked),
+        bookmarkSortOrder
+    );
+
+    if (countEl) countEl.textContent = `ブックマーク ${bookmarked.length} 件`;
+
+    // ブックマークが0件のときは並び替えを非表示。
+    // 1件以上になったら再び表示する。
+    if (sortSelect) {
+        sortSelect.style.display = bookmarked.length > 0 ? '' : 'none';
+        sortSelect.value = bookmarkSortOrder || 'new';
+    }
+
+    if (bookmarked.length === 0) {
+        if (controls) controls.style.display = 'flex';
+        container.innerHTML = '<p style="opacity:0.6; text-align:center; padding:40px 20px;">まだブックマークされた日記はありません</p>';
+        if (pagination) pagination.style.display = 'none';
+        if (topPagination) topPagination.style.display = 'none';
+        return;
+    }
+
+    if (controls) controls.style.display = 'flex';
+
+    const bookmarkPageData = getCommonPage(bookmarked, bookmarkPage, BOOKMARK_PAGE_SIZE);
+    bookmarkPage = bookmarkPageData.page;
+    const totalPages = bookmarkPageData.totalPages;
+    const visible = bookmarkPageData.items;
+
+    container.innerHTML = visible.map(d => {
+        const title = String(d.title ?? '無題');
+        const date = String(d.date ?? '');
+        const content = String(d.content ?? '');
+        const tags = Array.isArray(d.tags) ? d.tags : [];
+        const plain = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/gi, ' ').trim();
+        const preview = plain.substring(0, 100);
+
+        return `
+        <div class="card diary-item bookmark-diary-item" onclick="openViewer(${d.id})" style="height:auto !important; min-height:0 !important; max-height:none !important; padding:12px 16px 10px !important; margin-bottom:16px !important; box-sizing:border-box;">
+            <div style="display:flex; justify-content:space-between; align-items:center; height:30px;">
+                <span class="diary-date">${escapeHTML(date)}</span>
+                <span class="bookmark-card-mark" aria-label="ブックマーク済み"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path></svg></span>
+            </div>
+            <div class="diary-title">${escapeHTML(title)}</div>
+            <div class="diary-preview">${escapeHTML(preview)}${plain.length > 100 ? '...' : ''}</div>
+            <div style="margin-top:5px;">${tags.map(t => `<span class="tag-badge">${escapeHTML(t)}</span>`).join('')}</div>
+        </div>`;
+    }).join('');
+
+    if (sortSelect) sortSelect.value = bookmarkSortOrder || 'new';
+
+    // 下部ページネーションは従来どおり、30件を超えると表示。
+    renderCommonPagination({
+        pagination,
+        pageInfo: document.getElementById('bookmark-page-info'),
+        prevBtn: 'bookmark-prev-btn',
+        nextBtn: 'bookmark-next-btn',
+        page: bookmarkPage,
+        totalPages,
+        totalItems: bookmarked.length,
+        pageSize: BOOKMARK_PAGE_SIZE
+    });
+
+    // 上部ページネーション：
+    // 1ページ目は30件を超えた場合、2ページ目以降はそのページの日記が7件以上ある場合に表示。
+    const topVisible = bookmarkPage === 1
+        ? bookmarked.length > BOOKMARK_PAGE_SIZE
+        : visible.length >= 7;
+
+    if (topPagination) {
+        topPagination.style.display = topVisible ? 'flex' : 'none';
+    }
+
+    if (topVisible) {
+        renderCommonPagination({
+            pagination: topPagination,
+            pageInfo: document.getElementById('bookmark-top-page-info'),
+            prevBtn: 'bookmark-top-prev-btn',
+            nextBtn: 'bookmark-top-next-btn',
+            page: bookmarkPage,
+            totalPages,
+            totalItems: bookmarked.length,
+            pageSize: BOOKMARK_PAGE_SIZE
+        });
+    }
+
+    createIcons();
+}
+
+function nextBookmarkPage() {
+    const total = Math.max(1, Math.ceil(diaries.filter(d => !!d.bookmarked).length / BOOKMARK_PAGE_SIZE));
+    if (bookmarkPage < total) bookmarkPage++;
+    renderBookmarkList();
+}
+
+function prevBookmarkPage() {
+    if (bookmarkPage > 1) bookmarkPage--;
+    renderBookmarkList();
+}
+
+function changeBookmarkSort(order) {
+    bookmarkSortOrder = order;
+    bookmarkPage = 1;
+    renderBookmarkList();
+}
+
         function nextDiaryPage() {
     diaryPage++;
 
@@ -7541,7 +8302,7 @@ function normalizeExportSearchText(value){
    .replace(/\s+/g,' ')
    .trim();
 }
-function buildDiaryExportHtml(entries,{title='A Certain Day\'s Memories',includeSchedules=false}={}){
+function buildDiaryExportHtml(entries,{title='A Certain Day\'s Memories',includeSchedules=false,includeSearch=true}={}){
   const theme=escapeExportHtml(config.theme||'default'),font=escapeExportHtml(getExportFontClass()),exportedDate=getLocalDateString(new Date());
   const exportBg = config.theme === 'edamame'
   ? `<div class="export-bg-pattern export-bg-edamame" aria-hidden="true">${Array.from({length:98},(_,i)=>i % 20 === 0 ? '💚' : '🟢').map((x,i)=>`<span style="left:${(i*37+7)%101}%;top:${(i*61+11)%101}%;font-size:${16+(i%7)*5}px;transform:rotate(${(i*29)%360}deg)">${x}</span>`).join('')}</div>`
@@ -7561,7 +8322,7 @@ function buildDiaryExportHtml(entries,{title='A Certain Day\'s Memories',include
       ].map((x,i)=>`<span style="left:${(i*37+5)%97}%;top:${(i*61+7)%97}%;font-size:${13+(i%10)*4}px;transform:rotate(${((i*29)%47)-23}deg)">${x}</span>`).join('')}</div>`
     : '';
   const cards=entries.map(buildDiaryExportCard).join('\n');
-  const exportSearchControls=`<section class="export-search-panel" aria-label="日記の検索と絞り込み"><div class="export-search-row"><input id="export-search-input" type="text" placeholder="日記を検索..." aria-label="日記を検索"><label class="export-date-picker" aria-label="日付で絞り込む"><span aria-hidden="true">📅</span><input id="export-search-date" type="month"></label></div><div class="export-mood-filter-container" aria-label="感情で絞り込む"><span class="export-mood-filter-item" data-filter-mood="1" role="button" tabindex="0" aria-label="😭で絞り込む">😭</span><span class="export-mood-filter-item" data-filter-mood="2" role="button" tabindex="0" aria-label="😡で絞り込む">😡</span><span class="export-mood-filter-item" data-filter-mood="3" role="button" tabindex="0" aria-label="😐で絞り込む">😐</span><span class="export-mood-filter-item" data-filter-mood="4" role="button" tabindex="0" aria-label="😊で絞り込む">😊</span><span class="export-mood-filter-item" data-filter-mood="5" role="button" tabindex="0" aria-label="🤩で絞り込む">🤩</span></div><div class="export-search-result" id="export-search-result"></div></section>`;
+  const exportSearchControls=includeSearch ? `<section class="export-search-panel" aria-label="日記の検索と絞り込み"><div class="export-search-row"><input id="export-search-input" type="text" placeholder="日記を検索..." aria-label="日記を検索"><label class="export-date-picker" aria-label="日付で絞り込む"><span aria-hidden="true">📅</span><input id="export-search-date" type="month"></label></div><div class="export-mood-filter-container" aria-label="感情で絞り込む"><span class="export-mood-filter-item" data-filter-mood="1" role="button" tabindex="0" aria-label="😭で絞り込む">😭</span><span class="export-mood-filter-item" data-filter-mood="2" role="button" tabindex="0" aria-label="😡で絞り込む">😡</span><span class="export-mood-filter-item" data-filter-mood="3" role="button" tabindex="0" aria-label="😐で絞り込む">😐</span><span class="export-mood-filter-item" data-filter-mood="4" role="button" tabindex="0" aria-label="😊で絞り込む">😊</span><span class="export-mood-filter-item" data-filter-mood="5" role="button" tabindex="0" aria-label="🤩で絞り込む">🤩</span></div><div class="export-search-result" id="export-search-result"></div></section>` : '';
   const schedulesHtml='';
   return `<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><title>${escapeExportHtml(title)}</title><style>${getExportThemeStyles()}
 :root{color-scheme:light dark}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:var(--bg-color,#f6f4f1);color:var(--text-color,#292725);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif}.export-search-panel{margin:0 0 26px;padding:16px;background:var(--card-bg,#fff);border:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);border-radius:22px;box-shadow:0 10px 28px rgba(0,0,0,.045)}.export-search-row{display:flex;align-items:center;gap:9px}.export-search-row>input{flex:1;min-width:0;height:42px;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid color-mix(in srgb,var(--text-color,#333) 16%,transparent);background:var(--bg-color,#fff);color:var(--text-color,#333);font:inherit;outline:none}.export-search-row>input:focus,.export-date-picker:focus-within{border-color:var(--accent-color,#777);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent-color,#777) 15%,transparent)}.export-date-picker{width:46px;height:42px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;position:relative;border:1px solid color-mix(in srgb,var(--text-color,#333) 16%,transparent);border-radius:8px;background:var(--bg-color,#fff);cursor:pointer;overflow:hidden}.export-date-picker span{font-size:19px;pointer-events:none}.export-date-picker input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}.export-mood-filter-container{display:flex;justify-content:center;gap:10px;margin-top:12px}.export-mood-filter-item{width:38px;height:38px;display:flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;user-select:none;font-size:1.35rem;transition:transform 120ms ease,background 120ms ease,box-shadow 120ms ease}.export-mood-filter-item:hover{transform:translateY(-1px)}.export-mood-filter-item.active{background:color-mix(in srgb,var(--accent-color,#777) 16%,transparent);box-shadow:inset 0 0 0 2px color-mix(in srgb,var(--accent-color,#777) 42%,transparent);transform:scale(1.05)}.export-search-result{margin-top:10px;text-align:center;font-size:.72rem;opacity:.55;min-height:1em}.export-searchable-card.is-search-hidden{display:none!important}.export-page{width:min(980px,calc(100% - 32px));margin:0 auto;padding:34px 0 72px}.export-header{position:relative;text-align:center;padding:24px 22px 25px;margin:0 0 30px;background:var(--card-bg,#fff);border:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);border-radius:32px;box-shadow:0 14px 35px rgba(0,0,0,.06);overflow:hidden}.export-header-brand{margin:0 0 8px;color:var(--text-color,#333);font-family:"Arial Rounded MT Bold","Trebuchet MS","Segoe UI",sans-serif;font-size:.68rem;font-weight:900;letter-spacing:.18em;line-height:1;text-transform:uppercase;opacity:.58}.export-header h1{margin:0;color:var(--primary-color,#333);font-size:clamp(1.65rem,4vw,2.45rem);line-height:1.2;letter-spacing:.025em}.export-header p{margin:10px 0 0;opacity:.55;font-size:.75rem}.export-header:after{content:"";display:block;margin:17px auto 0;width:58px;height:2px;background:var(--accent-color,var(--primary-color,#777));border-radius:99px}.export-diary-card{position:relative;margin:0 0 26px;padding:26px clamp(20px,4vw,34px);background:var(--card-bg,#fff);color:var(--text-color,#333);border:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);border-radius:24px;box-shadow:0 12px 35px rgba(0,0,0,.055);overflow:hidden}.export-card-top{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:14px}.export-date{font-size:.78rem;font-weight:800;letter-spacing:.08em;opacity:.62}.export-mood{font-size:2rem;line-height:1}.export-heading{padding-bottom:16px;border-bottom:1px solid color-mix(in srgb,var(--text-color,#333) 10%,transparent);margin-bottom:18px}.export-title{margin:0 0 12px;color:var(--primary-color,#333);font-size:clamp(1.35rem,3vw,1.8rem);line-height:1.35;word-break:break-word}.export-content{line-height:1.95;word-break:break-word;overflow-wrap:normal;font-size:.96rem}.export-content p{margin:0 0 1em}.export-content a{color:var(--accent-color,#06c)}.export-tags{display:flex;flex-wrap:wrap;gap:7px}.export-tag{display:inline-block;padding:4px 9px;border-radius:999px;background:color-mix(in srgb,var(--accent-color,#ddd) 18%,transparent);border:1px solid color-mix(in srgb,var(--accent-color,#ddd) 32%,transparent);color:var(--text-color,#333);font-size:.72rem;font-weight:700}.export-photo-album{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));grid-auto-rows:minmax(90px,8vw);grid-auto-flow:dense;gap:8px;margin-top:24px;padding:8px;border-radius:20px;background:color-mix(in srgb,var(--text-color,#333) 4%,transparent)}.export-photo{position:relative;margin:0;min-width:0;overflow:hidden;border-radius:13px;background:var(--bg-color,#eee);box-shadow:0 3px 12px rgba(0,0,0,.08);cursor:zoom-in}.export-photo img{display:block;width:100%;height:100%;object-fit:cover}.export-photo figcaption{position:absolute;right:7px;bottom:7px;min-width:21px;height:21px;padding:0 5px;display:flex;align-items:center;justify-content:center;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-size:.65rem;font-weight:800}.export-photo-album.count-1 .export-photo{grid-column:span 6;grid-row:span 4}.export-photo-album.count-2 .export-photo{grid-column:span 3;grid-row:span 4}.export-photo-album.count-3 .export-photo:first-child{grid-column:span 4;grid-row:span 5}.export-photo-album.count-3 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-4 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-4 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-5 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-5 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-6 .export-photo{grid-column:span 2;grid-row:span 2}.export-photo-album.count-7 .export-photo:first-child{grid-column:span 4;grid-row:span 4}.export-photo-album.count-7 .export-photo:nth-child(n+2){grid-column:span 2;grid-row:span 2}.export-photo-album.count-8 .export-photo,.export-photo-album.count-9 .export-photo{grid-column:span 2;grid-row:span 2}.export-schedules{margin-top:44px}.export-section-label{font-size:.68rem;letter-spacing:.2em;font-weight:900;opacity:.5}.export-schedules>h2{margin:5px 0 18px;color:var(--primary-color,#333)}.export-schedule-card{padding:20px 24px;border-radius:20px}.export-schedule-card .export-title{font-size:1.15rem}.export-footer{text-align:center;margin-top:36px;font-size:.72rem;opacity:.45}.export-lightbox{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.9);z-index:2000;display:none;align-items:center;justify-content:center;overflow:hidden}.export-lightbox.is-open{display:flex}.export-lightbox.gallery-navigation-active .export-lb-img{max-width:calc(100% - 150px)}.export-lb-img{max-width:95%;max-height:95%;object-fit:contain;transition:opacity 180ms ease-out,transform 190ms cubic-bezier(.22,.8,.28,1);will-change:opacity,transform;border-radius:3px;box-shadow:0 10px 30px rgba(0,0,0,.6);touch-action:none;user-select:none;-webkit-user-select:none;cursor:default}.export-lb-btn{position:absolute;width:48px;height:48px;border:1px solid rgba(255,255,255,.24);border-radius:50%;background:rgba(20,20,20,.62);color:#fff;display:none;align-items:center;justify-content:center;padding:0;cursor:pointer;z-index:20;box-shadow:0 6px 20px rgba(0,0,0,.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:background 140ms ease,opacity 140ms ease;-webkit-tap-highlight-color:transparent;font-size:30px;line-height:1}.export-lb-btn:hover:not(:disabled){background:rgba(255,255,255,.18)}.export-lb-btn:active:not(:disabled){transform:none}.export-lb-btn:disabled{opacity:.22;cursor:default}.export-lb-prev{right:70px;left:auto;bottom:16px;top:auto;transform:none}.export-lb-next{right:16px;left:auto;bottom:16px;top:auto;transform:none}.export-lb-counter{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);padding:5px 10px;border-radius:999px;background:rgba(0,0,0,.45);color:#fff;font-size:12px;z-index:22}.export-no-scroll{overflow:hidden}@media(max-width:600px){.export-page{width:min(100% - 20px,980px);padding-top:20px}.export-header{padding:21px 17px 22px;border-radius:26px}.export-diary-card{padding:20px 16px;border-radius:19px}.export-photo-album{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(100px,30vw);gap:6px;padding:6px;border-radius:16px}.export-photo-album .export-photo{grid-column:span 1!important;grid-row:span 1!important}.export-photo-album.count-1 .export-photo{grid-column:span 2!important;grid-row:span 3!important}.export-photo-album.count-2 .export-photo{grid-row:span 2!important}.export-photo-album.count-3 .export-photo:first-child,.export-photo-album.count-4 .export-photo:first-child,.export-photo-album.count-5 .export-photo:first-child{grid-column:span 2!important;grid-row:span 2!important}.export-lightbox.gallery-navigation-active .export-lb-img{max-width:94%;max-height:calc(100vh - 110px)}.export-lb-btn{width:46px;height:46px}.export-lb-prev{right:72px;left:auto;bottom:max(14px,env(safe-area-inset-bottom));top:auto;transform:none}.export-lb-next{right:16px;left:auto;bottom:max(14px,env(safe-area-inset-bottom));top:auto;transform:none}.export-lb-counter{bottom:22px}}@media print{body{background:#fff!important}.export-page{width:auto;padding:0}.export-diary-card{break-inside:avoid;box-shadow:none}.export-photo img{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
@@ -7636,13 +8397,32 @@ reset();
 })();<\/script></body></html>`;
 }
 function downloadHtmlFile(html,filename){const blob=new Blob([html],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+async function exportCurrentViewerDiaryHtml(event){
+ if(event){event.stopPropagation();event.preventDefault();}
+ const id=window.currentViewerDiaryId;
+ if(id==null)return;
+ const diary=diaryMap.get(id)||diaries.find(d=>String(d.id)===String(id));
+ if(!diary)return;
+ const title=diary.title||'無題';
+ const date=diary.date||getLocalDateString(new Date());
+ downloadHtmlFile(
+   buildDiaryExportHtml([diary],{title:'いちにち日記',includeSchedules:false,includeSearch:false}),
+   `dejicho_${date}_${sanitizeFilename(title)||'diary'}.html`
+ );
+ alert('この日記をHTML形式で書き出しました。');
+}
+
+function sanitizeFilename(value){
+ return String(value||'').replace(/[\\/:*?"<>|]/g,'_').replace(/[\x00-\x1F]/g,'_').trim().slice(0,80);
+}
+
 async function exportAllDiariesHtml(){
  downloadHtmlFile(buildDiaryExportHtml(diaries||[],{title:'すべての日記',includeSchedules:false}),`dejicho_all_diaries_${getLocalDateString(new Date())}.html`);
  config.lastBackup=Date.now();await saveConfig();if(document.getElementById('view-home')?.classList.contains('active'))renderNotifications();alert('全日記をHTML形式で書き出しました。');
 }
 
 async function exportData(){
- const backupData=JSON.stringify({diaries,schedules,config});
+ const backupData=JSON.stringify({diaries,schedules,memos,config});
  const blob=new Blob([backupData],{type:'application/json'});
  const a=document.createElement('a'),dateStr=getLocalDateString(new Date());
  a.href=URL.createObjectURL(blob);a.download=`dejicho_backup_${dateStr}.json`;document.body.appendChild(a);a.click();a.remove();
@@ -7664,6 +8444,8 @@ async function importData(e) {
                 await txD.objectStore('diaries').clear();
                 const txS = db.transaction('schedules', 'readwrite'); 
                 await txS.objectStore('schedules').clear();
+                const txM = db.transaction('memos', 'readwrite');
+                await txM.objectStore('memos').clear();
                 diaries = imported.diaries || [];
                 for (let d of diaries) {
                     d.searchText = (d.title + (d.tags || []).join(' ')).toLowerCase();
@@ -7673,6 +8455,11 @@ async function importData(e) {
                 schedules = imported.schedules || [];
                 for (let s of schedules) {
                     await saveDataToDB('schedules', s);
+                }
+
+                memos = Array.isArray(imported.memos) ? imported.memos : [];
+                for (let m of memos) {
+                    await saveDataToDB('memos', m);
                 }
 
                 // バックアップ復元時も予定の累計作成数を安全に引き継ぐ。
@@ -7880,7 +8667,394 @@ async function saveRecoverySettings() {
         hideRecoverySetup(); 
     }
 }
-        function renderAll() { renderDashboard(); renderDiaryList(); renderCalendar(); renderGallery(); renderTags(); }
+
+/* ===== メモ機能 ===== */
+function getMemoTabName(tabId) {
+    const tab = memoTabs.find(t => t.id === tabId);
+    return tab ? tab.name : 'メモ';
+}
+
+function normalizeMemoPlainText(htmlContent) {
+    const div = document.createElement('div');
+    div.innerHTML = htmlContent || '';
+    return (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
+}
+
+function formatMemoDate(timestamp) {
+    const d = new Date(Number(timestamp) || Date.now());
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function renderMemoTabs() {
+    // メモはタブを使わず、全件を1つの一覧で管理します。
+}
+
+function sortMemos(items) {
+    return [...items].sort((a, b) => {
+        const at = Number(a.updatedAt || a.createdAt || 0);
+        const bt = Number(b.updatedAt || b.createdAt || 0);
+        return bt - at;
+    });
+}
+
+function renderMemoPage() {
+    const current = sortMemos(memos.filter(m => m));
+    const countEl = document.getElementById('memo-total-count');
+    const list = document.getElementById('memo-list');
+    const empty = document.getElementById('memo-empty');
+    if (!list || !empty) return;
+
+    if (countEl) countEl.textContent = `メモ ${current.length} / 5 件`;
+
+    const newBtn = document.querySelector('.memo-new-btn');
+    if (newBtn) {
+        const limitReached = memos.length >= 5;
+        newBtn.disabled = limitReached;
+        newBtn.setAttribute('aria-disabled', limitReached ? 'true' : 'false');
+        newBtn.title = limitReached ? 'メモは最大5個までです' : '新規作成';
+    }
+
+    if (!current.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+
+    empty.style.display = 'none';
+    list.innerHTML = current.map(m => {
+        const preview = normalizeMemoPlainText(m.content || '');
+        const checklist = Array.isArray(m.checklist) ? m.checklist : [];
+        const done = checklist.filter(i => i && i.done).length;
+        return `
+            <article class="memo-card" onclick="openMemoViewer(${Number(m.id)})">
+                <div class="memo-card-top">
+                    <h4 class="memo-card-title">${escapeHTML(m.title || '無題')}</h4>
+                    <span class="memo-card-date">${escapeHTML(formatMemoDate(m.updatedAt))}</span>
+                </div>
+                <p class="memo-card-preview">${escapeHTML(preview || '本文はありません')}</p>
+                ${checklist.length ? `<div class="memo-card-checklist">☑ ${done}/${checklist.length} 完了</div>` : ''}
+            </article>`;
+    }).join('');
+}
+
+function openMemoPage() {
+    switchTab('memos');
+}
+
+function closeMemoPage() {
+    switchTab(lastTabId && lastTabId !== 'memos' ? lastTabId : 'home');
+}
+
+async function switchMemoTab() {
+    renderMemoPage();
+    window.scrollTo(0,0);
+}
+
+async function saveMemoTabsConfig() {
+    // 旧バージョンのタブ設定との互換性のため関数だけ残します。
+}
+
+function countMemoText(htmlContent) {
+    const temp = document.createElement('div');
+    temp.innerHTML = htmlContent || '';
+    return (temp.textContent || temp.innerText || '').length;
+}
+
+function updateMemoCharCount() {
+    const content = document.getElementById('memo-content');
+    const count = document.getElementById('memo-editor-char-count');
+    if (content && count) count.textContent = `${countMemoText(content.innerHTML)}文字`;
+}
+
+function updateMemoViewerCharCount(htmlContent) {
+    const count = document.getElementById('memo-viewer-char-count');
+    if (count) count.textContent = `${countMemoText(htmlContent)}文字`;
+}
+
+function linkifyMemoHTML(html) {
+    if (!html) return '';
+    const box = document.createElement('div');
+    box.innerHTML = html;
+    const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    let node;
+    while ((node = walker.nextNode())) {
+        if (node.parentElement && node.parentElement.closest('a')) continue;
+        if (/https?:\/\/[^\s<]+/i.test(node.nodeValue || '')) nodes.push(node);
+    }
+    nodes.forEach(textNode => {
+        const frag = document.createDocumentFragment();
+        const re = /(https?:\/\/[^\s<]+)/gi;
+        let last = 0, m;
+        while ((m = re.exec(textNode.nodeValue)) !== null) {
+            frag.appendChild(document.createTextNode(textNode.nodeValue.slice(last, m.index)));
+            const a = document.createElement('a');
+            let url = m[0].replace(/[。、，,！!？?）」』】〉》]+$/g, '');
+            const trailing = m[0].slice(url.length);
+            a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = url;
+            frag.appendChild(a);
+            if (trailing) frag.appendChild(document.createTextNode(trailing));
+            last = re.lastIndex;
+        }
+        frag.appendChild(document.createTextNode(textNode.nodeValue.slice(last)));
+        textNode.parentNode.replaceChild(frag, textNode);
+    });
+    return box.innerHTML;
+}
+
+function openMemoViewer(id) {
+    const memo = memos.find(m => String(m.id) === String(id));
+    if (!memo) return;
+    currentViewingMemoId = memo.id;
+    memoViewerReturnViewId = 'memos';
+    memo.lastViewed = Date.now();
+    saveDataToDB('memos', memo).catch(()=>{});
+
+    const title = document.getElementById('memo-viewer-title');
+    const date = document.getElementById('memo-viewer-date');
+    const content = document.getElementById('memo-viewer-content');
+    const panel = document.getElementById('memo-viewer-checklist');
+    const items = document.getElementById('memo-viewer-checklist-items');
+
+    if (title) title.textContent = memo.title || '無題';
+    if (date) date.textContent = formatMemoDate(memo.updatedAt);
+    const linkedContent = linkifyMemoHTML(memo.content || '');
+    if (content) content.innerHTML = linkedContent;
+    updateMemoViewerCharCount(linkedContent);
+    const checklist = Array.isArray(memo.checklist) ? memo.checklist : [];
+    if (panel && items) {
+        panel.style.display = checklist.length ? 'block' : 'none';
+        items.innerHTML = checklist.map((item, idx) => `
+            <label class="memo-viewer-checklist-item ${item.done ? 'is-done' : ''}">
+                <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleMemoViewerChecklist(${idx}, this.checked)">
+                <span>${escapeHTML(item.text || '')}</span>
+            </label>
+        `).join('');
+    }
+    switchTab('memo-viewer');
+    window.scrollTo(0,0);
+}
+
+let currentViewingMemoId = null;
+let memoViewerReturnViewId = 'memos';
+
+function toggleMemoViewerChecklist(index, done) {
+    const memo = memos.find(m => String(m.id) === String(currentViewingMemoId));
+    if (!memo || !Array.isArray(memo.checklist) || !memo.checklist[index]) return;
+    memo.checklist[index].done = !!done;
+    memo.updatedAt = Date.now();
+    saveDataToDB('memos', memo).catch(()=>{});
+    renderMemoViewerChecklistOnly(memo);
+    renderMemoPage();
+}
+
+function renderMemoViewerChecklistOnly(memo) {
+    const items = document.getElementById('memo-viewer-checklist-items');
+    if (!items) return;
+    const checklist = Array.isArray(memo.checklist) ? memo.checklist : [];
+    items.innerHTML = checklist.map((item, idx) => `
+        <label class="memo-viewer-checklist-item ${item.done ? 'is-done' : ''}">
+            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleMemoViewerChecklist(${idx}, this.checked)">
+            <span>${escapeHTML(item.text || '')}</span>
+        </label>
+    `).join('');
+}
+
+function editCurrentMemo() {
+    if (currentViewingMemoId == null) return;
+    openMemoEditor(currentViewingMemoId);
+}
+
+function closeMemoViewer() {
+    currentViewingMemoId = null;
+    switchTab(memoViewerReturnViewId || 'memos');
+}
+
+function openMemoEditor(id = null) {
+    const activeView = document.querySelector('.view.active');
+    const activeId = activeView ? activeView.id.replace('view-', '') : 'memos';
+    memoEditorReturnViewId = activeId === 'memo-viewer' ? 'memo-viewer' : (activeId === 'memo-editor' ? 'memos' : (activeId || 'memos'));
+    currentEditingMemoId = id;
+    memoChecklistDraft = [];
+
+    const title = document.getElementById('memo-title-input');
+    const content = document.getElementById('memo-content');
+    const panel = document.getElementById('memo-checklist-panel');
+    const toggle = document.getElementById('memo-checklist-toggle');
+    const deleteArea = document.getElementById('memo-delete-area');
+    const deleteBtn = document.getElementById('memo-delete-btn');
+
+    if (id != null) {
+        const memo = memos.find(m => String(m.id) === String(id));
+        if (!memo) return;
+        memo.lastViewed = Date.now();
+        saveDataToDB('memos', memo).catch(()=>{});
+        title.value = memo.title || '';
+        content.innerHTML = memo.content || '';
+        memoChecklistDraft = Array.isArray(memo.checklist)
+            ? memo.checklist.map(i => ({ text: i.text || '', done: !!i.done }))
+            : [];
+    } else {
+        title.value = '';
+        content.innerHTML = '';
+            memoChecklistDraft = [];
+    }
+
+    const hasChecklist = memoChecklistDraft.length > 0;
+    panel.style.display = hasChecklist ? 'block' : 'none';
+    toggle.classList.toggle('active', hasChecklist);
+    renderMemoChecklistItems();
+    updateMemoCharCount();
+
+    if (deleteArea && deleteBtn) {
+        deleteArea.style.display = id != null ? 'block' : 'none';
+        deleteBtn.onclick = id != null ? () => deleteMemo(id) : null;
+    }
+
+    switchTab('memo-editor');
+    setTimeout(() => title.focus(), 80);
+}
+
+function toggleMemoChecklistMode() {
+    const panel = document.getElementById('memo-checklist-panel');
+    const toggle = document.getElementById('memo-checklist-toggle');
+    const visible = panel.style.display !== 'none';
+    if (visible) {
+        panel.style.display = 'none';
+        toggle.classList.remove('active');
+        return;
+    }
+    panel.style.display = 'block';
+    toggle.classList.add('active');
+    if (!memoChecklistDraft.length) memoChecklistDraft.push({ text: '', done: false });
+    renderMemoChecklistItems();
+}
+
+function renderMemoChecklistItems() {
+    const wrap = document.getElementById('memo-checklist-items');
+    if (!wrap) return;
+    wrap.innerHTML = memoChecklistDraft.map((item, idx) => `
+        <div class="memo-checklist-item ${item.done ? 'is-done' : ''}">
+            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="updateMemoChecklistDone(${idx}, this.checked)">
+            <input type="text" value="${escapeHTML(item.text || '')}" placeholder="チェック項目"
+                   oninput="updateMemoChecklistText(${idx}, this.value)">
+            <button class="memo-checklist-remove" type="button" onclick="removeMemoChecklistItem(${idx})" aria-label="この項目を削除" title="この項目を削除">×</button>
+        </div>
+    `).join('');
+}
+
+function updateMemoChecklistDone(index, done) {
+    if (!memoChecklistDraft[index]) return;
+    memoChecklistDraft[index].done = !!done;
+    renderMemoChecklistItems();
+}
+
+function updateMemoChecklistText(index, value) {
+    if (!memoChecklistDraft[index]) return;
+    memoChecklistDraft[index].text = value;
+}
+
+function addMemoChecklistItem() {
+    memoChecklistDraft.push({ text: '', done: false });
+    const panel = document.getElementById('memo-checklist-panel');
+    const toggle = document.getElementById('memo-checklist-toggle');
+    panel.style.display = 'block';
+    toggle.classList.add('active');
+    renderMemoChecklistItems();
+    const inputs = document.querySelectorAll('#memo-checklist-items input[type="text"]');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function removeMemoChecklistItem(index) {
+    memoChecklistDraft.splice(index,1);
+    renderMemoChecklistItems();
+}
+
+async function saveMemo() {
+    const titleEl = document.getElementById('memo-title-input');
+    const contentEl = document.getElementById('memo-content');
+    if (!titleEl || !contentEl) return;
+
+    const title = titleEl.value.trim() || '無題';
+    const content = linkifyMemoHTML(contentEl.innerHTML);
+    contentEl.innerHTML = content;
+    updateMemoCharCount();
+    const checklist = memoChecklistDraft
+        .map(i => ({ text: String(i.text || '').trim(), done: !!i.done }))
+        .filter(i => i.text);
+
+    const existing = currentEditingMemoId != null
+        ? memos.find(m => String(m.id) === String(currentEditingMemoId))
+        : null;
+
+    if (currentEditingMemoId == null && memos.length >= 5) {
+        alert('メモは最大5個まで作成できます。');
+        return;
+    }
+
+    const entry = {
+        id: currentEditingMemoId != null ? Number(currentEditingMemoId) : Date.now(),
+        tabId: existing ? existing.tabId : null,
+        title,
+        content,
+        checklist,
+        createdAt: existing ? (existing.createdAt || Date.now()) : Date.now(),
+        updatedAt: Date.now(),
+        lastViewed: existing ? (existing.lastViewed || Date.now()) : Date.now()
+    };
+
+    await saveDataToDB('memos', entry);
+    if (existing) {
+        const idx = memos.findIndex(m => String(m.id) === String(currentEditingMemoId));
+        if (idx >= 0) memos[idx] = entry;
+    } else {
+        memos.push(entry);
+    }
+
+    const returnView = memoEditorReturnViewId || 'memos';
+    currentEditingMemoId = null;
+    memoChecklistDraft = [];
+    renderMemoPage();
+    if (returnView === 'memo-viewer') {
+        openMemoViewer(entry.id);
+    } else {
+        switchTab(returnView);
+    }
+}
+
+function cancelMemoEditor() {
+    currentEditingMemoId = null;
+    memoChecklistDraft = [];
+    switchTab(memoEditorReturnViewId || 'memos');
+}
+
+async function deleteMemo(id) {
+    if (!confirm('このメモを削除してもよろしいですか？')) return;
+    await deleteFromDB('memos', id);
+    memos = memos.filter(m => String(m.id) !== String(id));
+    currentEditingMemoId = null;
+    memoChecklistDraft = [];
+    renderMemoPage();
+    switchTab('memos');
+}
+
+        document.addEventListener('input', function(e) {
+    if (e.target && e.target.id === 'memo-content') updateMemoCharCount();
+});
+document.addEventListener('paste', function(e) {
+    if (!e.target || !e.target.closest || !e.target.closest('#memo-content')) return;
+    const text = e.clipboardData && e.clipboardData.getData('text/plain');
+    if (!text || !/^https?:\/\//i.test(text.trim())) return;
+    e.preventDefault();
+    document.execCommand('insertText', false, text);
+    setTimeout(() => {
+        const content = document.getElementById('memo-content');
+        if (content) { content.innerHTML = linkifyMemoHTML(content.innerHTML); updateMemoCharCount(); }
+    }, 0);
+});
+
+function renderAll() { renderDashboard(); renderDiaryList(); renderCalendar(); renderGallery(); renderTags(); renderBookmarkList(); renderMemoPage(); }
         
         function updateViewerCharCount(htmlContent) {
     const countEl = document.getElementById('viewer-char-count');
@@ -8401,5 +9575,16 @@ function applyTheme() {
 })();
 </script>
 
+
+<script>
+// ホーム画面以外では、ヘッダーの検索・ブックマーク操作を非表示にする。
+document.addEventListener('DOMContentLoaded', function () {
+    const actions = document.querySelector('.home-quick-actions');
+    if (actions) {
+        const active = document.querySelector('.view.active');
+        actions.style.display = active && active.id === 'view-home' ? 'flex' : 'none';
+    }
+});
+</script>
 </body>
 </html>
