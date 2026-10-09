@@ -2857,15 +2857,15 @@ body[data-theme="cosmos"] {
             height: 370px !important;
         }
         #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #moodChart {
-            height: 312px !important;
+            height: 315px !important;
         }
         @media (max-width: 600px) {
             #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #mood-chart-inner {
                 height: 370px !important;
-                min-height: 312px !important;
+                min-height: 315px !important;
             }
             #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #moodChart {
-                height: 312px !important;
+                height: 315px !important;
             }
         }
 
@@ -4071,6 +4071,62 @@ body[data-theme="devil"] .tool-btn * {
       box-sizing: border-box !important;
     }
   </style>
+
+<style id="final-bar-chart-fit-fix">
+/* 棒グラフ：外枠の内側に描画領域を収め、PC・モバイル双方で横幅と高さを親枠に追従させる */
+#view-home .card:has(#moodChart) > div:has(> #mood-chart-scroll.stats-bar-chart) {
+  height: 330px !important;
+  min-height: 0 !important;
+  max-height: 330px !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart #mood-chart-inner {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart #moodChart {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  aspect-ratio: auto !important;
+  box-sizing: border-box !important;
+}
+@media (max-width: 600px) {
+  #view-home .card:has(#moodChart) > div:has(> #mood-chart-scroll.stats-bar-chart) {
+    height: min(calc(100vw - 28px), 340px) !important;
+    min-height: 0 !important;
+    max-height: 340px !important;
+  }
+}
+</style>
+
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -4281,7 +4337,7 @@ body[data-theme="devil"] .tool-btn * {
 
     <div id="memo-list"></div>
     <div id="memo-empty" style="display:none; text-align:center; opacity:.6; padding:40px 20px;">
-        メモはまだありません
+        まだメモはありません
     </div>
 </div>
 </section>
