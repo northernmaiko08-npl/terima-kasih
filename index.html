@@ -4210,7 +4210,7 @@ body[data-theme="devil"] .tool-btn * {
 
     <div id="memo-list"></div>
     <div id="memo-empty" style="display:none; text-align:center; opacity:.6; padding:40px 20px;">
-        まだメモはありません
+        メモはまだありません
     </div>
 </div>
 </section>
@@ -5553,21 +5553,37 @@ if (config.hasUnlockedMaster) {
             autoBackupReconnectTimer=null;
         }
 
-        // 権限が戻る可能性のあるライフサイクルイベントだけで無通知確認する。
+        // Android Chrome/PWAはバックグラウンド中にタイマーが停止・遅延するため、
+        // 復帰時に同期を再開し、表示中も定期的にJSONバックアップを更新する。
+        // ブラウザが停止している間の連続実行は保証できないので、復帰時の同期で補う。
+        function resumeAutoBackupSync(reason){
+            if(!config.backupFileHandle) return;
+            if(document.visibilityState === 'hidden' && reason !== 'pageshow') return;
+            void checkAutoBackupReconnectSilently(reason);
+        }
         document.addEventListener('visibilitychange',()=>{
-            if(document.visibilityState==='visible' && config.backupFileHandle){
-                checkAutoBackupReconnectSilently('visibility');
+            if(document.visibilityState==='visible') resumeAutoBackupSync('visibility');
+        });
+        window.addEventListener('pageshow',()=>resumeAutoBackupSync('pageshow'));
+        window.addEventListener('focus',()=>resumeAutoBackupSync('focus'));
+        window.addEventListener('online',()=>resumeAutoBackupSync('online'));
+        window.addEventListener('pagehide',()=>{
+            // 画面遷移・終了直前にもベストエフォートで同期を開始する。
+            // モバイルブラウザが処理を中断する場合があるため、これだけに依存しない。
+            if(config.backupFileHandle && !autoBackupSyncInProgress){
+                clearTimeout(autoBackupSyncTimer);
+                void syncAutoBackupFile(false, true);
             }
         });
-        window.addEventListener('pageshow',()=>{
-            if(config.backupFileHandle) checkAutoBackupReconnectSilently('pageshow');
-        });
-        window.addEventListener('focus',()=>{
-            if(config.backupFileHandle) checkAutoBackupReconnectSilently('focus');
-        });
-        window.addEventListener('online',()=>{
-            if(config.backupFileHandle) checkAutoBackupReconnectSilently('online');
-        });
+
+        // 画面が前面にある間の保険。モバイルの省電力制御で遅延しても、
+        // 次に表示状態へ戻った際のイベントで同期を再開する。
+        const AUTO_BACKUP_FOREGROUND_SYNC_INTERVAL = 30000;
+        setInterval(()=>{
+            if(document.visibilityState === 'visible' && config.backupFileHandle){
+                resumeAutoBackupSync('foreground-periodic');
+            }
+        }, AUTO_BACKUP_FOREGROUND_SYNC_INTERVAL);
 
         async function ensureBackupProtectionOnStartup(){
             try{
@@ -8499,7 +8515,7 @@ function renderSchedules() {
         .slice(0, 5);
 
     if (upcoming.length === 0) {
-        container.innerHTML = '<p style="font-size:0.9rem; opacity:0.6; text-align:center; padding:20px;">まだ予定はありません</p>';
+        container.innerHTML = '<p style="font-size:0.9rem; opacity:0.6; text-align:center; padding:20px;">予定はありません</p>';
         return;
     }
 
