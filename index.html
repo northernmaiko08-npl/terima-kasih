@@ -1896,25 +1896,6 @@ body[data-theme="cosmos"] {
             max-width: 90%;
             width: 320px;
         }
-        /* ロック画面のアイコンが操作領域を覆わないように固定する。
-           モバイルではSVGの実寸がタップ判定に影響するため、サイズと
-           ポインターイベントを明示的に固定する。 */
-        .lock-container > svg,
-        .lock-container > .lock-screen-icon {
-            display: block !important;
-            width: 48px !important;
-            height: 48px !important;
-            max-width: 48px !important;
-            max-height: 48px !important;
-            margin: 0 auto 1rem !important;
-            flex: 0 0 auto !important;
-            pointer-events: none !important;
-        }
-        .lock-container button,
-        .lock-container input {
-            position: relative;
-            z-index: 2;
-        }
         input[type="password"], input[type="text"] {
             padding: 12px;
             border: 2px solid var(--primary-color);
@@ -2728,19 +2709,32 @@ body[data-theme="cosmos"] {
           
        @media (min-width: 601px) {
             #view-home .card:has(#moodChart) > div:last-child {
-                height: 300px !important;
+                height: 330px !important;
+                overflow: hidden;
             }
             #view-home .card:has(#moodChart) #mood-chart-scroll {
-                width: min(100%, 760px);
+                width: 100%;
                 max-width: 760px;
                 margin-left: auto;
                 margin-right: auto;
             }
             #view-home .card:has(#moodChart) #mood-chart-inner {
-                height: 280px;
+                box-sizing: border-box;
+                width: 320px !important;
+                height: 320px !important;
+                min-width: 320px !important;
+                max-width: 320px !important;
+                aspect-ratio: 1 / 1;
+                margin-left: auto;
+                margin-right: auto;
             }
             #view-home .card:has(#moodChart) #mood-chart-inner #moodChart {
-                height: 280px !important;
+                display: block;
+                width: 320px !important;
+                height: 320px !important;
+                max-width: 320px !important;
+                max-height: 320px !important;
+                aspect-ratio: 1 / 1;
             }
         }
 
@@ -2803,6 +2797,75 @@ body[data-theme="cosmos"] {
                 width: 100% !important;
                 height: 100% !important;
                 aspect-ratio: 1 / 1;
+            }
+        }
+
+        /* 棒グラフ・折れ線グラフは統計画面の幅に合わせ、縦方向にも余裕を持たせる。
+           円グラフの320px正方形サイズには影響させない。 */
+        #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7, .stats-bar-chart) {
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            overflow-y: hidden;
+        }
+        #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7, .stats-bar-chart) #mood-chart-inner {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            height: clamp(360px, 58vh, 520px) !important;
+            min-height: 360px !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+        }
+        #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7, .stats-bar-chart) #moodChart {
+            display: block;
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            height: calc(clamp(360px, 58vh, 520px) - 30px) !important;
+            max-height: none !important;
+            aspect-ratio: auto !important;
+        }
+
+        @media (max-width: 600px) {
+            #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7, .stats-bar-chart) {
+                width: 100%;
+                max-width: 100%;
+                overflow-x: hidden;
+                overflow-y: hidden;
+            }
+            #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7, .stats-bar-chart) #mood-chart-inner {
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                height: clamp(330px, 52vh, 460px) !important;
+                min-height: 330px !important;
+                aspect-ratio: auto !important;
+            }
+            #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7, .stats-bar-chart) #moodChart {
+                width: 100% !important;
+                min-width: 0 !important;
+                max-width: 100% !important;
+                height: calc(clamp(330px, 52vh, 460px) - 30px) !important;
+                max-height: none !important;
+                aspect-ratio: auto !important;
+            }
+        }
+
+        /* 折れ線グラフ本体を320pxにし、下の日付ラベルが見える余白を確保する。 */
+        #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #mood-chart-inner {
+            height: 370px !important;
+        }
+        #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #moodChart {
+            height: 312px !important;
+        }
+        @media (max-width: 600px) {
+            #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #mood-chart-inner {
+                height: 370px !important;
+                min-height: 312px !important;
+            }
+            #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #moodChart {
+                height: 312px !important;
             }
         }
 
@@ -3946,7 +4009,7 @@ body[data-theme="devil"] .tool-btn * {
 </div>
 <div class="lock-credit" aria-label="northern maiko / 北の舞妓さん"><div class="lock-credit-main">northern maiko / 北の舞妓さん</div></div>
 <div class="lock-container" id="lock-standard">
-<i data-lucide="lock" class="lock-screen-icon" style="width: 48px; height: 48px; color: var(--primary-color);"></i>
+<i data-lucide="lock" style="width: 1000px; height: 1000px; color: var(--primary-color);"></i>
 <h2 id="lock-title">パスコードを入力</h2>
 <p id="lock-msg">※アプリを保護しています</p>
 <input id="pass-input" placeholder="••••" type="password" enterkeyhint="go"/>
@@ -4147,7 +4210,7 @@ body[data-theme="devil"] .tool-btn * {
 
     <div id="memo-list"></div>
     <div id="memo-empty" style="display:none; text-align:center; opacity:.6; padding:40px 20px;">
-        メモはまだありません
+        まだメモはありません
     </div>
 </div>
 </section>
@@ -6218,22 +6281,17 @@ function checkNewYearFireworks() {
 }
 
 window.onload = async () => {
-    // ロック画面をバックアップ処理より先に確定させる。
-    // モバイル/PWAでは起動時のストレージ・File System Access処理が遅れることがあるため、
-    // それらを待ってからロック画面を初期化すると、画面が操作不能に見えることがある。
     await initDB();
+    await protectStorage();
+    await checkStorageHealth();
+    await updateStorageProtectionStatus();
     await loadData();
+    // 保存済みHandleがある場合は、起動直後から自動バックアップを保護・再接続する。
+    // ここでは権限を要求せず、grantedなら静かに同期、失われていればHandleを保持する。
+    await ensureBackupProtectionOnStartup();
+    await updateAutoBackupStatus();
     createIcons();
     checkSecurity();
-
-    // ロック画面を表示・操作可能にした後で、保護処理や表示処理をバックグラウンドで行う。
-    Promise.resolve().then(async () => {
-        try { await protectStorage(); } catch (e) { console.warn('ストレージ保護の初期化に失敗しました:', e); }
-        try { await checkStorageHealth(); } catch (e) { console.warn('ストレージ状態確認に失敗しました:', e); }
-        try { await updateStorageProtectionStatus(); } catch (e) { console.warn('ストレージ保護状態の更新に失敗しました:', e); }
-        try { await ensureBackupProtectionOnStartup(); } catch (e) { console.warn('自動バックアップ保護の初期化に失敗しました:', e); }
-        try { await updateAutoBackupStatus(); } catch (e) { console.warn('自動バックアップ状態の更新に失敗しました:', e); }
-    });
     
     if (!hasPrimaryAuth()) {
     } else {
@@ -6329,11 +6387,9 @@ window.onload = async () => {
                     document.getElementById('lock-screen').style.transform = 'translateY(-100%)';
                     switchTab('home');
                     window.scrollTo(0, 0);
-                    // ロック解除後の保護・バックアップ処理は画面遷移を待たせない。
-                    Promise.resolve().then(async () => {
-                        try { await requestPersistentStorageSilently(); } catch (e) { console.warn('永続ストレージ確認に失敗しました:', e); }
-                        try { await reconnectAutoBackupAfterUnlock(); } catch (e) { console.warn('自動バックアップ再接続に失敗しました:', e); }
-                    });
+                    // 初期パスコード設定では上で終了する。通常ログインでは、保存フォルダ未指定なら関数側で何もせず、それ以外は問答無用で再接続する。
+                    await requestPersistentStorageSilently();
+                    await reconnectAutoBackupAfterUnlock();
                 } else {
                     passInput.value = '';
                     alert('パスコードが一致しません。');
@@ -6596,19 +6652,7 @@ function updateCharCount() {
 function openEditor(type = 'diary', id = null) {
     const activeView = document.querySelector('.view.active');
     const activeViewId = activeView ? activeView.id.replace('view-', '') : '';
-
-    // 閲覧ページから編集した場合は、閲覧ページそのものではなく、
-    // 閲覧ページへ入る前の画面を保存後の戻り先として引き継ぐ。
-    // これにより「編集→保存→閲覧→戻る」で同じ閲覧ページに留まらない。
-    if (activeViewId === 'viewer') {
-        editorReturnViewId = viewerReturnTabId && viewerReturnTabId !== 'viewer'
-            ? viewerReturnTabId
-            : (lastTabId || 'home');
-    } else {
-        editorReturnViewId = (activeViewId && activeViewId !== 'editor')
-            ? activeViewId
-            : (lastTabId || 'home');
-    }
+    editorReturnViewId = (activeViewId && activeViewId !== 'editor') ? activeViewId : (lastTabId || 'home');
 
     currentEditingId = id; 
     currentEditingType = type;
@@ -7011,7 +7055,7 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
         // 編集開始時に記録した、編集前の画面へ戻す。
         if (sourceViewId === 'editor') {
             const editorSourceViewId = editorReturnViewId || lastTabId || 'home';
-            viewerReturnTabId = editorSourceViewId === 'viewer'
+            viewerReturnTabId = editorSourceViewId === 'editor'
                 ? (lastTabId || 'home')
                 : editorSourceViewId;
         } else {
@@ -8455,7 +8499,7 @@ function renderSchedules() {
         .slice(0, 5);
 
     if (upcoming.length === 0) {
-        container.innerHTML = '<p style="font-size:0.9rem; opacity:0.6; text-align:center; padding:20px;">予定はありません</p>';
+        container.innerHTML = '<p style="font-size:0.9rem; opacity:0.6; text-align:center; padding:20px;">まだ予定はありません</p>';
         return;
     }
 
@@ -8517,35 +8561,42 @@ function renderSchedules() {
 
             const period = config.chartPeriod || 'month';
             const isLineChart = config.chartType === 'line';
+            const isBarChart = config.chartType === 'bar';
             const isSevenDays = period === '7';
 
-            // 横スクロールは「折れ線グラフ」かつ「過去7日間以外」の場合だけ有効にする。
+            // 折れ線グラフと棒グラフは統計画面の横幅に合わせて表示する。
             chartScroll.classList.toggle('line-chart-scroll', isLineChart && !isSevenDays);
-            chartScroll.classList.toggle('stats-period-7', isSevenDays);
+            chartScroll.classList.toggle('stats-period-7', isLineChart && isSevenDays);
             chartScroll.classList.toggle('stats-period-wide', isLineChart && !isSevenDays);
+            chartScroll.classList.toggle('stats-bar-chart', isBarChart);
 
-            if (isLineChart && !isSevenDays) {
-                // ドットが増えても1マスの幅は変えない。
-                // 表示領域は固定のまま、必要な分だけグラフ本体を横へ伸ばす。
-                const pointCount = periodDiaries.length;
-                const visibleWidth = chartScroll.clientWidth || window.innerWidth;
-                const POINT_SPACING = 60;
-                const chartWidth = Math.max(
-                    visibleWidth,
-                    pointCount > 1
-                        ? (pointCount - 1) * POINT_SPACING + 80
-                        : visibleWidth
-                );
-
-                chartInner.style.width = `${chartWidth}px`;
-                chartInner.style.minWidth = `${chartWidth}px`;
-                chartInner.style.maxWidth = 'none';
-                chartInner.style.height = '310px';
+            if (isLineChart || isBarChart) {
+                // 折れ線グラフと棒グラフは統計画面の横幅いっぱいに表示する。
+                // 円グラフのサイズ指定には触れない。
+                chartInner.style.width = '100%';
+                chartInner.style.minWidth = '0';
+                chartInner.style.maxWidth = '100%';
+                chartInner.style.height = isLineChart
+                ? (window.innerWidth <= 600 ? '370px' : '370px')
+                : (window.innerWidth <= 600 ? 'clamp(330px, 52vh, 460px)' : 'clamp(360px, 58vh, 520px)');
+                chartInner.style.marginLeft = '';
+                chartInner.style.marginRight = '';
+            } else if (config.chartType === 'doughnut' && window.innerWidth > 600) {
+                // PCの円グラフは横長の描画領域に引き伸ばさず、
+                // キャンバス自体を正方形にして完全な円として表示する。
+                chartInner.style.width = '320px';
+                chartInner.style.minWidth = '320px';
+                chartInner.style.maxWidth = '320px';
+                chartInner.style.height = '320px';
+                chartInner.style.marginLeft = 'auto';
+                chartInner.style.marginRight = 'auto';
             } else {
                 chartInner.style.width = '100%';
                 chartInner.style.minWidth = '0';
                 chartInner.style.maxWidth = '100%';
                 chartInner.style.height = '310px';
+                chartInner.style.marginLeft = '';
+                chartInner.style.marginRight = '';
             }
         }
 
@@ -8614,7 +8665,12 @@ function renderSchedules() {
             legend: {
                 display: config.chartType !== 'line',
                 position: 'bottom',
-                labels: { boxWidth: 10, font: { size: 10 } }
+                labels: {
+                    boxWidth: 8,
+                    padding: 6,
+                    font: { size: 9 },
+                    usePointStyle: false
+                }
             }
         },
         scales: config.chartType === 'line'
@@ -8624,8 +8680,14 @@ function renderSchedules() {
                     ticks: {
                         autoSkip: true,
                         maxTicksLimit: period === '7' ? 7 : 15,
-                        maxRotation: 45,
-                        minRotation: 0
+                        maxRotation: 0,
+                        minRotation: 0,
+                        // 軸ラベルは短い日付にして、長い期間でも画面端からはみ出さないようにする。
+                        callback: function(value) {
+                            const rawDate = this.getLabelForValue(value);
+                            const match = String(rawDate).match(/^\d{4}-(\d{2})-(\d{2})$/);
+                            return match ? `${match[1]}/${match[2]}` : rawDate;
+                        }
                     }
                 },
                 y: {
