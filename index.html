@@ -2812,7 +2812,7 @@ body[data-theme="cosmos"] {
             width: 100% !important;
             min-width: 0 !important;
             max-width: 100% !important;
-            height: clamp(460px, 65vh, 620px) !important;
+            height: clamp(360px, 58vh, 520px) !important;
             min-height: 360px !important;
             margin-left: 0 !important;
             margin-right: 0 !important;
@@ -2838,7 +2838,7 @@ body[data-theme="cosmos"] {
                 width: 100% !important;
                 min-width: 0 !important;
                 max-width: 100% !important;
-                height: clamp(420px, 68vh, 560px) !important;
+                height: clamp(330px, 52vh, 460px) !important;
                 min-height: 330px !important;
                 aspect-ratio: auto !important;
             }
@@ -2857,15 +2857,15 @@ body[data-theme="cosmos"] {
             height: 370px !important;
         }
         #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #moodChart {
-            height: 315px !important;
+            height: 312px !important;
         }
         @media (max-width: 600px) {
             #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #mood-chart-inner {
                 height: 370px !important;
-                min-height: 315px !important;
+                min-height: 312px !important;
             }
             #view-home .card:has(#moodChart) #mood-chart-scroll:is(.stats-period-wide, .stats-period-7) #moodChart {
-                height: 315px !important;
+                height: 312px !important;
             }
         }
 
@@ -4000,133 +4000,6 @@ body[data-theme="devil"] .tool-btn * {
 }
 </style>
 
-
-<style>
-/* 棒グラフの外枠を円グラフと同じ高さにそろえる */
-#view-home .card:has(#moodChart) > div:has(> #mood-chart-scroll.stats-bar-chart) {
-    height: 330px !important;
-    min-height: 0 !important;
-    max-height: none !important;
-    overflow: hidden;
-    box-sizing: border-box;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart {
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    overflow: hidden !important;
-    box-sizing: border-box;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart #mood-chart-inner {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    box-sizing: border-box;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart #moodChart {
-    display: block;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    height: 100% !important;
-    max-height: 100% !important;
-    box-sizing: border-box;
-}
-@media (max-width: 600px) {
-    #view-home .card:has(#moodChart) > div:has(> #mood-chart-scroll.stats-bar-chart) {
-        height: min(calc(100vw - 28px), 340px) !important;
-        max-height: 340px !important;
-    }
-}
-</style>
-  <style>
-    /* 棒グラフは円グラフと同じ外枠サイズのまま、内部の描画領域を最大限使う。 */
-    #view-home .card:has(#moodChart) > div:has(> #mood-chart-scroll.stats-bar-chart) {
-      height: 330px !important;
-      min-height: 0 !important;
-      max-height: 330px !important;
-      overflow: hidden !important;
-      box-sizing: border-box !important;
-    }
-    #view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart,
-    #view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart #mood-chart-inner {
-      width: 100% !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
-      height: 100% !important;
-      min-height: 0 !important;
-      max-height: 100% !important;
-      overflow: hidden !important;
-      box-sizing: border-box !important;
-    }
-    #view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart #moodChart {
-      display: block !important;
-      width: 100% !important;
-      min-width: 0 !important;
-      max-width: 100% !important;
-      height: 100% !important;
-      max-height: 100% !important;
-      box-sizing: border-box !important;
-    }
-  </style>
-
-<style id="final-bar-chart-fit-fix">
-/* 棒グラフ：外枠の内側に描画領域を収め、PC・モバイル双方で横幅と高さを親枠に追従させる */
-#view-home .card:has(#moodChart) > div:has(> #mood-chart-scroll.stats-bar-chart) {
-  height: 330px !important;
-  min-height: 0 !important;
-  max-height: 330px !important;
-  overflow: hidden !important;
-  box-sizing: border-box !important;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart {
-  display: block !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  max-height: 100% !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  box-sizing: border-box !important;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart #mood-chart-inner {
-  display: block !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  max-height: 100% !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
-  box-sizing: border-box !important;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-bar-chart #moodChart {
-  display: block !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  height: 100% !important;
-  min-height: 0 !important;
-  max-height: 100% !important;
-  aspect-ratio: auto !important;
-  box-sizing: border-box !important;
-}
-@media (max-width: 600px) {
-  #view-home .card:has(#moodChart) > div:has(> #mood-chart-scroll.stats-bar-chart) {
-    height: min(calc(100vw - 28px), 340px) !important;
-    min-height: 0 !important;
-    max-height: 340px !important;
-  }
-}
-</style>
-
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -4337,7 +4210,7 @@ body[data-theme="devil"] .tool-btn * {
 
     <div id="memo-list"></div>
     <div id="memo-empty" style="display:none; text-align:center; opacity:.6; padding:40px 20px;">
-        まだメモはありません
+        メモはまだありません
     </div>
 </div>
 </section>
@@ -6795,7 +6668,11 @@ function updateCharCount() {
 function openEditor(type = 'diary', id = null) {
     const activeView = document.querySelector('.view.active');
     const activeViewId = activeView ? activeView.id.replace('view-', '') : '';
-    editorReturnViewId = (activeViewId && activeViewId !== 'editor') ? activeViewId : (lastTabId || 'home');
+    // 閲覧画面から編集する場合は、閲覧画面そのものではなく、
+    // 閲覧画面を開く前にいた画面を編集後の戻り先として保持する。
+    editorReturnViewId = activeViewId === 'viewer'
+        ? (viewerReturnTabId && viewerReturnTabId !== 'viewer' ? viewerReturnTabId : (lastTabId || 'home'))
+        : ((activeViewId && activeViewId !== 'editor') ? activeViewId : (lastTabId || 'home'));
 
     currentEditingId = id; 
     currentEditingType = type;
@@ -8804,18 +8681,13 @@ function renderSchedules() {
                 )
             }
         } : {}),
-        // 棒グラフは外枠の高さを円グラフと同じ330pxに保ったまま、
-        // 描画領域を圧迫する余白を減らして棒そのものを縦に長く見せる。
-        ...(config.chartType === 'bar' ? {
-            layout: { padding: { top: 2, bottom: 0, left: 0, right: 0 } }
-        } : {}),
         plugins: {
             legend: {
                 display: config.chartType !== 'line',
                 position: 'bottom',
                 labels: {
                     boxWidth: 8,
-                    padding: config.chartType === 'bar' ? 2 : 6,
+                    padding: 6,
                     font: { size: 9 },
                     usePointStyle: false
                 }
