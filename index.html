@@ -2256,6 +2256,20 @@ body[data-theme="cosmos"] {
                 0 0 0 5px color-mix(in srgb, var(--primary-color) 70%, transparent);
         }
 
+        /* 今日の日付の下線は、日付の数字と同じ文字色に連動させる */
+        #view-calendar .calendar-day.calendar-day-today::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            bottom: 3px;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 3px;
+            border-radius: 999px;
+            background: currentColor;
+            pointer-events: none;
+        }
+
         #view-calendar .calendar-day.calendar-day-selected {
             transition: box-shadow 0.16s ease, filter 0.16s ease;
         }
@@ -2269,6 +2283,13 @@ body[data-theme="cosmos"] {
         @keyframes calendarSelectionFadeIn {
             from { opacity: 0; }
             to { opacity: 1; }
+        }
+        #selected-day-entries {
+            transition: opacity 180ms ease-out;
+        }
+        #selected-day-entries.calendar-selection-fade-out {
+            opacity: 0;
+            pointer-events: none;
         }
         #selected-day-entries.calendar-selection-fade-in > * {
             animation: calendarSelectionFadeIn 240ms ease-out both;
@@ -5122,7 +5143,7 @@ body[data-theme="devil"] .tool-btn * {
         let diaryDateMap = new Map();
         let scheduleDateMap = new Map();
         
-        let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', chartPeriod: 'month', lastBackup: null, backupReminderSkippedAt: null, backupFileHandle: null, backupDirectoryHandle: null, autoBackupEnabled: false, backupSyncStatus: 'unconfigured', backupLastSync: null, recoverySet: false, recoveryReminderDismissed: false, customRecoveryHint: '', authPasswordHash: null, authRecoveryPassHash: null, authRecoveryWordHash: null, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false, scheduleCreationCount: 0 };
+        let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', chartPeriod: 'month', homeListMode: 'diary', lastBackup: null, backupReminderSkippedAt: null, backupFileHandle: null, backupDirectoryHandle: null, autoBackupEnabled: false, backupSyncStatus: 'unconfigured', backupLastSync: null, recoverySet: false, recoveryReminderDismissed: false, customRecoveryHint: '', authPasswordHash: null, authRecoveryPassHash: null, authRecoveryWordHash: null, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false, scheduleCreationCount: 0 };
         let currentEditingId = null;
         let bookmarkPage = 1;
         const BOOKMARK_PAGE_SIZE = 30;
@@ -5305,6 +5326,11 @@ let currentTag = null;
 function isPastLocalDate(dateStr) {
     if (!dateStr) return false;
     return dateStr < getLocalDateString(new Date());
+}
+
+function isFutureLocalDate(dateStr) {
+    if (!dateStr) return false;
+    return dateStr > getLocalDateString(new Date());
 }
    
 function invalidateCaches() {
@@ -8188,6 +8214,12 @@ async function saveDiaryInternal() {
     const date = document.getElementById('diary-date-input').value;
 
     if (currentEditingType === 'diary') {
+        // 日記は未来の日付では保存できない。画面操作だけでなく保存時にも検証する。
+        if (isFutureLocalDate(date)) {
+            alert('未来の日付の日記は保存できません。今日までの日付を選択してください。');
+            return;
+        }
+
         const tags = document.getElementById('diary-tags').value.split(',').map(t => t.trim()).filter(t => t);
         
         const existingDiary = currentEditingId
@@ -8312,6 +8344,8 @@ async function saveDiaryInternal() {
 }   
 
         function renderDashboard() {
+            homeDisplayMode = config.homeListMode === 'schedule' ? 'schedule' : 'diary';
+            switchHomeList(homeDisplayMode);
             function getStreak() {
                 if (diaries.length === 0) return 0;
 
@@ -8559,7 +8593,7 @@ document.getElementById('status-greeting').innerText = greetingText;
                 entryDate.setHours(0,0,0,0); 
                 return entryDate >= threeDaysAgo; 
             });
-            document.getElementById('recent-diaries').innerHTML = recentFiltered.length ? recentFiltered.map(d => `<div class="diary-item" onclick="openViewer(${d.id})"><div class="diary-date">${escapeHTML(d.date)}</div><div class="diary-title">${escapeHTML(d.title)}</div><div class="diary-preview">${escapeHTML(d.content.replace(/<[^>]*>/g, ''))}</div></div>`).join('') : '<p style="font-size: 0.9rem; opacity: 0.6;">過去3日間の日記はありません</p>';
+            document.getElementById('recent-diaries').innerHTML = recentFiltered.length ? recentFiltered.map(d => `<div class="diary-item" onclick="openViewer(${d.id})"><div class="diary-date">${escapeHTML(d.date)}</div><div class="diary-title">${escapeHTML(d.title)}</div><div class="diary-preview">${escapeHTML(d.content.replace(/<[^>]*>/g, ''))}</div></div>`).join('') : '<p style="font-size: 0.9rem; opacity: 0.6;">　　　　 　　　　　　　　過去3日間の日記はありません</p>';
 
             const flashbackContainer = document.getElementById('flashback-container');
             const periods = [{ label: '1週間前', days: 7 }, { label: '1ヶ月前', months: 1 }, { label: '3ヶ月前', months: 3 }, { label: '6ヶ月前', months: 6 }, { label: '1年前', years: 1 }, { label: '2年前', years: 2 }, { label: '3年前', years: 3 },{ label: '4年前', years: 4 }, { label: '5年前', years: 5 }, { label: '7年前', years: 7 }, { label: '10年前', years: 10 }, { label: '15年前', years: 15 },{ label: '20年前', years: 20 }];
@@ -8586,7 +8620,7 @@ if (entry && entry.length > 0) {
 });
 flashbackContainer.innerHTML = foundCount > 0 
   ? flashbackHtml 
-  : '<p style="opacity:0.6;">一定期間が経過すると表示されます</p>';
+  : '<p style="opacity:0.6;">　　　　　　　　　一定期間が経過すると表示されます</p>';
 
 const heatmap = document.getElementById('heatmap');
 
@@ -8612,6 +8646,8 @@ let homeDisplayMode = 'diary';
 
 function switchHomeList(type) {
     homeDisplayMode = type;
+    config.homeListMode = type;
+    saveConfig();
     const diaryList = document.getElementById('recent-diaries');
     const scheduleList = document.getElementById('recent-schedules');
     const title = document.getElementById('home-list-title');
@@ -8660,7 +8696,15 @@ function renderSchedules() {
 
         function handleHeatmapClick(date) { if (confirm(`${date} の日記を新規作成しますか？`)) { openEditor('diary'); document.getElementById('diary-date-input').value = date; } }
 
-        async function setChartType(type, btn) { config.chartType = type; await saveConfig(); document.querySelectorAll('.chart-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderMoodChart(); }
+        async function setChartType(type, btn) {
+    config.chartType = type;
+    await saveConfig();
+    document.querySelectorAll('.chart-btn[onclick*="setChartType"]').forEach(b => {
+        const match = b.getAttribute('onclick').match(/setChartType\('([^']+)'/);
+        b.classList.toggle('active', !!match && match[1] === type);
+    });
+    renderMoodChart();
+}
 
         function updateChartPeriodSummary(period, count) {
             const select = document.getElementById('stats-period-select');
@@ -8718,13 +8762,29 @@ function renderSchedules() {
             chartScroll.classList.toggle('stats-bar-chart', isBarChart);
 
             if (isLineChart || isBarChart) {
-                // 折れ線グラフと棒グラフは統計画面の横幅いっぱいに表示する。
-                // 円グラフのサイズ指定には触れない。
-                chartInner.style.width = '100%';
-                chartInner.style.minWidth = '0';
-                chartInner.style.maxWidth = '100%';
+                // 折れ線グラフは、過去1週間もそれ以外の期間も7件分を基準に表示。
+                // 8件目以降は横スクロールで確認できる。
+                // 棒グラフや円グラフのサイズ指定には触れない。
+                if (isLineChart) {
+                    const viewportWidth = chartScroll.clientWidth
+                        || chartScroll.parentElement?.clientWidth
+                        || window.innerWidth;
+                    const pointCount = periodDiaries.length;
+                    const lineWidth = isSevenDays
+                        ? viewportWidth
+                        : viewportWidth * Math.max(1, pointCount / 7);
+                    chartInner.style.setProperty('--line-chart-width', `${lineWidth}px`);
+                    chartInner.style.width = `${lineWidth}px`;
+                    chartInner.style.minWidth = `${lineWidth}px`;
+                    chartInner.style.maxWidth = 'none';
+                    chartScroll.scrollLeft = 0;
+                } else {
+                    chartInner.style.width = '100%';
+                    chartInner.style.minWidth = '0';
+                    chartInner.style.maxWidth = '100%';
+                }
                 chartInner.style.height = isLineChart
-                ? (window.innerWidth <= 600 ? '370px' : '370px')
+                ? '370px'
                 : (window.innerWidth <= 600 ? 'clamp(330px, 52vh, 460px)' : 'clamp(360px, 58vh, 520px)');
                 chartInner.style.marginLeft = '';
                 chartInner.style.marginRight = '';
@@ -8748,6 +8808,10 @@ function renderSchedules() {
         }
 
         function renderMoodChart() {
+    document.querySelectorAll('.chart-btn[onclick*="setChartType"]').forEach(b => {
+        const match = b.getAttribute('onclick').match(/setChartType\('([^']+)'/);
+        b.classList.toggle('active', !!match && match[1] === (config.chartType || 'doughnut'));
+    });
     const canvas = document.getElementById('moodChart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -9295,10 +9359,12 @@ function filterBySpecificDate(date) {
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
                 const hasDiary = diaryDateMap.has(dateStr);
 const hasSchedule = scheduleDateMap.has(dateStr);
+const isToday = dateStr === getLocalDateString(new Date());
 
 body.innerHTML += `
 <div class="calendar-day
     ${hasDiary ? 'has-diary' : ''}
+    ${isToday ? 'calendar-day-today' : ''}
     ${hasSchedule ? 'has-schedule' : ''}"
 onclick="showCalendarEntries('${dateStr}')">
     ${day}
@@ -9313,8 +9379,41 @@ onclick="showCalendarEntries('${dateStr}')">
 }
         function gotoCalendarMonth(val) { if(!val) return; const [year, month] = val.split('-'); calendarDate = new Date(year, parseInt(month)-1, 1); renderCalendar(); }
 
+        function clearCalendarSelection() {
+    document.querySelectorAll('#view-calendar .calendar-day.calendar-day-selected').forEach(el => {
+        el.classList.remove('calendar-day-selected');
+    });
+
+    const selectedEntries = document.getElementById('selected-day-entries');
+    if (!selectedEntries || !selectedEntries.innerHTML.trim()) return;
+
+    selectedEntries.classList.remove('calendar-selection-fade-in');
+    selectedEntries.classList.add('calendar-selection-fade-out');
+    const finishFadeOut = () => {
+        selectedEntries.innerHTML = '';
+        selectedEntries.classList.remove('calendar-selection-fade-out');
+        selectedEntries.removeEventListener('transitionend', onFadeEnd);
+    };
+    const onFadeEnd = event => {
+        if (event.target === selectedEntries && event.propertyName === 'opacity') finishFadeOut();
+    };
+    selectedEntries.addEventListener('transitionend', onFadeEnd);
+    // transitionendが発生しない環境でも内容を確実に片付ける。
+    setTimeout(finishFadeOut, 220);
+}
+
         function showCalendarEntries(date) {
-    // 選択中の日付は反転表示せず、同系色＋枠で分かるようにする。
+    const clickedDay = Array.from(document.querySelectorAll('#view-calendar .calendar-day')).find(el =>
+        el.getAttribute('onclick') === `showCalendarEntries('${date}')`
+    );
+
+    // 選択中の日付をもう一度タップしたら選択解除する。
+    if (clickedDay && clickedDay.classList.contains('calendar-day-selected')) {
+        clearCalendarSelection();
+        return;
+    }
+
+    // 別の日付を選んだ場合は、以前の選択を解除して新しい日付を選択する。
     document.querySelectorAll('#view-calendar .calendar-day.calendar-day-selected').forEach(el => {
         el.classList.remove('calendar-day-selected');
     });
@@ -9324,6 +9423,12 @@ onclick="showCalendarEntries('${dateStr}')">
         }
     });
 
+    const selectionPanel = document.getElementById('selected-day-entries');
+    if (selectionPanel) {
+        selectionPanel.classList.remove('calendar-selection-fade-out');
+        selectionPanel.style.opacity = '';
+    }
+
     const dEntries = diaries.filter(d => d.date === date); 
     const sEntries = schedules.filter(s => s.date === date);
     
@@ -9332,7 +9437,7 @@ onclick="showCalendarEntries('${dateStr}')">
     if (dEntries.length === 0 && sEntries.length === 0) {
         html += `
             <div style="display:flex; gap:10px; margin-top:10px;" id="calendar-empty-actions">
-                <button class="btn btn-primary" onclick="openEditorWithDate('diary', '${date}')">日記を書く</button>
+                ${isFutureLocalDate(date) ? '' : `<button class="btn btn-primary" onclick="openEditorWithDate('diary', '${date}')">日記を書く</button>`}
                 ${isPastLocalDate(date) ? '' : `<button class="btn btn-primary" onclick="openEditorWithDate('schedule', '${date}')">予定を立てる</button>`}
             </div>`;
     } else {
@@ -9356,6 +9461,31 @@ onclick="showCalendarEntries('${dateStr}')">
         selectedEntries.innerHTML = html;
         selectedEntries.classList.add('calendar-selection-fade-in');
     }
+}
+
+// カレンダー内の空白部分をクリックした場合も、日付の選択を解除する。
+const calendarViewForDeselect = document.getElementById('view-calendar');
+if (calendarViewForDeselect && !calendarViewForDeselect.dataset.deselectHandlerAdded) {
+    calendarViewForDeselect.dataset.deselectHandlerAdded = 'true';
+    calendarViewForDeselect.addEventListener('click', event => {
+        if (event.target.closest('.calendar-day')) return;
+        if (event.target.closest('#selected-day-entries')) return;
+        if (event.target.closest('button, input, select, textarea, a, [role="button"]')) return;
+        clearCalendarSelection();
+    });
+}
+
+// カレンダー表示中、カレンダー領域の外側の背景をタップしても選択を解除する。
+if (!document.documentElement.dataset.calendarOutsideDeselectHandlerAdded) {
+    document.documentElement.dataset.calendarOutsideDeselectHandlerAdded = 'true';
+    document.addEventListener('click', event => {
+        const calendarView = document.getElementById('view-calendar');
+        if (!calendarView || !calendarView.classList.contains('active')) return;
+        if (event.target.closest('#view-calendar')) return;
+        // ほかのボタンや入力欄などの操作は妨げない。
+        if (event.target.closest('button, input, select, textarea, a, [role="button"]')) return;
+        clearCalendarSelection();
+    });
 }
 
 function openEditorWithDate(type, date) {
@@ -11269,3 +11399,36 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 </body>
 </html>
+
+<style id="stats-line-chart-scroll-fix">
+/* 過去1週間以外の折れ線グラフは、データ点7件分の幅を保って横スクロールする。 */
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide #mood-chart-inner {
+    width: var(--line-chart-width) !important;
+    min-width: var(--line-chart-width) !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide #moodChart {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+/* 過去1週間は横スクロールせず、7件を画面幅内に収める。 */
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 {
+    overflow-x: hidden !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 #mood-chart-inner {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 #moodChart {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+</style>
