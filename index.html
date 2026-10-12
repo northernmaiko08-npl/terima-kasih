@@ -1061,28 +1061,40 @@ body[data-theme="lucky"]::before {
         0 0 10px rgba(255,200,0,0.35);
 }
 
+[data-theme="edamame"] .cell-1 {
+    background: #a2d2ff;
+}
+[data-theme="edamame"] .cell-2 {
+    background: #ff8a80;
+}
+[data-theme="edamame"] .cell-3 {
+    background: #c8e6c9;
+}
+[data-theme="edamame"] .cell-4 {
+    background: #ffb7c5;
+}
+[data-theme="edamame"] .cell-5 {
+    background: #ffd700;
+}
+
 [data-theme="lucky"] .cell-0 {
     background: #fff9e0;
 }
 
 [data-theme="lucky"] .cell-1 {
-    background: #ffe27a;
+    background: #a2d2ff;
 }
-
 [data-theme="lucky"] .cell-2 {
-    background: #ffd54f;
+    background: #ff8a80;
 }
-
 [data-theme="lucky"] .cell-3 {
-    background: #ffca28;
+    background: #c8e6c9;
 }
-
 [data-theme="lucky"] .cell-4 {
-    background: #ffb300;
+    background: #ffb7c5;
 }
-
 [data-theme="lucky"] .cell-5 {
-    background: #ff8f00;
+    background: #ffd700;
 }
 
 [data-theme="lucky"] .fab {
@@ -1713,23 +1725,19 @@ body[data-theme="devil"]::after {
 }
 
 [data-theme="devil"] .cell-1 {
-    background: #45005e;
+    background: #a2d2ff;
 }
-
 [data-theme="devil"] .cell-2 {
-    background: #72009f;
+    background: #ff8a80;
 }
-
 [data-theme="devil"] .cell-3 {
-    background: #a000d6;
+    background: #c8e6c9;
 }
-
 [data-theme="devil"] .cell-4 {
-    background: #d600ff;
+    background: #ffb7c5;
 }
-
 [data-theme="devil"] .cell-5 {
-    background: #ff66ff;
+    background: #ffd700;
 }
 
 
@@ -2153,14 +2161,14 @@ body[data-theme="cosmos"] {
             background: white;
             color: #333;
         }
-        .has-diary {
+        .has-diary:not(.calendar-day) {
     background: var(--primary-color);
     color: white !important;
     font-weight: bold;
     border-radius: 12px;
 }
 
-.has-diary * {
+.has-diary:not(.calendar-day) * {
     color: white !important;
 }
         .mood-selector {
@@ -2313,12 +2321,12 @@ body[data-theme="cosmos"] {
         }
 
 
-.has-diary:hover {
+.has-diary:not(.calendar-day):hover {
     background: color-mix(in srgb, var(--primary-color) 70%, var(--card-bg)) !important;
     color: var(--text-color) !important;
 }
 
-.has-diary:hover * {
+.has-diary:not(.calendar-day):hover * {
     color: var(--text-color) !important;
 }
         .has-schedule::after {
@@ -4148,6 +4156,27 @@ body[data-theme="devil"] .tool-btn * {
 }
 </style>
 
+
+<style id="calendar-mood-selection-colors">
+/* 日記のある日は、ホバー時も選択中も感情ヒートマップと同じ色相を維持する。
+   選択中の囲い・影は既存ルールをそのまま使用する。 */
+/* 日記がある日付マスの通常時の塗りつぶしにも、算出した感情カラーを適用する */
+#view-calendar .calendar-day.has-diary {
+    background: var(--calendar-mood-color) !important;
+}
+/* ホバー時も感情カラーの色相を維持する */
+#view-calendar .calendar-day.has-diary:hover {
+    background: color-mix(in srgb, var(--calendar-mood-color) 42%, var(--card-bg)) !important;
+    color: var(--text-color) !important;
+}
+#view-calendar .calendar-day.has-diary.calendar-day-selected,
+#view-calendar .calendar-day.has-diary.calendar-day-selected:hover {
+    background: var(--calendar-mood-color) !important;
+    /* 選択前後で日付の数字の文字色を変えない */
+    color: var(--text-color) !important;
+}
+</style>
+
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -4710,7 +4739,7 @@ body[data-theme="devil"] .tool-btn * {
                 最大の特徴は、その日の気分を5段階のアイコンで選択できる点です。言葉にできないモヤモヤや、最高にハッピーな瞬間を直感的に記録してください。
                 テキストエリアでは文字数制限を気にせず、思いのままに綴ることができます。また、画像は複数枚の同時添付に対応しており、日常の風景を視覚的にも残せます。(ただし、お使いのデバイスによっては日記1枚につき大量の枚数の写真保存や数千文字を超える文字数などが原因で、本アプリ及びデバイスの動作が重くなる可能性があります。)
                 入力されたデータは、保存ボタンを押した瞬間にブラウザのIndexedDBという高速なデータベースに書き込まれます。
-                <br/>また、保存した日記は「日記」ページから振り返ることができます。アプリ内動作の高速化を維持させるため、過去の日記とタグをページネーション形式として50件ずつ表示させる方法を採用しており(ギャラリーは30件)、さらに検索機能やその日の感情フィルターで日記を絞ることができるため、より詳しく正確に過去の日記を検索することができます。
+                <br/>また、保存した日記は「日記」ページから振り返ることができます。アプリ内動作の高速化と一覧の見やすさを両立するため、日記は1ページにつき30件、タグは15件、ギャラリーは30件ずつ表示するページネーション形式を採用しています。さらに検索機能やその日の感情フィルターで日記を絞ることができるため、より詳しく過去の日記を検索することができます。
             </p>
 </div><div class="support-accordion-static-item"><div class="support-accordion-static-title">2. 予定を自由にデザインできる「カレンダーと予定管理」</div>
 <p>
@@ -5291,9 +5320,9 @@ const GALLERY_PAGE_SIZE = 30;
 let gallerySortOrder = 'new';
 let diaryPage = 1;
 let tagPage = 1;
-const DIARY_PAGE_SIZE = 50;
+const DIARY_PAGE_SIZE = 30;
 let diarySortOrder = 'new';
-const TAG_PAGE_SIZE = 30;
+const TAG_PAGE_SIZE = 15;
 let tagSortOrder = 'new';
 let currentTag = null;
         
@@ -9350,6 +9379,17 @@ function filterBySpecificDate(date) {
 
         async function renderCalendar() {
             await cleanupPassedSchedules();
+            // 既存の感情ヒートマップと同じテーマ別カラーをカレンダーでも参照する。
+            const calendarMoodColors = {};
+            for (let mood = 0; mood <= 5; mood++) {
+                const sample = document.createElement('div');
+                sample.className = `heatmap-cell cell-${mood}`;
+                sample.style.position = 'absolute';
+                sample.style.visibility = 'hidden';
+                document.body.appendChild(sample);
+                calendarMoodColors[mood] = getComputedStyle(sample).backgroundColor;
+                sample.remove();
+            }
             const year = calendarDate.getFullYear(); const month = calendarDate.getMonth();
             document.getElementById('calendar-month-year').innerText = `${year}年${month + 1}月`;
             const firstDay = new Date(year, month, 1).getDay(); const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -9357,15 +9397,24 @@ function filterBySpecificDate(date) {
             for (let i = 0; i < firstDay; i++) body.innerHTML += '<div></div>';
             for (let day = 1; day <= daysInMonth; day++) {
                 const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-                const hasDiary = diaryDateMap.has(dateStr);
+                const diaryEntries = diaryDateMap.get(dateStr);
+const hasDiary = !!(diaryEntries && diaryEntries.length > 0);
+const mood = hasDiary ? Number(diaryEntries[0].mood) : null;
+const moodClass = hasDiary ? `cell-${mood}` : '';
+const baseMoodColor = hasDiary ? (calendarMoodColors[mood] || calendarMoodColors[0]) : '';
+const moodColor = hasDiary && document.body.getAttribute('data-theme') === 'legend'
+    ? `color-mix(in srgb, ${baseMoodColor} 85%, #000 15%)`
+    : baseMoodColor;
 const hasSchedule = scheduleDateMap.has(dateStr);
 const isToday = dateStr === getLocalDateString(new Date());
 
 body.innerHTML += `
 <div class="calendar-day
     ${hasDiary ? 'has-diary' : ''}
+    ${moodClass}
     ${isToday ? 'calendar-day-today' : ''}
     ${hasSchedule ? 'has-schedule' : ''}"
+style="${hasDiary ? `--calendar-mood-color: ${moodColor};` : ''}"
 onclick="showCalendarEntries('${dateStr}')">
     ${day}
 </div>`;
