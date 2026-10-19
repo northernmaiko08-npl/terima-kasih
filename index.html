@@ -4191,6 +4191,38 @@ body[data-theme="devil"] .tool-btn * {
 }
 </style>
 
+<style id="stats-line-chart-scroll-fix">
+/* 過去1週間以外の折れ線グラフは、データ点7件分の幅を保って横スクロールする。 */
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide #mood-chart-inner {
+    width: var(--line-chart-width) !important;
+    min-width: var(--line-chart-width) !important;
+    max-width: none !important;
+    flex: 0 0 auto !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide #moodChart {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+}
+/* 過去1週間は横スクロールせず、7件を画面幅内に収める。 */
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 {
+    overflow-x: hidden !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 #mood-chart-inner {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 #moodChart {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+}
+</style>
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -11460,39 +11492,5 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
-
-<style id="stats-line-chart-scroll-fix">
-/* 過去1週間以外の折れ線グラフは、データ点7件分の幅を保って横スクロールする。 */
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide {
-    overflow-x: auto !important;
-    overflow-y: hidden !important;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide #mood-chart-inner {
-    width: var(--line-chart-width) !important;
-    min-width: var(--line-chart-width) !important;
-    max-width: none !important;
-    flex: 0 0 auto !important;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-wide #moodChart {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: none !important;
-}
-/* 過去1週間は横スクロールせず、7件を画面幅内に収める。 */
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 {
-    overflow-x: hidden !important;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 #mood-chart-inner {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-}
-#view-home .card:has(#moodChart) #mood-chart-scroll.stats-period-7 #moodChart {
-    width: 100% !important;
-    min-width: 0 !important;
-    max-width: 100% !important;
-}
-</style>
-
 </body>
 </html>
