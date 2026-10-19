@@ -2264,18 +2264,32 @@ body[data-theme="cosmos"] {
                 0 0 0 5px color-mix(in srgb, var(--primary-color) 70%, transparent);
         }
 
-        /* 今日の日付の下線は、日付の数字と同じ文字色に連動させる */
+        /* 今日の日付：塗りつぶしなし、アクセントカラーの太めの円枠 */
+        #view-calendar .calendar-day.calendar-day-today {
+            isolation: isolate;
+        }
+
         #view-calendar .calendar-day.calendar-day-today::before {
             content: '';
             position: absolute;
             left: 50%;
-            bottom: 3px;
-            transform: translateX(-50%);
-            width: 20px;
-            height: 3px;
-            border-radius: 999px;
-            background: currentColor;
+            top: 50%;
+            width: 30px;
+            height: 30px;
+            box-sizing: border-box;
+            transform: translate(-50%, -50%);
+            border: 3px solid var(--accent-color);
+            border-radius: 50%;
+            background: transparent;
             pointer-events: none;
+            z-index: -1;
+        }
+
+        /* 今日の日付の円枠は、クリックして選択状態になっても常に表示する */
+        #view-calendar .calendar-day.calendar-day-today.calendar-day-selected::before {
+            opacity: 1;
+            background: transparent;
+            border-color: var(--accent-color);
         }
 
         #view-calendar .calendar-day.calendar-day-selected {
