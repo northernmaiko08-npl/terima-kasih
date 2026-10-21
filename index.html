@@ -2278,7 +2278,7 @@ body[data-theme="cosmos"] {
             height: 30px;
             box-sizing: border-box;
             transform: translate(-50%, -50%);
-            border: 3px solid var(--accent-color);
+            border: 3px solid var(--primary-color);
             border-radius: 50%;
             background: transparent;
             pointer-events: none;
@@ -2289,7 +2289,7 @@ body[data-theme="cosmos"] {
         #view-calendar .calendar-day.calendar-day-today.calendar-day-selected::before {
             opacity: 1;
             background: transparent;
-            border-color: var(--accent-color);
+            border-color: var(--primary-color);
         }
 
         #view-calendar .calendar-day.calendar-day-selected {
@@ -3673,8 +3673,8 @@ body[data-theme="cosmos"] {
 .home-quick-actions .icon-only-btn { width:38px; height:38px; min-width:38px; }
 #app-header {
     position:relative;
-    padding-left:0;
-    padding-right:0;
+    padding-left:48px;
+    padding-right:48px;
     text-align:center;
 }
 .viewer-header-bookmark {
@@ -3694,10 +3694,12 @@ body[data-theme="cosmos"] {
     z-index:11;
 }
 .viewer-header-bookmark svg { width:18px; height:18px; }
-.viewer-export-btn svg { width:18px; height:18px; }
-.viewer-export-btn {
-    flex:0 0 40px;
-}
+
+.viewer-export-header-btn { position:absolute !important; top:50%; left:10px; transform:translateY(-50%); width:32px !important; height:32px !important; min-width:32px !important; padding:0 !important; margin:0 !important; display:inline-flex; align-items:center; justify-content:center; border-radius:50% !important; z-index:11; }
+.viewer-export-header-btn svg { width:18px; height:18px; }
+.viewer-export-header-btn.is-exported { background:var(--primary-color) !important; color:#fff !important; border-color:var(--primary-color) !important; }
+.viewer-export-header-btn:hover, .viewer-export-header-btn:active, .viewer-export-header-btn:focus, .viewer-export-header-btn:focus-visible { transform:translateY(-50%) !important; }
+
 .back-icon-btn { width:40px; height:40px; min-width:40px; padding:0; display:inline-flex; align-items:center; justify-content:center; }
 .back-text-btn { display:inline-flex; align-items:center; justify-content:center; }
 .viewer-card { position:relative; padding-bottom:76px !important; }
@@ -4233,6 +4235,35 @@ body[data-theme="devil"] .tool-btn * {
       });
     }
   </script>
+
+<style id="editor-mood-color-fix">
+/* 編集画面の感情選択色をテーマに依存せず固定する */
+#view-editor .mood-selector > .mood-btn:nth-child(1).active { background-color: #a2d2ff !important; background: #a2d2ff !important; box-shadow: 0 4px 10px rgba(162,210,255,.65) !important; }
+#view-editor .mood-selector > .mood-btn:nth-child(2).active { background-color: #ff8a80 !important; background: #ff8a80 !important; box-shadow: 0 4px 10px rgba(255,138,128,.65) !important; }
+#view-editor .mood-selector > .mood-btn:nth-child(3).active { background-color: #c8e6c9 !important; background: #c8e6c9 !important; box-shadow: 0 4px 10px rgba(200,230,201,.75) !important; }
+#view-editor .mood-selector > .mood-btn:nth-child(4).active { background-color: #ffb7c5 !important; background: #ffb7c5 !important; box-shadow: 0 4px 10px rgba(255,183,197,.7) !important; }
+#view-editor .mood-selector > .mood-btn:nth-child(5).active { background-color: #ffd700 !important; background: #ffd700 !important; box-shadow: 0 4px 10px rgba(255,215,0,.65) !important; }
+</style>
+<style id="scholar-viewer-background-unification">
+/* Scholarテーマの背景をビューポート全体で単色に固定し、コンテンツ領域の境界で色が分かれるのを防ぐ */
+html:has(body[data-theme="scholar"]) {
+    background-color: #f1f2f4 !important;
+}
+body[data-theme="scholar"] {
+    background: #f1f2f4 !important;
+    background-color: #f1f2f4 !important;
+    background-image: none !important;
+    background-attachment: fixed !important;
+}
+body[data-theme="scholar"] main,
+body[data-theme="scholar"] .view,
+body[data-theme="scholar"] .view.active,
+body[data-theme="scholar"] #view-viewer {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+}
+</style>
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -4289,6 +4320,7 @@ body[data-theme="devil"] .tool-btn * {
             "/>
 </div>
 <header id="app-header"><span id="app-header-title">ホーム</span>
+<button class="btn viewer-export-header-btn" id="viewer-export-btn" onclick="exportCurrentViewerDiaryHtml(event)" type="button" aria-label="この日記をHTMLとして書き出す" title="この日記をHTMLとして書き出す" style="display:none !important;"><i data-lucide="download"></i></button>
 <button class="btn viewer-bookmark-icon-btn viewer-header-bookmark" id="viewer-bookmark-btn" onclick="toggleCurrentViewerBookmark(event)" type="button" aria-label="ブックマークに追加" title="ブックマークに追加" style="display:none !important;"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"></path></svg></button>
 <div class="home-quick-actions" aria-label="クイック操作">
 <button class="btn icon-only-btn" type="button" aria-label="メモ" title="メモ" onclick="openMemoPage()"><i data-lucide="memo"></i></button>
@@ -4505,9 +4537,7 @@ body[data-theme="devil"] .tool-btn * {
 <div style="display:flex; justify-content: space-between; margin-bottom:1rem;">
 <button class="btn" onclick="switchTab(viewerReturnTabId || 'lastTabId')">戻る</button>
 <div style="display:flex; align-items:center; gap:8px;">
-<button class="btn icon-only-btn viewer-export-btn" id="viewer-export-btn" onclick="exportCurrentViewerDiaryHtml(event)" type="button" aria-label="この日記をHTMLとして書き出す" title="この日記をHTMLとして書き出す" style="display:none;">
-<i data-lucide="download"></i>
-</button>
+
 <button class="btn btn-primary" id="viewer-edit-btn">編集する</button>
 </div>
 </div>
@@ -5175,9 +5205,76 @@ body[data-theme="devil"] .tool-btn * {
 <option value="last">遺言テンプレ</option>　　
     </optgroup>
 </select>
-<button class="tool-btn" onclick="insertSelectedTemplate()">
+<button class="tool-btn" onclick="insertSelectedTemplate()" type="button">
 テンプレ挿入
 </button>
+<button class="tool-btn" onclick="toggleCustomTemplateManager()" type="button">オリジナル作成</button>
+</div>
+<style>
+#custom-template-manager {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity .22s ease, transform .22s ease;
+  will-change: opacity, transform;
+}
+#custom-template-manager.custom-template-panel-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+#custom-template-manager.custom-template-panel-closing {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+.custom-template-panel-heading {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin-bottom:8px; font-weight:700;
+}
+.custom-template-close {
+  flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center;
+  min-width:32px; min-height:32px; padding:4px 10px;
+  border:1px solid color-mix(in srgb, var(--primary-color, #98602e) 20%, transparent);
+  border-radius:999px; background:color-mix(in srgb, var(--primary-color, #98602e) 8%, var(--card-bg, #fff));
+  color:var(--primary-color, #98602e); font:inherit; font-size:.82rem; font-weight:600;
+  cursor:pointer; transition:background .18s ease, transform .18s ease;
+}
+.custom-template-close:hover { background:color-mix(in srgb, var(--primary-color, #98602e) 15%, var(--card-bg, #fff)); }
+.custom-template-close:active { transform:scale(.97); }
+@media (prefers-reduced-motion: reduce) {
+  #custom-template-manager { transition:none; }
+}
+.custom-template-delete,
+.custom-template-edit {
+  flex: 0 0 auto;
+  border: 1px solid color-mix(in srgb, var(--primary-color, #98602e) 22%, transparent);
+  border-radius: 999px;
+  padding: 6px 13px;
+  background: color-mix(in srgb, var(--primary-color, #98602e) 10%, var(--card-bg, #fff));
+  color: var(--primary-color, #98602e);
+  font: inherit;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .18s ease, transform .18s ease, border-color .18s ease;
+}
+.custom-template-edit { margin-right:0; }
+.custom-template-delete:hover,
+.custom-template-edit:hover {
+  background: color-mix(in srgb, var(--primary-color, #98602e) 17%, var(--card-bg, #fff));
+  border-color: color-mix(in srgb, var(--primary-color, #98602e) 34%, transparent);
+}
+.custom-template-delete:active,
+.custom-template-edit:active { transform: scale(.97); }
+</style>
+<div id="custom-template-manager" class="hidden" aria-hidden="true" style="margin:10px 0 14px;padding:14px;border:1px solid var(--border-color,#ddd);border-radius:12px;background:var(--card-bg,rgba(255,255,255,.5));">
+  <div class="custom-template-panel-heading"><span>オリジナルテンプレを作成</span><button class="custom-template-close" type="button" onclick="closeCustomTemplateManager()" aria-label="オリジナルテンプレート画面を閉じる">閉じる ×</button></div>
+  <input id="custom-template-name" type="text" maxlength="40" placeholder="テンプレート名" style="width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px;border:1px solid #ccc;border-radius:8px;background:var(--bg-color,white);color:var(--text-color,inherit);">
+  <textarea id="custom-template-content" rows="5" maxlength="8000" placeholder="挿入したい文章を入力（改行もそのまま使えます）" style="width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px;border:1px solid #ccc;border-radius:8px;resize:vertical;background:var(--bg-color,white);color:var(--text-color,inherit);"></textarea>
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+    <button id="custom-template-save-button" class="btn btn-primary" type="button" onclick="addCustomDiaryTemplate()">テンプレートを保存</button>
+    <button id="custom-template-cancel-edit" class="custom-template-delete" type="button" onclick="cancelEditCustomDiaryTemplate()" hidden>編集をキャンセル</button>
+  </div>
+  <div id="custom-template-list" style="margin-top:12px;"></div>
 </div>
 </div>
 <div contenteditable="true" id="diary-content" placeholder="ここに本文を書きましょう..."></div>
@@ -5187,7 +5284,7 @@ body[data-theme="devil"] .tool-btn * {
 <div id="diary-only-footer">
 <input id="diary-tags" placeholder="タグ (カンマ[,]区切り)" style="width: 60%; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; border: 1px solid #ddd; margin-top: 10px;" type="text"/>
 <div id="image-upload-zone">
-<p style="font-size:0.8rem; margin-bottom:0;">添付は3枚以下が推奨です
+<p style="font-size:0.8rem; margin-bottom:0;">添付は複数枚可能です
                         </p>
 <label class="image-pick-btn">
 <i data-lucide="camera" style="width:25px; height:25px;"></i>
@@ -6735,7 +6832,165 @@ window.onload = async () => {
         function saveDiaryListScroll() {
     sessionStorage.setItem('savedDiaryScroll', window.scrollY);
     sessionStorage.setItem('returningFromViewer', '1');
-}function switchTab(tabId) {
+}
+
+// 編集中の未保存変更を検知する（日記・予定・メモ）。
+let pendingEditorSnapshot = null;
+let bypassUnsavedEditorGuard = false;
+let editorNavigationPromptOpen = false;
+let editorSaveInProgress = false;
+function normalizeEditorHtml(value) {
+    // contenteditable のブラウザ側の軽微なHTML表現差を吸収する。
+    const template = document.createElement('template');
+    template.innerHTML = String(value ?? '');
+    return template.innerHTML
+        .replace(/\u00a0/g, ' ')
+        .replace(/>\s+</g, '><')
+        .trim();
+}
+function normalizeScheduleContent(element) {
+    // 予定欄はHTMLタグや装飾の差ではなく、入力された文字内容で比較する。
+    // contenteditable がHTML構造だけを書き換えても未編集と判定する。
+    return String(element?.textContent ?? '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[\r\n\t ]+/g, ' ')
+        .trim();
+}
+function captureEditorSnapshot(kind) {
+    const read = id => document.getElementById(id)?.value ?? '';
+    if (kind === 'memo') {
+        pendingEditorSnapshot = {
+            kind,
+            title: read('memo-title-input'),
+            content: normalizeEditorHtml(document.getElementById('memo-content')?.innerHTML ?? ''),
+            checklist: JSON.stringify((memoChecklistDraft || []).map(i => ({text:String(i.text||''),done:!!i.done})))
+        };
+    } else if (kind === 'schedule') {
+        // 予定では日記専用のタグ・気分・画像欄を変更判定に含めない。
+        pendingEditorSnapshot = {
+            kind,
+            title: read('diary-title'),
+            date: read('diary-date-input'),
+            content: normalizeScheduleContent(document.getElementById('diary-content'))
+        };
+    } else {
+        pendingEditorSnapshot = {
+            kind,
+            title: read('diary-title'),
+            date: read('diary-date-input'),
+            content: normalizeEditorHtml(document.getElementById('diary-content')?.innerHTML ?? ''),
+            tags: read('diary-tags'),
+            mood: String(selectedMood),
+            images: JSON.stringify(tempImages || [])
+        };
+    }
+}
+function hasUnsavedEditorChanges() {
+    if (!pendingEditorSnapshot) return false;
+    const s = pendingEditorSnapshot;
+    const read = id => document.getElementById(id)?.value ?? '';
+
+    // 編集後の内容が完全に空なら、空の下書きを離れる警告は出さない。
+    // contenteditable の <br> や空の div は文字として扱わない。
+    const editorContent = document.getElementById(s.kind === 'memo' ? 'memo-content' : 'diary-content');
+    const plainContent = String(editorContent?.textContent ?? '')
+        .replace(/\u00a0/g, ' ')
+        .replace(/[\s\u200b\u200c\u200d\ufeff]+/g, '');
+    const hasImages = s.kind === 'memo'
+        ? false
+        : (Array.isArray(tempImages) && tempImages.length > 0);
+    const hasChecklistText = s.kind === 'memo'
+        && (memoChecklistDraft || []).some(item => String(item.text || '').trim() !== '');
+    const hasAnyUserContent = s.kind === 'memo'
+        ? (String(read('memo-title-input')).trim() !== '' || plainContent !== '' || hasChecklistText)
+        : (String(read('diary-title')).trim() !== '' || plainContent !== '' || String(read('diary-tags')).trim() !== '' || hasImages);
+    if (!hasAnyUserContent && s.kind !== 'schedule') return false;
+    if (s.kind === 'memo' && !document.getElementById('view-memo-editor')?.classList.contains('active')) return false;
+    if (s.kind !== 'memo' && !document.getElementById('view-editor')?.classList.contains('active')) return false;
+
+    let now;
+    if (s.kind === 'memo') {
+        now = {
+            title: read('memo-title-input'),
+            content: normalizeEditorHtml(document.getElementById('memo-content')?.innerHTML ?? ''),
+            checklist: JSON.stringify((memoChecklistDraft || []).map(i => ({text:String(i.text||''),done:!!i.done})))
+        };
+    } else if (s.kind === 'schedule') {
+        // 予定の判定対象は、予定で実際に編集するタイトル・日付・内容だけ。
+        now = {
+            title: read('diary-title'),
+            date: read('diary-date-input'),
+            content: normalizeScheduleContent(document.getElementById('diary-content'))
+        };
+    } else {
+        now = {
+            title: read('diary-title'),
+            date: read('diary-date-input'),
+            content: normalizeEditorHtml(document.getElementById('diary-content')?.innerHTML ?? ''),
+            tags: read('diary-tags'),
+            mood: String(selectedMood),
+            images: JSON.stringify(tempImages || [])
+        };
+    }
+    return Object.keys(now).some(k => now[k] !== s[k]);
+}
+function confirmEditorLeave(destination = 'page') {
+    if (!hasUnsavedEditorChanges()) return true;
+    if (editorNavigationPromptOpen) return false;
+    editorNavigationPromptOpen = true;
+    const s = pendingEditorSnapshot;
+    const isNew = s && (s.kind === 'memo' ? currentEditingMemoId == null : currentEditingId == null);
+    let message;
+    if (destination === 'cancel') {
+        message = isNew
+          ? '作成中の内容は保存されていません。作成を取り消して内容を破棄しますか？'
+          : '編集内容が保存されていません。変更を破棄して編集を終了しますか？';
+    } else {
+        message = isNew
+          ? '作成中の内容が保存されていません。この画面を離れると作成中の内容は失われます。移動しますか？'
+          : '編集内容が保存されていません。この画面を離れると変更内容は失われます。移動しますか？';
+    }
+    const answer = confirm(message);
+    editorNavigationPromptOpen = false;
+    return answer;
+}
+window.addEventListener('beforeunload', event => {
+    if (!editorSaveInProgress && hasUnsavedEditorChanges()) {
+        event.preventDefault();
+        event.returnValue = '';
+    }
+});
+
+// 背景テーマの解放通知は、保存処理中に即時表示せず、画面遷移が完了してから表示する。
+const pendingThemeUnlockNotices = [];
+let themeUnlockNoticeTimer = null;
+function queueThemeUnlockNotice(message) {
+    pendingThemeUnlockNotices.push(message);
+}
+function flushThemeUnlockNotices() {
+    if (!pendingThemeUnlockNotices.length || themeUnlockNoticeTimer !== null) return;
+    themeUnlockNoticeTimer = setTimeout(() => {
+        themeUnlockNoticeTimer = null;
+        const message = pendingThemeUnlockNotices.shift();
+        if (message) alert(message);
+        if (pendingThemeUnlockNotices.length) flushThemeUnlockNotices();
+    }, 180);
+}
+
+function switchTab(tabId) {
+    const targetId = (tabId === 'lastTabId') ? lastTabId : tabId;
+    const current = document.querySelector('.view.active');
+    const target = document.getElementById(`view-${targetId}`);
+    const leavingEditor = current && target && current !== target &&
+        (current.id === 'view-editor' || current.id === 'view-memo-editor');
+    if (!bypassUnsavedEditorGuard && leavingEditor && !confirmEditorLeave('page')) return;
+    // 編集画面から別ページへ移動するときは、オリジナルテンプレート欄を閉じる。
+    // 移動先が編集画面以外の場合に限り、表示状態を持ち越さない。
+    if (current && current.id === 'view-editor' && targetId !== 'editor') {
+        closeCustomTemplateManager();
+    }
+    bypassUnsavedEditorGuard = false;
+
     const mainTabs = ['home', 'diaries', 'calendar', 'gallery', 'tags', 'settings'];
     const currentActiveView = document.querySelector('.view.active');
     
@@ -6746,9 +7001,9 @@ window.onload = async () => {
         }
     }
 
+    if (targetId !== 'editor' && targetId !== 'memo-editor') pendingEditorSnapshot = null;
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     
-    const targetId = (tabId === 'lastTabId') ? lastTabId : tabId;
     if (targetId !== 'calendar') {
         const entriesContainer = document.getElementById('selected-day-entries');
         if (entriesContainer) {
@@ -6806,13 +7061,20 @@ window.onload = async () => {
     if (homeQuickActions) homeQuickActions.style.display = (targetId === 'home') ? 'flex' : 'none';
 
     
+    const viewingDiaryForHeader = targetId === 'viewer'
+        && window.currentViewerDiaryId != null
+        && diaryMap.has(window.currentViewerDiaryId);
+    const viewerExportBtn = document.getElementById('viewer-export-btn');
+    if (viewerExportBtn) {
+        viewerExportBtn.style.setProperty('display', viewingDiaryForHeader ? 'inline-flex' : 'none', 'important');
+        const exportedDiaryIds = Array.isArray(config.viewerHtmlExportedDiaryIds) ? config.viewerHtmlExportedDiaryIds.map(String) : [];
+        const thisDiaryExported = window.currentViewerDiaryId != null && exportedDiaryIds.includes(String(window.currentViewerDiaryId));
+        viewerExportBtn.classList.toggle('is-exported', thisDiaryExported);
+        viewerExportBtn.setAttribute('aria-pressed', thisDiaryExported ? 'true' : 'false');
+    }
     const viewerBookmarkBtn = document.getElementById('viewer-bookmark-btn');
     if (viewerBookmarkBtn) {
-        const viewingDiary = targetId === 'viewer'
-            && window.currentViewerDiaryId != null
-            && diaryMap.has(window.currentViewerDiaryId);
-        
-        viewerBookmarkBtn.style.setProperty('display', viewingDiary ? 'inline-flex' : 'none', 'important');
+        viewerBookmarkBtn.style.setProperty('display', viewingDiaryForHeader ? 'inline-flex' : 'none', 'important');
     }
     if (typeof createIcons === 'function') createIcons();
 
@@ -6874,6 +7136,9 @@ window.onload = async () => {
     
     document.getElementById('fab-menu').classList.remove('active');
     createIcons();
+
+    // 目的の画面が切り替わった後に、保留中のテーマ解放通知を表示する。
+    flushThemeUnlockNotices();
 }
 function updateCharCount() {
     const content = document.getElementById('diary-content');
@@ -6904,7 +7169,12 @@ function updateCharCount() {
 }
 
 function openEditor(type = 'diary', id = null) {
+    // 日記・予定の編集ボタンから別の記録へ移る場合も、現在の編集内容を先に確認する。
+    // この判定は currentEditingId / currentEditingType を変更する前に行う。
     const activeView = document.querySelector('.view.active');
+    if (activeView && (activeView.id === 'view-editor' || activeView.id === 'view-memo-editor')) {
+        if (!confirmEditorLeave('page')) return false;
+    }
     const activeViewId = activeView ? activeView.id.replace('view-', '') : '';
     editorReturnViewId = (activeViewId && activeViewId !== 'editor') ? activeViewId : (lastTabId || 'home');
 
@@ -6920,6 +7190,7 @@ function openEditor(type = 'diary', id = null) {
     const charCountEl = document.getElementById('char-count');
 
     if (type === 'diary') { 
+        renderCustomDiaryTemplates();
         dateInput.removeAttribute('min');
         diaryFields.classList.remove('hidden'); 
         diaryFooter.classList.remove('hidden'); 
@@ -6967,7 +7238,7 @@ function openEditor(type = 'diary', id = null) {
             setMood(4); 
             tempImages = []; 
         } else { 
-            contentDiv.innerHTML = `<div><b>場所：</b></div><div><b>時間：</b></div><div><b>計画：</b></div><div><b>持ち物：</b></div><div><b>備考：</b></div>`; 
+            contentDiv.innerHTML = `<div>場所：</div><div>時間：</div><div>計画：</div><div>持ち物：</div><div>備考：</div>`; 
         }
     }
 
@@ -6989,10 +7260,13 @@ function openEditor(type = 'diary', id = null) {
         }
     }, 150);
 
+    captureEditorSnapshot(type === 'memo' ? 'memo' : type);
     switchTab('editor');
 }
 
 function cancelEditor() {
+    if (!confirmEditorLeave('cancel')) return;
+    bypassUnsavedEditorGuard = true;
     const returnView = editorReturnViewId || lastTabId || 'home';
     switchTab(returnView);
 }
@@ -7147,7 +7421,22 @@ else if (diffDays === 183) dayText = "6ヶ月後に";
     }
 }
 
-        function toggleFabMenu() { document.getElementById('fab-menu').classList.toggle('active'); }
+        function toggleFabMenu() {
+            const menu = document.getElementById('fab-menu');
+            if (menu) menu.classList.toggle('active');
+        }
+
+        // 万年筆メニューは、メニュー／ボタン以外をクリック・タップしたら閉じる。
+        // メニュー項目のクリックは既存の onclick に任せ、ここでは二重実行しない。
+        if (!window.__fabOutsideDismissBound) {
+            window.__fabOutsideDismissBound = true;
+            document.addEventListener('click', function(event) {
+                const container = document.querySelector('.fab-container');
+                const menu = document.getElementById('fab-menu');
+                if (!container || !menu || !menu.classList.contains('active')) return;
+                if (!container.contains(event.target)) menu.classList.remove('active');
+            });
+        }
 function saveCurrentListPageByDiary(id) {
     const diary = diaries.find(d => d.id == id);
     if (!diary) return;
@@ -7331,7 +7620,7 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
     }
     if (!item) {
         const viewerExportBtn = document.getElementById('viewer-export-btn');
-        if (viewerExportBtn) viewerExportBtn.style.display = 'none';
+        if (viewerExportBtn) viewerExportBtn.style.setProperty('display', 'none', 'important');
         const viewerBookmarkBtn = document.getElementById('viewer-bookmark-btn');
         if (viewerBookmarkBtn) viewerBookmarkBtn.style.setProperty('display', 'none', 'important');
         return;
@@ -7339,7 +7628,11 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
 
     const viewerExportBtn = document.getElementById('viewer-export-btn');
     if (viewerExportBtn) {
-        viewerExportBtn.style.display = isDiary ? 'inline-flex' : 'none';
+        viewerExportBtn.style.setProperty('display', isDiary ? 'inline-flex' : 'none', 'important');
+        const exportedDiaryIds = Array.isArray(config.viewerHtmlExportedDiaryIds) ? config.viewerHtmlExportedDiaryIds.map(String) : [];
+        const thisDiaryExported = window.currentViewerDiaryId != null && exportedDiaryIds.includes(String(window.currentViewerDiaryId));
+        viewerExportBtn.classList.toggle('is-exported', thisDiaryExported);
+        viewerExportBtn.setAttribute('aria-pressed', thisDiaryExported ? 'true' : 'false');
     }
 
     const viewerBookmarkBtn = document.getElementById('viewer-bookmark-btn');
@@ -8099,35 +8392,180 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
             renderDiaryList();
         }
 
+        // 書式のオン・オフはブラウザの一時的な queryCommandState だけに任せず、
+        // 編集欄ごとの明示的な状態として管理する。削除後も「オフ」が勝手にオンへ戻らない。
+        const formatToggleStates = new WeakMap();
+        function getActiveFormattingEditor() {
+            if (document.getElementById('view-memo-editor')?.classList.contains('active')) {
+                return document.getElementById('memo-content');
+            }
+            if (document.getElementById('view-editor')?.classList.contains('active')) {
+                return document.getElementById('diary-content');
+            }
+            return null;
+        }
+
+        function getFormatState(editor) {
+            if (!editor) return { bold: false, italic: false };
+            let state = formatToggleStates.get(editor);
+            if (!state) {
+                state = {
+                    bold: !!document.queryCommandState('bold'),
+                    italic: !!document.queryCommandState('italic')
+                };
+                formatToggleStates.set(editor, state);
+            }
+            return state;
+        }
+
+        function updateFormatButtonState(editor, cmd, active) {
+            const editorView = editor?.id === 'memo-content' ? '#view-memo-editor' : '#view-editor';
+            const button = document.querySelector(`${editorView} button[onclick="execCmd('${cmd}')"]`);
+            if (button) {
+                button.classList.toggle('active', !!active);
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            }
+        }
+
+        function syncFormatButtonStates(editor) {
+            if (!editor) return;
+            const state = getFormatState(editor);
+            updateFormatButtonState(editor, 'bold', state.bold);
+            updateFormatButtonState(editor, 'italic', state.italic);
+        }
+
+        function removeEmptyFormatWrappers(editor) {
+            if (!editor) return;
+            const formattingNodes = editor.querySelectorAll(
+                'b, strong, i, em, span[style*="font-weight"], span[style*="font-style"]'
+            );
+            formattingNodes.forEach(node => {
+                const hasRealContent = (node.textContent || '').length > 0 || node.querySelector('img');
+                if (!hasRealContent) node.replaceWith(...node.childNodes);
+            });
+        }
+
+        function setBrowserFormatState(cmd, wanted) {
+            // ブラウザの入力書式が明示的なオン・オフ状態と食い違う場合だけ同期する。
+            if (!!document.queryCommandState(cmd) !== !!wanted) {
+                document.execCommand(cmd, false, null);
+            }
+        }
+
         function execCmd(cmd) {
-    const activeEditor = document.getElementById('memo-content');
-    if (activeEditor && document.getElementById('view-memo-editor')?.classList.contains('active')) {
-        activeEditor.focus();
-    }
-    document.execCommand(cmd, false, null);
-}
+            const editor = getActiveFormattingEditor();
+            if (!editor || !['bold', 'italic'].includes(cmd)) return;
+            const selection = window.getSelection();
+            const hasSelection = selection && selection.rangeCount > 0 &&
+                !selection.isCollapsed && editor.contains(selection.anchorNode) &&
+                editor.contains(selection.focusNode);
+            editor.focus();
+            const state = getFormatState(editor);
+
+            if (hasSelection) {
+                // 選択文字だけに適用。選択後の入力書式は必ず通常へ戻す。
+                const range = selection.getRangeAt(0).cloneRange();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                document.execCommand(cmd, false, null);
+                const endRange = document.createRange();
+                endRange.setStart(range.endContainer, range.endOffset);
+                endRange.collapse(true);
+                selection.removeAllRanges();
+                selection.addRange(endRange);
+                state.bold = false;
+                state.italic = false;
+                setBrowserFormatState('bold', false);
+                setBrowserFormatState('italic', false);
+                removeEmptyFormatWrappers(editor);
+                syncFormatButtonStates(editor);
+                return;
+            }
+
+            // クリックするたびに明示的な状態を反転し、ブラウザの状態も一致させる。
+            state[cmd] = !state[cmd];
+            setBrowserFormatState(cmd, state[cmd]);
+            syncFormatButtonStates(editor);
+        }
+
+        // 文字入力の直前に状態を合わせる。削除後にブラウザが古い装飾を復元しても、
+        // 次の入力前に必ず現在のオン・オフ設定へ戻す。
+        document.addEventListener('beforeinput', function (event) {
+            const editor = getActiveFormattingEditor();
+            if (!editor || (event.target !== editor && !editor.contains(event.target))) return;
+            if (!['insertText', 'insertCompositionText', 'insertFromPaste', 'insertLineBreak', 'insertParagraph'].includes(event.inputType)) return;
+            const state = getFormatState(editor);
+            setBrowserFormatState('bold', state.bold);
+            setBrowserFormatState('italic', state.italic);
+        }, true);
+
+        document.addEventListener('input', function (event) {
+            const editor = getActiveFormattingEditor();
+            if (!editor || (event.target !== editor && !editor.contains(event.target))) return;
+            removeEmptyFormatWrappers(editor);
+            syncFormatButtonStates(editor);
+        }, true);
+
+        // カーソルを別の位置へ移動したときだけ、その位置の実際の書式を新しい基準にする。
+        document.addEventListener('mouseup', function (event) {
+            const editor = getActiveFormattingEditor();
+            if (!editor || (event.target !== editor && !editor.contains(event.target))) return;
+            const selection = window.getSelection();
+            if (!selection || !selection.rangeCount || !editor.contains(selection.anchorNode) || !selection.isCollapsed) return;
+            const state = {
+                bold: !!document.queryCommandState('bold'),
+                italic: !!document.queryCommandState('italic')
+            };
+            formatToggleStates.set(editor, state);
+            syncFormatButtonStates(editor);
+        }, true);
+        document.addEventListener('keyup', function (event) {
+            if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) return;
+            const editor = getActiveFormattingEditor();
+            if (!editor || (event.target !== editor && !editor.contains(event.target))) return;
+            const selection = window.getSelection();
+            if (!selection || !selection.rangeCount || !editor.contains(selection.anchorNode) || !selection.isCollapsed) return;
+            formatToggleStates.set(editor, {
+                bold: !!document.queryCommandState('bold'),
+                italic: !!document.queryCommandState('italic')
+            });
+            syncFormatButtonStates(editor);
+        }, true);
+
+        // ツールボタン操作時に選択範囲・カーソル位置を維持する。
+        document.addEventListener('pointerdown', function (event) {
+            const button = event.target.closest('.toolbar button[onclick*="execCmd"], .memo-editor-tools button[onclick*="execCmd"]');
+            if (!button) return;
+            const match = (button.getAttribute('onclick') || '').match(/execCmd\('([^']+)'\)/);
+            if (!match || !['bold', 'italic'].includes(match[1])) return;
+            event.preventDefault();
+        }, true);
 
         function insertTemplate(type) {
     const temps = {
-        daily: "・今日の出来事：\n・よかったこと：\n・大変だったこと：\n・明日の目標：\n・今日の評価：★★★★★☆☆☆☆",
-        study: "・今日学んだこと：\n・難しかったこと：\n・次やること：\n・勉強の評価：★★★★★☆☆☆☆",
-        work: "・取り組んだ仕事：\n・学び・発見：\n・課題：\n・次への計画：\n・対人記録：\n・自己評価：★★★★★☆☆☆☆",
-        activity: "・取り組んだ作業：\n・うまくいったところ：\n・詰まったところ：\n・原因,改善：\n・次やること：\n・作業の評価：★★★★★☆☆☆☆",
-        travel: "・旅行先：\n・一緒に行った人：\n・移動手段,ルート：\n・行ったスポット,景色：\n・楽しかった,感動したところ：\n・食べたもの,おすすめグルメ：\n・ハプニング：\n・つかった金額,のこり金額：\n・つぎ行きたいところ：\n・全体の満足度：★★★★★☆☆☆☆",
-        hobby: "・遊んだこと：\n・誰と：\n・どこで：\n・つかった金額,のこり金額：\n・印象に残った瞬間：\n・良かった点,反省点：\n・次にやりたいこと：\n・満足度：★★★★★☆☆☆☆",
-        exercise: "・運動メニュー：\n・種目：\n・場所：\n・距離,時間：\n・天候,気温：\n・メモ：\n・コンディション：★★★★★☆☆☆☆",
+        daily: "・今日の出来事：\n・よかったこと：\n・大変だったこと：\n・明日の目標：",
+        study: "・今日学んだこと：\n・難しかったこと：\n・次やること：",
+        work: "・取り組んだ仕事：\n・学び・発見：\n・課題：\n・次への計画：\n・対人記録：",
+        activity: "・取り組んだ作業：\n・うまくいったところ：\n・詰まったところ：\n・原因,改善：\n・次やること：",
+        travel: "・旅行先：\n・移動手段,ルート：\n・行ったスポット,景色：\n・思い出：\n・グルメ：\n・ハプニング：",
+        hobby: "・遊んだこと：\n・どこで：\n・楽しかったこと：\n・次にやりたいこと：",
+        exercise: "・運動メニュー：\n・種目：\n・場所：\n・距離,時間：\n・天候,気温：\n・メモ：",
         health: "・今日の体調：\n・睡眠時間：　時間　分\n・症状：\n・気になったこと：",
-        meal: "・美味しかった料理：\n・朝,昼,夕飯：\n・間食：\n・幸福度：★★★★★☆☆☆☆",
-        recommend: "・今日の供給：\n・胸アツ場面：\n・致命傷ポイント：\n・スクショ枚数：\n・今日のMVP：\n・動画,サイト等のリンク：\n・幸福度：★★★★★☆☆☆☆",
+        meal: "・美味しかった料理：\n・朝,昼,夕飯：\n・間食：",
+        recommend: "・今日の供給：\n・致命傷ポイント：\n・スクショ枚数：\n・今日のMVP：\n・動画,サイト等のリンク：",
         sense: "・今日の色：\n・今日の音：\n・今日の匂い：\n・今日の空気：\n・今日の触感：\n・気に入った感覚：",
-        frustrate: "・何があった：\n・誰がやった：\n・本音：\n・今の気持ち：\n・不満度：★★★★★☆☆☆☆",
+        frustrate: "・何があった：\n・誰がやった：\n・本音：\n・今の気持ち：",
         last: "・今日の死因：\n・最期の晩餐：\n・未練：\n・遺す言葉：\n・明日復活する確率：　％",
-        memo: "・URL,コピペ,言葉：\n・いつ,どこで見つけた？：\n・極秘,共有：\n・重要度：★★★★★☆☆☆☆",
+        memo: "・URL,コピペ,言葉：\n・見つけたところ：",
         once: "・今日やったこと：\n・食べた：\n・見た：\n・今ここにいる：\n・今日の一言："
     };
 
+    const customTemplates = Array.isArray(config.customDiaryTemplates) ? config.customDiaryTemplates : [];
+    const customTemplate = String(type).startsWith('custom:')
+        ? customTemplates.find(item => String(item.id) === String(type.slice(7)))
+        : null;
     const contentArea = document.getElementById('diary-content');
-    const templateText = temps[type];
+    const templateText = customTemplate ? customTemplate.content : temps[type];
     if (!contentArea || !templateText) return;
 
     // 文字列中の改行を <br> として安全に挿入。
@@ -8181,6 +8619,188 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
 
     insertTemplateAtSelection();
     updateCharCount();
+}
+
+        function toggleCustomTemplateManager() {
+    const panel = document.getElementById('custom-template-manager');
+    if (!panel) return;
+    if (!panel.classList.contains('hidden') && !panel.classList.contains('custom-template-panel-closing')) {
+        closeCustomTemplateManager();
+        return;
+    }
+    if (panel._customTemplateCloseTimer) {
+        clearTimeout(panel._customTemplateCloseTimer);
+        panel._customTemplateCloseTimer = null;
+    }
+    panel.classList.remove('hidden', 'custom-template-panel-closing');
+    panel.setAttribute('aria-hidden', 'false');
+    // Force layout so the fade-in starts from its initial state.
+    void panel.offsetHeight;
+    requestAnimationFrame(() => panel.classList.add('custom-template-panel-visible'));
+    renderCustomDiaryTemplates();
+    document.getElementById('custom-template-name')?.focus();
+}
+
+function closeCustomTemplateManager() {
+    const panel = document.getElementById('custom-template-manager');
+    if (!panel || panel.classList.contains('hidden')) return;
+    panel.classList.remove('custom-template-panel-visible');
+    panel.classList.add('custom-template-panel-closing');
+    panel.setAttribute('aria-hidden', 'true');
+    if (panel._customTemplateCloseTimer) clearTimeout(panel._customTemplateCloseTimer);
+    panel._customTemplateCloseTimer = setTimeout(() => {
+        panel.classList.add('hidden');
+        panel.classList.remove('custom-template-panel-closing');
+        panel._customTemplateCloseTimer = null;
+    }, 240);
+}
+
+let customDiaryTemplateEditingId = null;
+
+function renderCustomDiaryTemplates() {
+    const select = document.getElementById('templateSelect');
+    const list = document.getElementById('custom-template-list');
+    if (!select) return;
+    const previousValue = select.value;
+    select.querySelectorAll('optgroup[data-custom-template-group="true"]').forEach(node => node.remove());
+    const templates = Array.isArray(config.customDiaryTemplates) ? config.customDiaryTemplates : [];
+    if (templates.length) {
+        const group = document.createElement('optgroup');
+        group.label = 'オリジナル';
+        group.dataset.customTemplateGroup = 'true';
+        templates.forEach(item => {
+            const option = document.createElement('option');
+            option.value = 'custom:' + item.id;
+            option.textContent = item.name + 'テンプレ';
+            group.appendChild(option);
+        });
+        select.appendChild(group);
+    }
+    if (templates.some(item => 'custom:' + item.id === previousValue)) select.value = previousValue;
+    if (list) {
+        list.replaceChildren();
+        if (!templates.length) {
+            const empty = document.createElement('div');
+            empty.textContent = '作成したテンプレートはまだありません。';
+            empty.style.cssText = 'font-size:.85rem;opacity:.7;padding:6px 0;';
+            list.appendChild(empty);
+        } else {
+            templates.forEach(item => {
+                const row = document.createElement('div');
+                row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid rgba(128,128,128,.2);';
+                const label = document.createElement('span');
+                label.textContent = item.name + 'テンプレ';
+                label.style.cssText = 'flex:1;min-width:0;overflow-wrap:anywhere;font-size:.9rem;';
+                const edit = document.createElement('button');
+                edit.type = 'button';
+                edit.className = 'custom-template-edit custom-template-delete';
+                edit.textContent = '編集';
+                edit.setAttribute('aria-label', item.name + 'テンプレを編集');
+                edit.addEventListener('click', () => editCustomDiaryTemplate(item.id));
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'custom-template-delete';
+                remove.textContent = '削除';
+                remove.setAttribute('aria-label', item.name + 'テンプレを削除');
+                remove.addEventListener('click', () => deleteCustomDiaryTemplate(item.id));
+                row.append(label, edit, remove); list.appendChild(row);
+            });
+        }
+    }
+}
+
+function editCustomDiaryTemplate(id) {
+    const item = (config.customDiaryTemplates || []).find(entry => String(entry.id) === String(id));
+    if (!item) return;
+    customDiaryTemplateEditingId = String(item.id);
+    const nameInput = document.getElementById('custom-template-name');
+    const contentInput = document.getElementById('custom-template-content');
+    if (nameInput) nameInput.value = item.name;
+    if (contentInput) contentInput.value = item.content;
+    const saveButton = document.getElementById('custom-template-save-button');
+    if (saveButton) saveButton.textContent = '変更を保存';
+    const cancelButton = document.getElementById('custom-template-cancel-edit');
+    if (cancelButton) cancelButton.hidden = false;
+    nameInput?.focus();
+}
+
+function cancelEditCustomDiaryTemplate() {
+    customDiaryTemplateEditingId = null;
+    const nameInput = document.getElementById('custom-template-name');
+    const contentInput = document.getElementById('custom-template-content');
+    if (nameInput) nameInput.value = '';
+    if (contentInput) contentInput.value = '';
+    const saveButton = document.getElementById('custom-template-save-button');
+    if (saveButton) saveButton.textContent = 'テンプレートを保存';
+    const cancelButton = document.getElementById('custom-template-cancel-edit');
+    if (cancelButton) cancelButton.hidden = true;
+}
+
+async function addCustomDiaryTemplate() {
+    const nameInput = document.getElementById('custom-template-name');
+    const contentInput = document.getElementById('custom-template-content');
+    const name = nameInput?.value.trim();
+    const content = contentInput?.value ?? '';
+    if (!name) { alert('テンプレート名を入力してください。'); nameInput?.focus(); return; }
+    if (!content.trim()) { alert('テンプレート本文を入力してください。'); contentInput?.focus(); return; }
+    if (!Array.isArray(config.customDiaryTemplates)) config.customDiaryTemplates = [];
+
+    const editingId = customDiaryTemplateEditingId;
+    const previous = config.customDiaryTemplates.map(item => ({ ...item }));
+    if (editingId !== null) {
+        const index = config.customDiaryTemplates.findIndex(item => String(item.id) === editingId);
+        if (index < 0) {
+            cancelEditCustomDiaryTemplate();
+            renderCustomDiaryTemplates();
+            alert('編集するテンプレートが見つかりませんでした。');
+            return;
+        }
+        config.customDiaryTemplates[index] = { ...config.customDiaryTemplates[index], name, content };
+        try {
+            await saveConfig();
+            cancelEditCustomDiaryTemplate();
+            renderCustomDiaryTemplates();
+            alert('オリジナルテンプレートを更新しました。');
+        } catch (error) {
+            config.customDiaryTemplates = previous;
+            console.error('テンプレート更新エラー:', error);
+            renderCustomDiaryTemplates();
+            alert('テンプレートを更新できませんでした。');
+        }
+        return;
+    }
+
+    if (config.customDiaryTemplates.length >= 10) { alert('オリジナルテンプレートは10件まで保存できます。'); return; }
+    const id = (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
+    config.customDiaryTemplates.push({ id, name, content });
+    try {
+        await saveConfig();
+        nameInput.value = ''; contentInput.value = '';
+        renderCustomDiaryTemplates();
+        document.getElementById('templateSelect').value = 'custom:' + id;
+        // Keep the custom-template panel open after adding a template so more templates can be created.
+        renderCustomDiaryTemplates();
+        document.getElementById('custom-template-name')?.focus();
+        alert('オリジナルテンプレートを保存しました。');
+    } catch (error) {
+        config.customDiaryTemplates = config.customDiaryTemplates.filter(item => String(item.id) !== id);
+        console.error('テンプレート保存エラー:', error);
+        alert('テンプレートを保存できませんでした。');
+    }
+}
+
+async function deleteCustomDiaryTemplate(id) {
+    const item = (config.customDiaryTemplates || []).find(entry => String(entry.id) === String(id));
+    if (!item || !confirm('「' + item.name + '」を削除しますか？')) return;
+    const previous = config.customDiaryTemplates.slice();
+    config.customDiaryTemplates = previous.filter(entry => String(entry.id) !== String(id));
+    try { await saveConfig(); renderCustomDiaryTemplates(); }
+    catch (error) {
+        config.customDiaryTemplates = previous;
+        console.error('テンプレート削除エラー:', error);
+        alert('テンプレートを削除できませんでした。');
+        renderCustomDiaryTemplates();
+    }
 }
 
         function insertSelectedTemplate() {
@@ -8284,12 +8904,14 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
         function removeTempImg(idx) { tempImages.splice(idx, 1); updateImagePreviews(); }
 
        async function saveDiary() {
+    if (editorSaveInProgress) return;
+    editorSaveInProgress = true;
     try {
         await saveDiaryInternal();
     } catch (error) {
         console.error('保存エラー:', error);
         alert('保存できませんでした。データベースへの書き込みでエラーが発生しました。\nもう一度お試しください。');
-    }
+    } finally { editorSaveInProgress = false; }
 }
 
 async function saveDiaryInternal() {
@@ -8344,7 +8966,7 @@ async function saveDiaryInternal() {
             
             await saveConfig();
             
-            alert('【おしゃべり？作家さん？】\n1200文字以上の長文日記を書きました！\n新しいテーマデザイン「アルファベータ」が解除されました✒️\nさっそく設定ページで確認しましょう');
+            queueThemeUnlockNotice('【おしゃべり？作家さん？】\n1200文字以上の長文日記を書きました！\n新しいテーマデザイン「アルファベータ」が解除されました✒️\nさっそく設定ページで確認しましょう');
         }
         invalidateCaches();   
 
@@ -8364,6 +8986,7 @@ async function saveDiaryInternal() {
             }, 150);
         }
 
+        pendingEditorSnapshot = null; bypassUnsavedEditorGuard = true;
         openViewer(entry.id);
 } else {
     // 予定は今日より前の日には保存できない。
@@ -8405,7 +9028,7 @@ async function saveDiaryInternal() {
             await saveConfig();
             const opt = document.getElementById('option-terminal');
             if (opt) opt.style.display = 'block';
-            alert("【予定管理のプロ？】\n30件の予定を立てました！\n新しいテーマデザイン「タイムテーブル」が解放されました📆\nさっそく設定ページで確認しましょう");
+            queueThemeUnlockNotice("【予定管理のプロ？】\n30件の予定を立てました！\n新しいテーマデザイン「タイムテーブル」が解放されました📆\nさっそく設定ページで確認しましょう");
         } else if (normalizedCreationCount < 30) {
             await saveConfig();
         }
@@ -8424,6 +9047,7 @@ async function saveDiaryInternal() {
         renderCalendar();
         showCalendarEntries(date);
     }
+    pendingEditorSnapshot = null; bypassUnsavedEditorGuard = true;
     openViewer(entry.id);
 }
 }   
@@ -8478,7 +9102,7 @@ if (happyCount >= 50 && !config.hasUnlockedLucky) {
         ...config
     });
 
-    alert('【とてもハッピーなお知らせです！】\nハッピーな記録(🤩・😊)が合計50個に達しました！\n 新しいテーマデザイン「ラッキー」が解放されました！☘\nさっそく設定ページで確認しましょう！');
+    queueThemeUnlockNotice('【とてもハッピーなお知らせです！】\nハッピーな記録(🤩・😊)が合計50個に達しました！\n 新しいテーマデザイン「ラッキー」が解放されました！☘\nさっそく設定ページで確認しましょう！');
 } 
 const heibonCount = diaries.filter(d => d.mood === 3).length;
 
@@ -8493,7 +9117,7 @@ if (heibonCount >= 50 && !config.hasUnlockedEdamame) {
         ...config
     });
 
-    alert('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計50個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう');
+    queueThemeUnlockNotice('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計50個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう');
 } 
 const devilCount = diaries.filter(d => d.mood === 1 || d.mood === 2).length;
 
@@ -8508,7 +9132,7 @@ if (devilCount >= 50 && !config.hasUnlockedDevil) {
         ...config
     });
 
-    alert('\n【アンハッピー(？)なお知らせです...】\nネガティブな記録(😭・😡)が合計50個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
+    queueThemeUnlockNotice('\n【アンハッピー(？)なお知らせです...】\nネガティブな記録(😭・😡)が合計50個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
 }
 const scheduleCount = Number.isFinite(Number(config.scheduleCreationCount))
     ? Math.min(30, Math.max(0, Math.floor(Number(config.scheduleCreationCount))))
@@ -8535,7 +9159,7 @@ const streakCount = getStreak();
         if (!config.hasUnlockedLegend) {
             config.hasUnlockedLegend = true;
             saveConfig();
-            alert("1ヶ月連続達成おめでとう！ \n新しいテーマデザイン「レジェンド」が解放されました🥇\nさっそく設定ページで確認しましょう！");
+            queueThemeUnlockNotice("1ヶ月連続達成おめでとう！ \n新しいテーマデザイン「レジェンド」が解放されました🥇\nさっそく設定ページで確認しましょう！");
         }
         
         const legendOption = document.getElementById('option-legend');
@@ -8547,7 +9171,7 @@ const streakCount = getStreak();
     if (!config.hasUnlockedCosmos) {
         config.hasUnlockedCosmos = true;
         saveConfig();
-        alert('100日連続達成おめでとう！\n新しいテーマデザイン「ギャラクシー」が解放されました🛸\n「でじ帖」を毎日つかってくれて本当にありがとう！\nさっそく設定ページで確認しましょう！');
+        queueThemeUnlockNotice('100日連続達成おめでとう！\n新しいテーマデザイン「ギャラクシー」が解放されました🛸\n「でじ帖」を毎日つかってくれて本当にありがとう！\nさっそく設定ページで確認しましょう！');
     }
     
     const cosmosOption = document.getElementById('option-cosmos');
@@ -8559,7 +9183,7 @@ const streakCount = getStreak();
         if (!config.hasUnlockedMaster) {
             config.hasUnlockedMaster = true;
             saveConfig();
-            alert("50日連続達成おめでとう！\n新しいテーマデザイン「モダンノート」が解放されました📓\nさっそく設定ページで確認しましょう！");
+            queueThemeUnlockNotice("50日連続達成おめでとう！\n新しいテーマデザイン「モダンノート」が解放されました📓\nさっそく設定ページで確認しましょう！");
         }
         
         const masterOption = document.getElementById('option-master');
@@ -9604,6 +10228,9 @@ function openEditorWithDate(type, date) {
     currentEditingId = null;
     const dateInput = document.getElementById('diary-date-input');
     if (dateInput) dateInput.value = date;
+    // openEditor() 後に日付を変更するため、ここで基準スナップショットを更新する。
+    // これにより、カレンダーで選んだ日付自体を「未保存変更」と誤判定しない。
+    captureEditorSnapshot(type);
 }
 
         function renderGallery() {
@@ -10181,6 +10808,16 @@ async function exportCurrentViewerDiaryHtml(event){
    buildDiaryExportHtml([diary],{title:'いちにち日記',includeSchedules:false,includeSearch:false}),
    `dejicho_${date}_${sanitizeFilename(title)||'diary'}.html`
  );
+ const exportedDiaryIds = Array.isArray(config.viewerHtmlExportedDiaryIds) ? config.viewerHtmlExportedDiaryIds.map(String) : [];
+ const exportedId = String(id);
+ if (!exportedDiaryIds.includes(exportedId)) exportedDiaryIds.push(exportedId);
+ config.viewerHtmlExportedDiaryIds = exportedDiaryIds;
+ await saveConfig();
+ const exportButton = document.getElementById('viewer-export-btn');
+ if (exportButton && String(window.currentViewerDiaryId) === exportedId) {
+   exportButton.classList.add('is-exported');
+   exportButton.setAttribute('aria-pressed', 'true');
+ }
  alert('この日記をHTML形式で書き出しました。');
 }
 
@@ -10785,7 +11422,11 @@ function closeMemoViewer() {
 }
 
 function openMemoEditor(id = null) {
+    // メモ編集ボタンから別画面・別メモへ移る場合も、編集中の内容を先に確認する。
     const activeView = document.querySelector('.view.active');
+    if (activeView && (activeView.id === 'view-editor' || activeView.id === 'view-memo-editor')) {
+        if (!confirmEditorLeave('page')) return false;
+    }
     const activeId = activeView ? activeView.id.replace('view-', '') : 'memos';
     // 編集画面の「戻る」は保存を行わず、必ずメモ一覧へ戻す。
     // 未保存の入力内容を閲覧画面として表示してしまわないよう、
@@ -10828,6 +11469,7 @@ function openMemoEditor(id = null) {
         deleteBtn.onclick = id != null ? () => deleteMemo(id) : null;
     }
 
+    captureEditorSnapshot('memo');
     switchTab('memo-editor');
     setTimeout(() => title.focus(), 80);
 }
@@ -10888,6 +11530,20 @@ function removeMemoChecklistItem(index) {
 }
 
 async function saveMemo() {
+    if (editorSaveInProgress) return;
+    editorSaveInProgress = true;
+    try {
+        return await saveMemoInternal();
+    } catch (error) {
+        console.error('メモ保存エラー:', error);
+        alert('メモを保存できませんでした。入力内容はそのまま残しています。\nもう一度お試しください。');
+        return false;
+    } finally {
+        editorSaveInProgress = false;
+    }
+}
+
+async function saveMemoInternal() {
     const titleEl = document.getElementById('memo-title-input');
     const contentEl = document.getElementById('memo-content');
     if (!titleEl || !contentEl) return;
@@ -10932,15 +11588,17 @@ async function saveMemo() {
     // 保存したメモの閲覧画面へ移動する。
     currentEditingMemoId = null;
     memoChecklistDraft = [];
+    pendingEditorSnapshot = null; bypassUnsavedEditorGuard = true;
     renderMemoPage();
     openMemoViewer(entry.id);
 }
 
 function cancelMemoEditor() {
-    // 「戻る」はキャンセル扱い。編集途中の内容は保存せず、
-    // 未保存データを閲覧画面へ引き継がない。
+    // 編集破棄の確認は未保存の変更がある場合のみ表示する。
+    if (!confirmEditorLeave('cancel')) return;
     currentEditingMemoId = null;
     memoChecklistDraft = [];
+    bypassUnsavedEditorGuard = true;
     switchTab('memos');
     renderMemoPage();
 }
