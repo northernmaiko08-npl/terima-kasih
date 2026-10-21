@@ -4703,7 +4703,7 @@ body[data-theme="scholar"] #view-viewer {
 <strong>JSONから復元</strong>
 <div class="data-management-help">既存の「でじ帖」JSONバックアップを選択して、この端末のデータを復元します。</div>
 </div>
-<button class="btn btn-primary" onclick="restoreFromAutoBackupPicker()" type="button">復元する</button>
+<button class="btn btn-primary" onclick="restoreFromAutoBackupPicker()" type="button">データ復元</button>
 <input class="hidden" id="restore-backup-file" accept=".json,application/json" onchange="restoreFromAutoBackup(event)" type="file"/>
 </div>
 
@@ -4713,13 +4713,13 @@ body[data-theme="scholar"] #view-viewer {
 <div class="data-management-help">日記を読み返せるHTMLとして書き出します。</div>
 </div>
 <button class="btn export-settings-btn" onclick="exportAllDiariesHtml()" type="button">
-<span>日記をエクスポート</span>
+<span>エクスポート</span>
 </button>
 </div>
 
 <div class="setting-row">
 <div class="data-management-description">
-<strong>初期化</strong>
+<strong>全データ初期化</strong>
 <div class="data-management-help">日記や予定など、すべての記録を削除します。設定済みのJSONバックアップファイル自体は削除しません。</div>
 </div>
 <button class="btn btn-danger" onclick="startFullInitialization()" style="background-color: #e94560; color: white;">
