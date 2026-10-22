@@ -4684,18 +4684,18 @@ body[data-theme="scholar"] #view-viewer {
 
 <div class="setting-row" id="auto-sync-row" style="display:none;">
 <div class="data-management-description">
-<strong>今すぐ同期</strong>
-<div class="data-management-help">設定済みのJSONバックアップへ、現在のデータをすぐに同期します。</div>
+<strong>データ自動保存</strong>
+<div class="data-management-help">設定済みのJSONバックアップへ、現在のデータをすぐに上書きします。</div>
 </div>
-<button class="btn btn-primary" onclick="retryAutoBackup()" type="button">今すぐ同期</button>
+<button class="btn btn-primary" onclick="retryAutoBackup()" type="button">今すぐ接続</button>
 </div>
 
 <div class="setting-row" id="manual-backup-row" style="display:none;">
 <div class="data-management-description">
 <strong>バックアップ</strong>
-<div class="data-management-help">自動バックアップを利用できない環境では、JSONファイルを手動で保存できます。</div>
+<div class="data-management-help">データ自動保存を利用できない環境では、JSONファイルを手動で保存できます。</div>
 </div>
-<button id="manual-backup-button" class="btn btn-primary" onclick="exportData()" type="button">バックアップ</button>
+<button id="manual-backup-button" class="btn btn-primary" onclick="exportData()" type="button">今すぐ保存</button>
 </div>
 
 <div class="setting-row">
@@ -4713,7 +4713,7 @@ body[data-theme="scholar"] #view-viewer {
 <div class="data-management-help">日記を読み返せるHTMLとして書き出します。</div>
 </div>
 <button class="btn export-settings-btn" onclick="exportAllDiariesHtml()" type="button">
-<span>エクスポート</span>
+<span>データ書出し</span>
 </button>
 </div>
 
@@ -4723,7 +4723,7 @@ body[data-theme="scholar"] #view-viewer {
 <div class="data-management-help">日記や予定など、すべての記録を削除します。設定済みのJSONバックアップファイル自体は削除しません。</div>
 </div>
 <button class="btn btn-danger" onclick="startFullInitialization()" style="background-color: #e94560; color: white;">
-    全データ初期化
+    初期化する
 </button>
 </div>
 </div>
@@ -4979,9 +4979,9 @@ body[data-theme="scholar"] #view-viewer {
         </p>
 <h4 style="margin: 16px 0 8px;">13. JSONバックアップの使い分け</h4>
 <p>
-            でじ帖のJSONバックアップには、<strong>自動バックアップ（同期）</strong>と<strong>手動バックアップ</strong>があります。
-            自動同期に対応している環境では、設定した <strong>dejicho_backup.json</strong> を最新データへ自動更新でき、「今すぐ同期」から任意のタイミングで同期することもできます。
-            自動同期に対応していない環境や、同期を利用できない状態では、「バックアップ」から新しいJSONファイルを保存してください。
+            でじ帖のJSONバックアップには、<strong>自動バックアップ（ファイル上書き）</strong>と<strong>手動バックアップ（ファイル別途保存）</strong>があります。
+            自動保存に対応している環境では、設定した <strong>dejicho_backup.json</strong> を最新データへ自動更新でき、「今すぐ接続」から任意のタイミングで同期することもできます。
+            自動保存に対応していない環境や、上書きを利用できない状態では、「バックアップ」から新しいJSONファイルを保存してください。
         </p>
 <p>
             JSONバックアップは、機種変更時のデータ移行や、万一のデータ消失に備えた復元用として利用できます。
@@ -4990,7 +4990,7 @@ body[data-theme="scholar"] #view-viewer {
         </p>
 <h4 style="margin: 16px 0 8px;">14. バックアップ通知は「あとで保存する」にも対応</h4>
 <p>
-            自動同期が利用できない状態で、最後のバックアップから<strong>2週間以上</strong>経過すると、ホーム画面に「バックアップのお願い」が表示されます。
+            自動保存が利用できない状態で、最後のバックアップから<strong>2週間以上</strong>経過すると、ホーム画面に「バックアップのお願い」が表示されます。
             すぐに保存できない場合は「あとで保存する」を利用でき、その日は通知を抑えつつ、翌日以降はバックアップ状況に応じて再び確認できます。
         </p>
 <h4 style="margin: 16px 0 8px;">15. パスコード・本人確認・起動時スキップ</h4>
@@ -5071,14 +5071,14 @@ body[data-theme="scholar"] #view-viewer {
             でじ帖のバックアップには、<strong>自動バックアップ（同期）</strong>と<strong>手動バックアップ</strong>の2つの方法があります。使える方法は端末・ブラウザによって異なります。
         </p>
 <ul>
-<li><strong>自動バックアップに対応している環境：</strong> 初回設定で保存先のフォルダとJSONファイルを指定すると、<strong>dejicho_backup.json</strong>へ最新のデータを自動的に同期します。設定画面の「今すぐ同期」から、必要なときに手動で最新状態へ同期することもできます。自動同期が利用できる間は、手動の「バックアップ」は利用できません。</li>
-<li><strong>自動バックアップに対応していない環境：</strong> 保存先を選択する自動同期は利用できません。その代わり、設定の「バックアップ」から、その時点のデータを新しいJSONファイルとして保存できます。ホーム画面には、最後のバックアップから<strong>2週間以上</strong>経過すると「バックアップのお願い」が表示されます。</li>
-<li><strong>自動同期が一時的に利用できない場合：</strong> 保存先へのアクセス権が失われた場合なども、自動同期が利用できない状態として扱われ、手動バックアップを利用できます。</li>
+<li><strong>自動バックアップに対応している環境：</strong> 初回設定で保存先のフォルダとJSONファイルを指定すると、<strong>dejicho_backup.json</strong>へ最新のデータを自動的に上書きします。設定画面の「今すぐ接続」から、必要なときに手動で最新状態へ同期することもできます。自動保存が利用できる間は、手動の「バックアップ」は利用できません。</li>
+<li><strong>自動バックアップに対応していない環境：</strong> 保存先を選択する自動保存は利用できません。その代わり、設定の「バックアップ」から、その時点のデータを新しいJSONファイルとして保存できます。ホーム画面には、最後のバックアップから<strong>2週間以上</strong>経過すると「バックアップのお願い」が表示されます。</li>
+<li><strong>自動保存が一時的に利用できない場合：</strong> 保存先へのアクセス権が失われた場合なども、自動保存が利用できない状態として扱われ、手動バックアップを利用できます。</li>
 </ul>
 <p>
-            自動同期で使用する <strong>dejicho_backup.json</strong> は、毎回新しいファイルを増やすのではなく、同じファイルを最新データで更新します。一方、手動の「バックアップ」は、その都度新しいJSONバックアップファイルを保存します。
+            自動保存で使用する <strong>dejicho_backup.json</strong> は、毎回新しいファイルを増やすのではなく、同じファイルを最新データで更新します。一方、手動の「バックアップ」は、その都度新しいJSONバックアップファイルを保存します。
         <br/><br/>
-            どちらの方法でも、バックアップファイル自体が端末の故障・紛失などで失われる可能性があります。大切な記録は、必要に応じてUSBメモリ、外付けストレージ、信頼できるクラウドストレージなど、別の場所にもコピーして保管してください。別の端末へ移行するときは、保存しておいたJSONバックアップを「バックアップから復元」から読み込むことで、日記・メモ・予定などのデータを復元できます。
+            どちらの方法でも、バックアップファイル自体が端末の故障・紛失などで失われる可能性があります。大切な記録は、必要に応じてUSBメモリ、外付けストレージ、信頼できるクラウドストレージなど、別の場所にもコピーして保管してください。別の端末へ移行するときは、保存しておいたJSONバックアップを「データ復元」から読み込むことで、日記・メモ・予定などのデータを復元できます。
         </p>
 </div><div class="support-accordion-static-item"><div class="support-accordion-static-title">2. パスコードと本人確認設定の厳重管理</div>
 <p>
@@ -5325,7 +5325,7 @@ body[data-theme="scholar"] #view-viewer {
         let diaryDateMap = new Map();
         let scheduleDateMap = new Map();
         
-        let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', chartPeriod: 'month', homeListMode: 'diary', lastBackup: null, backupReminderSkippedAt: null, backupFileHandle: null, backupDirectoryHandle: null, autoBackupEnabled: false, backupSyncStatus: 'unconfigured', backupLastSync: null, recoverySet: false, recoveryReminderDismissed: false, customRecoveryHint: '', authPasswordHash: null, authRecoveryPassHash: null, authRecoveryWordHash: null, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false, hasUnlockedOriginalTemplates: false, scheduleCreationCount: 0 };
+        let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', chartPeriod: 'month', homeListMode: 'diary', lastBackup: null, backupReminderSkippedAt: null, autoSyncReminderSkippedAt: null, backupFileHandle: null, backupDirectoryHandle: null, autoBackupEnabled: false, backupSyncStatus: 'unconfigured', backupLastSync: null, backupDisconnectedSince: null, recoverySet: false, recoveryReminderDismissed: false, customRecoveryHint: '', authPasswordHash: null, authRecoveryPassHash: null, authRecoveryWordHash: null, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false, hasUnlockedOriginalTemplates: false, scheduleCreationCount: 0 };
         let currentEditingId = null;
         let bookmarkPage = 1;
         const BOOKMARK_PAGE_SIZE = 30;
@@ -5455,6 +5455,13 @@ body[data-theme="scholar"] #view-viewer {
             config.backupReminderSkippedAt = Date.now();
             saveConfig();
 
+            const area = document.getElementById('notification-area');
+            fadeOutSpecialNotification(area);
+        }
+        function skipAutoSyncNotification(event) {
+            if (event) event.stopPropagation();
+            config.autoSyncReminderSkippedAt = Date.now();
+            saveConfig();
             const area = document.getElementById('notification-area');
             fadeOutSpecialNotification(area);
         }
@@ -5641,7 +5648,7 @@ if (config.hasUnlockedMaster) {
             if (!encryptedAuth || encryptedAuth.version !== 1) throw new Error('対応していない暗号化認証情報です');
             const recoveryPass = prompt('バックアップから認証設定を復元します。\n本人確認パスコードを入力してください。');
             if (recoveryPass === null) throw new Error('認証情報の復元をキャンセルしました');
-            const backupHint = encryptedAuth.hint ? `\n\n合言葉のヒント：${encryptedAuth.hint}` : '\n\n合言葉のヒント：設定されていません。';
+            const backupHint = encryptedAuth.hint ? `\n合言葉のヒント：${encryptedAuth.hint}` : '\n合言葉のヒント：設定されていません。';
             const recoveryWord = prompt(`本人確認の合言葉を入力してください。${backupHint}`);
             if (recoveryWord === null) throw new Error('認証情報の復元をキャンセルしました');
             try {
@@ -5751,6 +5758,8 @@ if (config.hasUnlockedMaster) {
         config.backupFileName=fileName;
         config.autoBackupEnabled=true;
         config.backupSyncStatus='pending';
+        // 保存先を新しく指定したため、以前の保存先の切断カウントは引き継がない。
+        config.backupDisconnectedSince=null;
 
         // PWA/ChromeのHandle・IndexedDB設定を長期保持しやすくする。
         // これはFile System Accessの権限そのものを強制付与するものではない。
@@ -5792,6 +5801,11 @@ if (config.hasUnlockedMaster) {
                     // 明示的なユーザー操作から呼ばれた場合だけ再許可を要求する。
                     if(!force){
                         config.backupSyncStatus='pending';
+                        // 切断を最初に検知した時刻を保存し、以後の失敗でカウントをリセットしない。
+                        if(!Number(config.backupDisconnectedSince)) config.backupDisconnectedSince=Date.now();
+                        autoBackupInternalWrite=true;
+                        try { await saveDataToDB('config',{key:'main',...config}).catch(()=>{}); }
+                        finally { autoBackupInternalWrite=false; }
                         await updateAutoBackupStatus();
                         return false;
                     }
@@ -5801,7 +5815,10 @@ if (config.hasUnlockedMaster) {
                 const writable=await handle.createWritable();
                 await writable.write(JSON.stringify(await buildAutoBackupPayload(),null,2));
                 await writable.close();
-                config.backupSyncStatus='ok';config.backupLastSync=Date.now();
+                config.backupSyncStatus='ok';
+                config.backupLastSync=Date.now();
+                // 実際の書き込みとcloseが成功したときだけ、切断状態を解除する。
+                config.backupDisconnectedSince=null;
                 autoBackupInternalWrite = true;
                 try { await saveDataToDB('config',{key:'main',...config}); } finally { autoBackupInternalWrite = false; }
                 await updateAutoBackupStatus();
@@ -5810,6 +5827,9 @@ if (config.hasUnlockedMaster) {
             }catch(error){
                 console.error('自動バックアップの同期に失敗しました:',error);
                 config.backupSyncStatus=silentFailure?'pending':'error';
+                // 権限がgrantedでも、ファイル取得・書き込み・closeの失敗を切断として記録。
+                // 既存の時刻を維持するため、失敗が続いても14日カウントは最初からやり直さない。
+                if(!Number(config.backupDisconnectedSince)) config.backupDisconnectedSince=Date.now();
                 autoBackupInternalWrite = true;
                 try { await saveDataToDB('config',{key:'main',...config}).catch(()=>{}); } finally { autoBackupInternalWrite = false; }
                 await updateAutoBackupStatus();
@@ -5855,12 +5875,21 @@ if (config.hasUnlockedMaster) {
                     }
                 }
                 // prompt/deniedでもHandle・設定は絶対に破棄しない。
+                // アクセス権がないこと自体も切断の検知として記録する。
                 config.backupSyncStatus='pending';
+                if(!Number(config.backupDisconnectedSince)) config.backupDisconnectedSince=Date.now();
+                autoBackupInternalWrite=true;
+                try { await saveDataToDB('config',{key:'main',...config}).catch(()=>{}); }
+                finally { autoBackupInternalWrite=false; }
                 await updateAutoBackupStatus();
                 return false;
             }catch(error){
                 console.warn('自動バックアップの無通知権限確認に失敗しました:', reason, error);
                 config.backupSyncStatus='pending';
+                if(!Number(config.backupDisconnectedSince)) config.backupDisconnectedSince=Date.now();
+                autoBackupInternalWrite=true;
+                try { await saveDataToDB('config',{key:'main',...config}).catch(()=>{}); }
+                finally { autoBackupInternalWrite=false; }
                 await updateAutoBackupStatus();
                 return false;
             }finally{
@@ -6057,12 +6086,14 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         delete importedConfig.backupFileName;
         delete importedConfig.backupSyncStatus;
         delete importedConfig.backupLastSync;
+        delete importedConfig.backupDisconnectedSince;
 
         currentBackupFileHandle = config.backupFileHandle || null;
         const currentBackupDirectoryHandle = config.backupDirectoryHandle;
         const currentBackupFileName = config.backupFileName;
         const currentBackupSyncStatus = config.backupSyncStatus;
         const currentBackupLastSync = config.backupLastSync;
+        const currentBackupDisconnectedSince = config.backupDisconnectedSince;
 
         config={...config,...importedConfig};
         // 認証情報を含むバックアップでは、上で復元したバックアップ側の認証設定を使用する。
@@ -6074,6 +6105,7 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
             delete config.backupDirectoryHandle;
             config.backupSyncStatus = 'pending';
             delete config.backupLastSync;
+            config.backupDisconnectedSince = null;
 
             // バックアップから認証設定が復元された場合、再設定を促す通知は不要。
             // 認証情報そのものは上の config マージでバックアップ側を採用している。
@@ -6086,6 +6118,7 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
             config.backupFileName = currentBackupFileName;
             config.backupSyncStatus = currentBackupSyncStatus;
             config.backupLastSync = currentBackupLastSync;
+            config.backupDisconnectedSince = currentBackupDisconnectedSince;
         }
 
         await saveConfig();
@@ -7311,12 +7344,46 @@ function cancelEditor() {
     const autoBackupUsable = await isAutomaticBackupUsable();
     updateManualBackupUI();
 
-   if (diaries.length === 0 && schedules.length === 0) {
-        area.style.display = 'none';
+    area.style.background = 'var(--accent-color)';
+
+    // 保存先が指定され、実際の同期失敗またはアクセス権喪失を最初に検知した時刻から14日を数える。
+    // queryPermission()だけでは書き込み成功を保証できないため、同期処理そのものの失敗記録を使う。
+    const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
+    const hasConfiguredAutoSync = !!config.backupFileHandle && config.autoBackupEnabled !== false;
+    const disconnectedSince = Number(config.backupDisconnectedSince) || 0;
+    const autoSyncDisconnectedFor14Days = hasConfiguredAutoSync && disconnectedSince > 0 &&
+        (Date.now() - disconnectedSince) >= FOURTEEN_DAYS &&
+        config.backupSyncStatus !== 'ok';
+    const autoSyncSkippedAt = config.autoSyncReminderSkippedAt ? Number(config.autoSyncReminderSkippedAt) : null;
+    const autoSyncSkippedToday = autoSyncSkippedAt &&
+        getLocalDateString(new Date(autoSyncSkippedAt)) === getLocalDateString(today);
+
+    if (autoSyncDisconnectedFor14Days && !autoSyncSkippedToday) {
+        area.innerHTML = `
+            <div><strong>自動保存の再接続のお願い</strong><br>自動保存が2週間以上接続されていません。大切な思い出を守るためにここをタップして再接続してください。</div>
+            <button type="button" class="backup-notification-skip-btn">あとで保存する</button>
+        `;
+        area.style.display = 'block';
+        const skipButton = area.querySelector('.backup-notification-skip-btn');
+        if (skipButton) skipButton.addEventListener('click', skipAutoSyncNotification);
+        area.onclick = async (event) => {
+            if (event.target.closest('.backup-notification-skip-btn')) return;
+            // 再接続を試す間はいったん通知を閉じるが、失敗した場合は
+            // エラーポップアップを閉じたあとに同じ通知を再表示する。
+            dismissNotificationImmediately(area);
+            const success = await retryAutoBackup();
+            if (!success) {
+                await renderNotifications();
+            }
+        };
         return;
     }
-    
-    area.style.background = 'var(--accent-color)';
+
+if (diaries.length === 0 && schedules.length === 0) {
+    area.style.display = 'none';
+    area.onclick = null;
+    return;
+}
 
     // 自動バックアップを現在利用できない場合だけ、手動バックアップのお願いを表示する。
     // 保存先ハンドルが残っていてもアクセス権が失われている場合は、
@@ -9867,8 +9934,8 @@ async function toggleBookmark(id, event) {
     await saveDataToDB('diaries', diary);
     const bookmarkCountAfter = (Array.isArray(diaries) ? diaries : []).filter(item => item && item.bookmarked).length;
     // 9件以下から10件以上になった瞬間に、解放のお知らせをポップアップ表示する。
-    if (bookmarkCountBefore < 10 && bookmarkCountAfter >= 10) {
-        window.alert('【機能追加のお知らせ！】\nブックマークが合計10件に達しました！\n 日記の「オリジナルテンプレートを作成」が解放されました！📋️\nさっそく「日記を書く」から確認しましょう！');
+    if (bookmarkCountBefore < 5 && bookmarkCountAfter >= 5) {
+        window.alert('【機能追加のお知らせ！】\nブックマークが合計5件に達しました！\n 日記の編集画面において「オリジナルテンプレートを作成」が解放されました！📋️\nさっそく「日記を書く」から確認しましょう！');
     }
     diaryMap.set(diary.id, diary);
     invalidateCaches();
@@ -11161,7 +11228,7 @@ function showBackupDestinationSetup() {
             <p style="font-size:0.84rem; line-height:1.7; opacity:0.9; margin-bottom:14px; color:var(--text-color);">
                 「保存フォルダを選択」を押すとフォルダ選択画面が開きます。
                 選択したフォルダに <strong>dejicho_backup.json</strong> を自動作成し、
-                日記・メモ・予定などの変更があるたびに最新の状態へ自動同期します。
+                日記・メモ・予定などの変更があるたびに最新の状態へ自動保存します。
                 一度設定すれば、次回から保存先を指定する必要はありません。
             </p>
 
