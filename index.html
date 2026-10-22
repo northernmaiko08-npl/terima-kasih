@@ -5208,7 +5208,7 @@ body[data-theme="scholar"] #view-viewer {
 <button class="tool-btn" onclick="insertSelectedTemplate()" type="button">
 テンプレ挿入
 </button>
-<button class="tool-btn" onclick="toggleCustomTemplateManager()" type="button">オリジナル作成</button>
+<button class="tool-btn" onclick="toggleCustomTemplateManager()" type="button" style="display:none !important;">オリジナルテンプレートを作成</button>
 </div>
 <style>
 #custom-template-manager {
@@ -5325,7 +5325,7 @@ body[data-theme="scholar"] #view-viewer {
         let diaryDateMap = new Map();
         let scheduleDateMap = new Map();
         
-        let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', chartPeriod: 'month', homeListMode: 'diary', lastBackup: null, backupReminderSkippedAt: null, backupFileHandle: null, backupDirectoryHandle: null, autoBackupEnabled: false, backupSyncStatus: 'unconfigured', backupLastSync: null, recoverySet: false, recoveryReminderDismissed: false, customRecoveryHint: '', authPasswordHash: null, authRecoveryPassHash: null, authRecoveryWordHash: null, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false, scheduleCreationCount: 0 };
+        let config = { password: '', startupPasswordRequired: true, theme: 'default', font: 'font-standard', customColors: null, chartType: 'doughnut', chartPeriod: 'month', homeListMode: 'diary', lastBackup: null, backupReminderSkippedAt: null, backupFileHandle: null, backupDirectoryHandle: null, autoBackupEnabled: false, backupSyncStatus: 'unconfigured', backupLastSync: null, recoverySet: false, recoveryReminderDismissed: false, customRecoveryHint: '', authPasswordHash: null, authRecoveryPassHash: null, authRecoveryWordHash: null, hasUnlockedLegend: false, hasUnlockedEdamame: false, hasUnlockedMaster: false, hasUnlockedDevil: false, hasUnlockedLucky: false, hasUnlockedTerminal: false, hasUnlockedScholar: false, hasUnlockedOriginalTemplates: false, scheduleCreationCount: 0 };
         let currentEditingId = null;
         let bookmarkPage = 1;
         const BOOKMARK_PAGE_SIZE = 30;
@@ -6491,6 +6491,8 @@ async function loadData() {
     await cleanupPassedSchedules();
     
     invalidateCaches();
+    // データ読み込み完了後、ブックマーク件数に基づいて作成ボタンの表示を確定する。
+    renderCustomDiaryTemplates();
 }
 
 async function cleanupPassedSchedules(force = false) {
@@ -8621,8 +8623,21 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
     updateCharCount();
 }
 
-        function toggleCustomTemplateManager() {
+function isOriginalTemplateUnlocked() {
+    // 解放状態は保存済みフラグではなく、現在のブックマーク件数だけで判定する。
+    // 古い hasUnlockedOriginalTemplates=true が残っていても、5件未満なら未解放。
+    const bookmarkCount = (Array.isArray(diaries) ? diaries : []).filter(item => item && item.bookmarked).length;
+    return bookmarkCount >= 5;
+}
+
+function toggleCustomTemplateManager() {
     const panel = document.getElementById('custom-template-manager');
+    if (!isOriginalTemplateUnlocked()) {
+        const count = (Array.isArray(diaries) ? diaries : []).filter(item => item && item.bookmarked).length;
+        alert(`オリジナルテンプレートは、ブックマークを5件保存すると解放されます。
+現在：${count}/5件`);
+        return;
+    }
     if (!panel) return;
     if (!panel.classList.contains('hidden') && !panel.classList.contains('custom-template-panel-closing')) {
         closeCustomTemplateManager();
@@ -8663,8 +8678,25 @@ function renderCustomDiaryTemplates() {
     if (!select) return;
     const previousValue = select.value;
     select.querySelectorAll('optgroup[data-custom-template-group="true"]').forEach(node => node.remove());
+    select.querySelectorAll('option[data-custom-template-locked="true"]').forEach(node => node.remove());
     const templates = Array.isArray(config.customDiaryTemplates) ? config.customDiaryTemplates : [];
-    if (templates.length) {
+    const unlocked = isOriginalTemplateUnlocked();
+    const createButtons = document.querySelectorAll('button[onclick="toggleCustomTemplateManager()"]');
+    createButtons.forEach(createButton => {
+        // 保存済みの解放フラグは使わず、現在のブックマーク5件以上でのみ表示する。
+        if (unlocked) {
+            createButton.style.removeProperty('display');
+            createButton.style.removeProperty('visibility');
+            createButton.textContent = 'オリジナルテンプレートを作成';
+            createButton.title = 'オリジナルテンプレートを作成';
+        } else {
+            createButton.style.setProperty('display', 'none', 'important');
+            createButton.style.setProperty('visibility', 'hidden', 'important');
+        }
+        createButton.setAttribute('aria-label', createButton.title || 'オリジナルテンプレートを作成');
+    });
+    // 未解放時は、選択欄にもオリジナルテンプレート関連の項目を一切表示しない。
+    if (unlocked && templates.length) {
         const group = document.createElement('optgroup');
         group.label = 'オリジナル';
         group.dataset.customTemplateGroup = 'true';
@@ -8676,7 +8708,7 @@ function renderCustomDiaryTemplates() {
         });
         select.appendChild(group);
     }
-    if (templates.some(item => 'custom:' + item.id === previousValue)) select.value = previousValue;
+    if (unlocked && templates.some(item => 'custom:' + item.id === previousValue)) select.value = previousValue;
     if (list) {
         list.replaceChildren();
         if (!templates.length) {
@@ -8737,6 +8769,10 @@ function cancelEditCustomDiaryTemplate() {
 }
 
 async function addCustomDiaryTemplate() {
+    if (!isOriginalTemplateUnlocked()) {
+        alert('オリジナルテンプレートは、ブックマークを5件保存すると解放されます。');
+        return;
+    }
     const nameInput = document.getElementById('custom-template-name');
     const contentInput = document.getElementById('custom-template-content');
     const name = nameInput?.value.trim();
@@ -8770,7 +8806,7 @@ async function addCustomDiaryTemplate() {
         return;
     }
 
-    if (config.customDiaryTemplates.length >= 10) { alert('オリジナルテンプレートは10件まで保存できます。'); return; }
+    if (config.customDiaryTemplates.length >= 30) { alert('オリジナルテンプレートは30件まで保存できます。'); return; }
     const id = (Date.now().toString(36) + Math.random().toString(36).slice(2, 8));
     config.customDiaryTemplates.push({ id, name, content });
     try {
@@ -8808,6 +8844,10 @@ async function deleteCustomDiaryTemplate(id) {
     const type = select.value;
 
     if (!type) return;
+    if (String(type).startsWith('custom:') && !isOriginalTemplateUnlocked()) {
+        alert('オリジナルテンプレートは、ブックマークを5件保存すると解放されます。');
+        return;
+    }
 
     insertTemplate(type);
 }
@@ -9117,7 +9157,7 @@ if (heibonCount >= 50 && !config.hasUnlockedEdamame) {
         ...config
     });
 
-    queueThemeUnlockNotice('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計50個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう');
+    queueThemeUnlockNotice('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計50個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう！');
 } 
 const devilCount = diaries.filter(d => d.mood === 1 || d.mood === 2).length;
 
@@ -9132,7 +9172,7 @@ if (devilCount >= 50 && !config.hasUnlockedDevil) {
         ...config
     });
 
-    queueThemeUnlockNotice('\n【アンハッピー(？)なお知らせです...】\nネガティブな記録(😭・😡)が合計50個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
+    queueThemeUnlockNotice('\n【アンハッピーなお知らせです...】\nネガティブな記録(😭・😡)が合計50個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
 }
 const scheduleCount = Number.isFinite(Number(config.scheduleCreationCount))
     ? Math.min(30, Math.max(0, Math.floor(Number(config.scheduleCreationCount))))
@@ -9817,10 +9857,18 @@ async function toggleBookmark(id, event) {
     const diary = diaries.find(d => String(d.id) === String(id));
     if (!diary) return;
 
+    const bookmarkCountBefore = (Array.isArray(diaries) ? diaries : []).filter(item => item && item.bookmarked).length;
     diary.bookmarked = !diary.bookmarked;
     await saveDataToDB('diaries', diary);
+    const bookmarkCountAfter = (Array.isArray(diaries) ? diaries : []).filter(item => item && item.bookmarked).length;
+    // 9件以下から10件以上になった瞬間に、解放のお知らせをポップアップ表示する。
+    if (bookmarkCountBefore < 10 && bookmarkCountAfter >= 10) {
+        window.alert('【機能追加のお知らせ！】\nブックマークが合計10件に達しました！\n 日記の「オリジナルテンプレートを作成」が解放されました！📋️\nさっそく「日記を書く」から確認しましょう！');
+    }
     diaryMap.set(diary.id, diary);
     invalidateCaches();
+    renderCustomDiaryTemplates();
+    if (!isOriginalTemplateUnlocked()) closeCustomTemplateManager();
 
     if (document.getElementById('view-bookmarks')?.classList.contains('active')) {
         renderBookmarkList();
