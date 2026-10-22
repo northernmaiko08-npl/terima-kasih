@@ -8336,6 +8336,11 @@ document.addEventListener('click', function(event) {
             renderAll();
         }
 
+        // 日記の削除を確定した場合は、削除後の画面移動で未保存変更確認を表示しない。
+        if (type === 'diary') {
+            pendingEditorSnapshot = null;
+            bypassUnsavedEditorGuard = true;
+        }
         switchTab('home');
     }
 }
