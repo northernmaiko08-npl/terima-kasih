@@ -3930,13 +3930,13 @@ body[data-theme="cosmos"] {
     cursor:text;
 }
 
-.memo-char-count { margin-top:10px; text-align:left; color:var(--primary-color); font-size:.82rem; font-weight:700; opacity:.82; }
+.memo-char-count { margin:12px 0 20px; text-align:left; color:var(--primary-color); font-size:.82rem; font-weight:700; opacity:.82; }
 .memo-content-editor a, .memo-viewer-content a { color:#06c !important; text-decoration:underline; cursor:pointer; }
 .memo-viewer-top {
     display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:16px;
 }
 .memo-viewer-date { font-size:.8rem; opacity:.58; margin-bottom:5px; }
-.memo-viewer-title { margin:0 0 16px; font-size:1.35rem; line-height:1.4; }
+.memo-viewer-title { margin:8px 0 20px; font-size:1.35rem; line-height:1.4; }
 .memo-viewer-content {
     line-height:1.75; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere;
     user-select:text; -webkit-user-select:text;
@@ -5578,6 +5578,8 @@ if (config.hasUnlockedMaster) {
         let autoBackupSyncTimer = null;
         let autoBackupSyncInProgress = false;
         let autoBackupSyncQueued = false;
+        // ユーザーが権限確認などをキャンセルした場合は、接続失敗通知を出さない。
+        let autoBackupLastAttemptCancelled = false;
         let autoBackupInternalWrite = false;
         // 保存済みHandleの権限を、ユーザー操作を邪魔せず無通知で再確認する状態。
         // 常時タイマーではなく、起動・復帰・フォーカス・オンライン復帰などの
@@ -5790,6 +5792,7 @@ if (config.hasUnlockedMaster) {
 }
         async function syncAutoBackupFile(force=false, silentFailure=false, allowPermissionRequest=false){
             if(autoBackupSyncInProgress){autoBackupSyncQueued=true;return false;}
+            autoBackupLastAttemptCancelled = false;
             const handle=config.backupFileHandle;if(!handle||typeof handle.createWritable!=='function')return false;
             autoBackupSyncInProgress=true;
             // 同期中は手動バックアップをロックする。
@@ -5810,6 +5813,12 @@ if (config.hasUnlockedMaster) {
                         return false;
                     }
                     permission=await handle.requestPermission({mode:'readwrite'});
+                    // 権限ダイアログで許可されなかった場合は、ユーザーの選択として扱う。
+                    // 接続処理そのものの失敗ではないため、失敗ポップアップを出さない。
+                    if(permission!=='granted'){
+                        autoBackupLastAttemptCancelled = true;
+                        return false;
+                    }
                 }
                 if(permission!=='granted')throw new Error('バックアップファイルへのアクセスが許可されていません');
                 const writable=await handle.createWritable();
@@ -5825,6 +5834,12 @@ if (config.hasUnlockedMaster) {
                 await updateManualBackupUI();
                 return true;
             }catch(error){
+                // ファイル選択・権限確認でユーザーがキャンセルした場合は、
+                // 接続失敗とは扱わず、失敗通知や切断記録を追加しない。
+                if(error && error.name==='AbortError'){
+                    autoBackupLastAttemptCancelled = true;
+                    return false;
+                }
                 console.error('自動バックアップの同期に失敗しました:',error);
                 config.backupSyncStatus=silentFailure?'pending':'error';
                 // 権限がgrantedでも、ファイル取得・書き込み・closeの失敗を切断として記録。
@@ -5982,6 +5997,10 @@ if (config.hasUnlockedMaster) {
         }
         await updateAutoBackupStatus();
         await updateManualBackupUI();
+    }
+    if(autoBackupLastAttemptCancelled){
+        // ユーザーがキャンセルしただけなので、失敗ポップアップは表示しない。
+        return false;
     }
     alert(success?'バックアップを最新の状態に更新しました。':'バックアップの更新に失敗しました。保存先へのアクセス許可が必要です。');
     return success;
@@ -6566,6 +6585,70 @@ async function cleanupPassedSchedules(force = false) {
                     tx.oncomplete = () => { resolve(); if (!autoBackupInternalWrite) queueAutoBackupSync(); };
                     tx.onerror = () => reject(tx.error || new Error('保存に失敗しました'));
                     tx.onabort = () => reject(tx.error || new Error('保存処理が中断されました'));
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        }
+
+        // 日付重複の確認と保存を同じreadwriteトランザクション内で行い、
+        // 複数タブから同時に保存された場合も同じ日付への重複登録を防ぐ。
+        async function saveDiaryToDBWithUniqueDate(entry, editingId) {
+            if (!db || !db.objectStoreNames.contains('diaries')) {
+                await initDB();
+            }
+
+            return new Promise((resolve, reject) => {
+                let duplicateDate = false;
+                let settled = false;
+                try {
+                    const tx = db.transaction('diaries', 'readwrite');
+                    const store = tx.objectStore('diaries');
+                    const request = store.getAll();
+
+                    request.onsuccess = () => {
+                        const storedDiaries = request.result || [];
+                        const editingDiary = editingId != null
+                            ? storedDiaries.find(d => String(d.id) === String(editingId))
+                            : null;
+                        const isKeepingExistingDate = editingDiary
+                            && String(editingDiary.date || '').slice(0, 10) === String(entry.date || '').slice(0, 10);
+
+                        if (!isKeepingExistingDate) {
+                            duplicateDate = storedDiaries.some(d =>
+                                String(d.date || '').slice(0, 10) === String(entry.date || '').slice(0, 10)
+                                && (editingId == null || String(d.id) !== String(editingId))
+                            );
+                        }
+
+                        if (duplicateDate) {
+                            tx.abort();
+                            return;
+                        }
+                        store.put(entry);
+                    };
+                    request.onerror = () => reject(request.error || tx.error || new Error('日記の確認に失敗しました'));
+                    tx.oncomplete = () => {
+                        if (!settled) {
+                            settled = true;
+                            resolve(true);
+                            if (!autoBackupInternalWrite) queueAutoBackupSync();
+                        }
+                    };
+                    tx.onabort = () => {
+                        if (duplicateDate) {
+                            if (!settled) { settled = true; resolve(false); }
+                        } else if (!settled) {
+                            settled = true;
+                            reject(tx.error || new Error('日記の保存処理が中断されました'));
+                        }
+                    };
+                    tx.onerror = () => {
+                        if (!duplicateDate && !settled) {
+                            settled = true;
+                            reject(tx.error || new Error('日記の保存に失敗しました'));
+                        }
+                    };
                 } catch (error) {
                     reject(error);
                 }
@@ -7385,10 +7468,10 @@ if (diaries.length === 0 && schedules.length === 0) {
     return;
 }
 
-    // 自動バックアップを現在利用できない場合だけ、手動バックアップのお願いを表示する。
-    // 保存先ハンドルが残っていてもアクセス権が失われている場合は、
-    // 手動バックアップへフォールバックできるよう通知対象にする。
-    if (!autoBackupUsable) {
+    // 自動保存先が設定済みなら、接続切れ・アクセス権喪失中でも
+    // 手動バックアップの通知は表示しない。再接続通知だけを優先する。
+    // 手動バックアップの通知は、自動保存先が未設定の場合に限って表示する。
+    if (!config.backupFileHandle && !autoBackupUsable) {
         const lastBackupDate = config.lastBackup ? new Date(config.lastBackup) : null;
         const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
         const skippedAt = config.backupReminderSkippedAt ? Number(config.backupReminderSkippedAt) : null;
@@ -8403,11 +8486,9 @@ document.addEventListener('click', function(event) {
             renderAll();
         }
 
-        // 日記の削除を確定した場合は、削除後の画面移動で未保存変更確認を表示しない。
-        if (type === 'diary') {
-            pendingEditorSnapshot = null;
-            bypassUnsavedEditorGuard = true;
-        }
+        // 削除を確定した場合は、日記・予定とも未保存変更確認を表示せずに移動する。
+        pendingEditorSnapshot = null;
+        bypassUnsavedEditorGuard = true;
         switchTab('home');
     }
 }
@@ -9039,6 +9120,25 @@ async function saveDiaryInternal() {
             return;
         }
 
+        // 保存直前にDB上の日記を確認し、同じ日付への新規作成・日付変更を防ぐ。
+        // 既存の日記を日付を変えずに編集する操作は許可する。
+        const storedDiaries = await getAllFromDB('diaries');
+        const editingDiary = currentEditingId != null
+            ? storedDiaries.find(d => String(d.id) === String(currentEditingId))
+            : null;
+        const isKeepingExistingDate = editingDiary
+            && String(editingDiary.date || '').slice(0, 10) === date;
+        if (!isKeepingExistingDate) {
+            const duplicateDiary = storedDiaries.find(d =>
+                String(d.date || '').slice(0, 10) === date
+                && (currentEditingId == null || String(d.id) !== String(currentEditingId))
+            );
+            if (duplicateDiary) {
+                alert('日記は1日につき1件までです。この日付にはすでに日記があります。');
+                return;
+            }
+        }
+
         const tags = document.getElementById('diary-tags').value.split(',').map(t => t.trim()).filter(t => t);
         
         const existingDiary = currentEditingId
@@ -9058,7 +9158,11 @@ async function saveDiaryInternal() {
             searchText: (title + (tags ? tags.join(' ') : '')).toLowerCase()
         };
 
-        await saveDataToDB('diaries', entry);
+        const diarySaved = await saveDiaryToDBWithUniqueDate(entry, currentEditingId);
+        if (!diarySaved) {
+            alert('日記は1日につき1件までです。この日付にはすでに日記があります。');
+            return;
+        }
 
         if (currentEditingId) {
             const idx = diaries.findIndex(d => d.id === currentEditingId);
@@ -11729,6 +11833,9 @@ async function deleteMemo(id) {
     memos = memos.filter(m => String(m.id) !== String(id));
     currentEditingMemoId = null;
     memoChecklistDraft = [];
+    // 削除確定後は、編集中の未保存内容を理由に画面遷移を確認しない。
+    pendingEditorSnapshot = null;
+    bypassUnsavedEditorGuard = true;
     renderMemoPage();
     switchTab('memos');
 }
