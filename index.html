@@ -5576,7 +5576,7 @@ let tagSortOrder = 'new';
 let currentTag = null;
         
         const DB_NAME = 'でじでじDB';
-        const DB_VERSION = 3;
+        const DB_VERSION = 4;
         let db;
 
         function setMood(n) {
@@ -5911,7 +5911,7 @@ if (config.hasUnlockedMaster) {
                 }
                 if(permission!=='granted')throw new Error('バックアップファイルへのアクセスが許可されていません');
                 const writable=await handle.createWritable();
-                await writable.write(JSON.stringify(await buildAutoBackupPayload(),null,2));
+                await writable.write(JSON.stringify(await encryptAutoBackupPayload(await buildAutoBackupPayload()),null,2));
                 await writable.close();
                 config.backupSyncStatus='ok';
                 config.backupLastSync=Date.now();
@@ -6117,7 +6117,36 @@ if (config.hasUnlockedMaster) {
 async function restoreFromBackupFileObject(file, restoredBackupFileHandle = null){
     if (!file) return;
     try {
-        const imported = JSON.parse(await file.text());
+        let imported = JSON.parse(await file.text());
+        if (imported && imported.format === 'dejicho-local-encrypted-auto-backup') {
+            try {
+                imported = await decryptAutoBackupPayload(imported);
+            } catch (decryptError) {
+                console.error('自動バックアップの復号に失敗しました:', decryptError);
+                alert('この自動バックアップは別のブラウザ環境で作成されたか、復号鍵が見つかりません。データは変更されていません。');
+                return;
+            }
+        }
+        if (imported && imported.format === 'dejicho-local-encrypted-auto-backup') {
+            try {
+                imported = await decryptAutoBackupPayload(imported);
+            } catch (decryptError) {
+                console.error('自動バックアップの復号に失敗しました:', decryptError);
+                alert('この自動バックアップは別のブラウザ環境で作成されたか、復号鍵が見つかりません。データは変更されていません。');
+                return;
+            }
+        }
+        if (imported && imported.format === 'dejicho-encrypted-backup') {
+            const password = prompt('バックアップ作成時に設定したパスワードを入力してください。');
+            if (password === null) return;
+            try {
+                imported = await decryptBackupWithPassword(imported, password);
+            } catch (decryptError) {
+                console.error('バックアップの復号に失敗しました:', decryptError);
+                alert('アプリ用パスコードが違うか、バックアップファイルが破損しています。データは変更されていません。');
+                return;
+            }
+        }
         if (!Array.isArray(imported.diaries) || !Array.isArray(imported.schedules) || !Array.isArray(imported.memos)) {
             throw new Error('バックアップ形式が正しくありません');
         }
@@ -6426,6 +6455,7 @@ function isInstalledPWA(){
                     if (!db.objectStoreNames.contains('config')) db.createObjectStore('config', { keyPath: 'key' });
                     if (!db.objectStoreNames.contains('schedules')) db.createObjectStore('schedules', { keyPath: 'id' });
                     if (!db.objectStoreNames.contains('memos')) db.createObjectStore('memos', { keyPath: 'id' });
+                    if (!db.objectStoreNames.contains('cryptoKeys')) db.createObjectStore('cryptoKeys', { keyPath: 'key' });
                 };
                 request.onsuccess = (e) => {
                     db = e.target.result;
@@ -6658,93 +6688,155 @@ async function cleanupPassedSchedules(force = false) {
     
     console.log(`✅ ${passedSchedules.length}件の過去予定を削除完了`);
 }
-        async function saveDataToDB(storeName, data) {
-            
-            
-            if (!db || !db.objectStoreNames.contains(storeName)) {
-                await initDB();
-            }
+        
+        // IndexedDB内の日記・メモ・予定はAES-GCMで暗号化して保存する。
+        // 暗号鍵は抽出不可のCryptoKeyとして別ストアに保持し、既存データは読み込み時に移行する。
+        let internalDataKeyPromise = null;
+        function isUserDataStore(storeName) {
+            return storeName === 'diaries' || storeName === 'schedules' || storeName === 'memos';
+        }
+        function bytesToHex(bytes) {
+            return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+        }
+        async function getInternalDataKey() {
+            ensureAuthCryptoAvailable();
+            if (internalDataKeyPromise) return internalDataKeyPromise;
+            internalDataKeyPromise = (async () => {
+                const existing = await new Promise((resolve, reject) => {
+                    const tx = db.transaction('cryptoKeys', 'readonly');
+                    const req = tx.objectStore('cryptoKeys').get('internal-data-key');
+                    req.onsuccess = () => resolve(req.result || null);
+                    req.onerror = () => reject(req.error || new Error('暗号鍵の読み込みに失敗しました'));
+                });
+                if (existing && existing.keyMaterial) return existing.keyMaterial;
+                const keyMaterial = await crypto.subtle.generateKey(
+                    { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+                );
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction('cryptoKeys', 'readwrite');
+                    tx.objectStore('cryptoKeys').put({ key: 'internal-data-key', keyMaterial });
+                    tx.oncomplete = resolve;
+                    tx.onerror = () => reject(tx.error || new Error('暗号鍵の保存に失敗しました'));
+                    tx.onabort = () => reject(tx.error || new Error('暗号鍵の保存が中断されました'));
+                });
+                return keyMaterial;
+            })().catch(error => {
+                internalDataKeyPromise = null;
+                throw error;
+            });
+            return internalDataKeyPromise;
+        }
+        async function encryptInternalRecord(storeName, record) {
+            if (!isUserDataStore(storeName)) return record;
+            const keyMaterial = await getInternalDataKey();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const plaintext = new TextEncoder().encode(JSON.stringify(record));
+            const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, keyMaterial, plaintext);
+            return { id: record.id, __encryptedRecord: true, iv: bytesToBase64(iv), cipher: bytesToBase64(new Uint8Array(cipher)) };
+        }
+        async function decryptInternalRecord(storeName, record) {
+            if (!isUserDataStore(storeName) || !record || record.__encryptedRecord !== true) return record;
+            const keyMaterial = await getInternalDataKey();
+            const plaintext = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: base64ToBytes(record.iv) },
+                keyMaterial,
+                base64ToBytes(record.cipher)
+            );
+            return JSON.parse(new TextDecoder().decode(plaintext));
+        }
+        async function encryptBackupWithPassword(payload, password) {
+            ensureAuthCryptoAvailable();
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+            const key = await crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt, iterations: 310000, hash: 'SHA-256' },
+                material, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
+            );
+            const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
+            return {
+                format: 'dejicho-encrypted-backup',
+                version: 1,
+                algorithm: 'AES-256-GCM',
+                kdf: 'PBKDF2-SHA-256',
+                iterations: 310000,
+                salt: bytesToBase64(salt),
+                iv: bytesToBase64(iv),
+                data: bytesToBase64(new Uint8Array(cipher))
+            };
+        }
+        async function decryptBackupWithPassword(envelope, password) {
+            if (!envelope || envelope.format !== 'dejicho-encrypted-backup' || envelope.version !== 1) return envelope;
+            ensureAuthCryptoAvailable();
+            const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveKey']);
+            const key = await crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt: base64ToBytes(envelope.salt), iterations: envelope.iterations || 310000, hash: 'SHA-256' },
+                material, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
+            );
+            const plaintext = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: base64ToBytes(envelope.iv) }, key, base64ToBytes(envelope.data)
+            );
+            return JSON.parse(new TextDecoder().decode(plaintext));
+        }
 
+        async function encryptAutoBackupPayload(payload) {
+            const keyMaterial = await getInternalDataKey();
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const cipher = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv }, keyMaterial,
+                new TextEncoder().encode(JSON.stringify(payload))
+            );
+            return {
+                format: 'dejicho-local-encrypted-auto-backup',
+                version: 1,
+                algorithm: 'AES-256-GCM',
+                iv: bytesToBase64(iv),
+                data: bytesToBase64(new Uint8Array(cipher))
+            };
+        }
+        async function decryptAutoBackupPayload(envelope) {
+            if (!envelope || envelope.format !== 'dejicho-local-encrypted-auto-backup' || envelope.version !== 1) return envelope;
+            const keyMaterial = await getInternalDataKey();
+            const plaintext = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: base64ToBytes(envelope.iv) },
+                keyMaterial, base64ToBytes(envelope.data)
+            );
+            return JSON.parse(new TextDecoder().decode(plaintext));
+        }
+
+async function saveDataToDB(storeName, data) {
+            if (!db || !db.objectStoreNames.contains(storeName)) await initDB();
+            const storedData = await encryptInternalRecord(storeName, data);
             return new Promise((resolve, reject) => {
                 try {
                     const tx = db.transaction(storeName, 'readwrite');
-                    const request = tx.objectStore(storeName).put(data);
-
-                    request.onerror = () => reject(request.error || tx.error || new Error('保存に失敗しました'));
+                    tx.objectStore(storeName).put(storedData);
                     tx.oncomplete = () => { resolve(); if (!autoBackupInternalWrite) queueAutoBackupSync(); };
                     tx.onerror = () => reject(tx.error || new Error('保存に失敗しました'));
                     tx.onabort = () => reject(tx.error || new Error('保存処理が中断されました'));
-                } catch (error) {
-                    reject(error);
-                }
+                } catch (error) { reject(error); }
             });
         }
 
         // 日付重複の確認と保存を同じreadwriteトランザクション内で行い、
         // 複数タブから同時に保存された場合も同じ日付への重複登録を防ぐ。
         async function saveDiaryToDBWithUniqueDate(entry, editingId) {
-            if (!db || !db.objectStoreNames.contains('diaries')) {
-                await initDB();
-            }
-
-            return new Promise((resolve, reject) => {
-                let duplicateDate = false;
-                let settled = false;
-                try {
-                    const tx = db.transaction('diaries', 'readwrite');
-                    const store = tx.objectStore('diaries');
-                    const request = store.getAll();
-
-                    request.onsuccess = () => {
-                        const storedDiaries = request.result || [];
-                        const editingDiary = editingId != null
-                            ? storedDiaries.find(d => String(d.id) === String(editingId))
-                            : null;
-                        const isKeepingExistingDate = editingDiary
-                            && String(editingDiary.date || '').slice(0, 10) === String(entry.date || '').slice(0, 10);
-
-                        if (!isKeepingExistingDate) {
-                            duplicateDate = storedDiaries.some(d =>
-                                String(d.date || '').slice(0, 10) === String(entry.date || '').slice(0, 10)
-                                && (editingId == null || String(d.id) !== String(editingId))
-                            );
-                        }
-
-                        if (duplicateDate) {
-                            tx.abort();
-                            return;
-                        }
-                        store.put(entry);
-                    };
-                    request.onerror = () => reject(request.error || tx.error || new Error('日記の確認に失敗しました'));
-                    tx.oncomplete = () => {
-                        if (!settled) {
-                            settled = true;
-                            resolve(true);
-                            if (!autoBackupInternalWrite) queueAutoBackupSync();
-                        }
-                    };
-                    tx.onabort = () => {
-                        if (duplicateDate) {
-                            if (!settled) { settled = true; resolve(false); }
-                        } else if (!settled) {
-                            settled = true;
-                            reject(tx.error || new Error('日記の保存処理が中断されました'));
-                        }
-                    };
-                    tx.onerror = () => {
-                        if (!duplicateDate && !settled) {
-                            settled = true;
-                            reject(tx.error || new Error('日記の保存に失敗しました'));
-                        }
-                    };
-                } catch (error) {
-                    reject(error);
-                }
-            });
+            const storedDiaries = await getAllFromDB('diaries');
+            const editingDiary = editingId != null
+                ? storedDiaries.find(d => String(d.id) === String(editingId))
+                : null;
+            const isKeepingExistingDate = editingDiary
+                && String(editingDiary.date || '').slice(0, 10) === String(entry.date || '').slice(0, 10);
+            const duplicateDate = !isKeepingExistingDate && storedDiaries.some(d =>
+                String(d.date || '').slice(0, 10) === String(entry.date || '').slice(0, 10)
+                && (editingId == null || String(d.id) !== String(editingId))
+            );
+            if (duplicateDate) return false;
+            await saveDataToDB('diaries', entry);
+            return true;
         }
 
-        async function deleteFromDB(storeName, id) {
+async function deleteFromDB(storeName, id) {
             return new Promise((resolve, reject) => {
                 const tx = db.transaction(storeName, 'readwrite');
                 tx.objectStore(storeName).delete(id);
@@ -6755,23 +6847,38 @@ async function cleanupPassedSchedules(force = false) {
 
         async function getAllFromDB(storeName) {
             if (!db) await initDB();
-            return new Promise((resolve, reject) => {
+            const raw = await new Promise((resolve, reject) => {
                 try {
                     const tx = db.transaction(storeName, 'readonly');
                     const request = tx.objectStore(storeName).getAll();
-                    request.onsuccess = () => resolve(request.result);
+                    request.onsuccess = () => resolve(request.result || []);
                     request.onerror = () => reject(request.error || tx.error || new Error('データの読み込みに失敗しました'));
                     tx.onerror = () => reject(tx.error || new Error('データの読み込みに失敗しました'));
                     tx.onabort = () => reject(tx.error || new Error('データの読み込みが中断されました'));
-                } catch (error) {
-                    reject(error);
-                }
+                } catch (error) { reject(error); }
             });
+            if (!isUserDataStore(storeName)) return raw;
+            const result = [];
+            const legacy = [];
+            for (const record of raw) {
+                const decoded = await decryptInternalRecord(storeName, record);
+                result.push(decoded);
+                if (!record || record.__encryptedRecord !== true) legacy.push(decoded);
+            }
+            // 旧形式の平文レコードは、読み取り成功後に暗号化形式へ移行する。
+            const previousInternalWrite = autoBackupInternalWrite;
+            autoBackupInternalWrite = true;
+            try {
+                for (const record of legacy) await saveDataToDB(storeName, record);
+            } finally {
+                autoBackupInternalWrite = previousInternalWrite;
+            }
+            return result;
         }
 
         async function getFromDB(storeName, id) {
             if (!db) await initDB();
-            return new Promise((resolve, reject) => {
+            const raw = await new Promise((resolve, reject) => {
                 try {
                     const tx = db.transaction(storeName, 'readonly');
                     const request = tx.objectStore(storeName).get(id);
@@ -6779,12 +6886,13 @@ async function cleanupPassedSchedules(force = false) {
                     request.onerror = () => reject(request.error || tx.error || new Error('データの読み込みに失敗しました'));
                     tx.onerror = () => reject(tx.error || new Error('データの読み込みに失敗しました'));
                     tx.onabort = () => reject(tx.error || new Error('データの読み込みが中断されました'));
-                } catch (error) {
-                    reject(error);
-                }
+                } catch (error) { reject(error); }
             });
+            if (!raw || !isUserDataStore(storeName)) return raw;
+            const decoded = await decryptInternalRecord(storeName, raw);
+            if (raw.__encryptedRecord !== true) await saveDataToDB(storeName, decoded);
+            return decoded;
         }
-
 
 function launchFirework() {
     const x = Math.random() * window.innerWidth;
@@ -9169,8 +9277,8 @@ async function deleteCustomDiaryTemplate(id) {
             <img
                 src="${src}"
                 style="
-                    width:60px;
-                    height:60px;
+                    width:200px;
+                    height:200px;
                     object-fit:cover;
                     border-radius:4px;
                     cursor:pointer;
@@ -9190,7 +9298,8 @@ async function deleteCustomDiaryTemplate(id) {
                     width:30px;
                     height:30px;
                     text-align:center;
-                    font-size:25px;
+                    font-size:27px;
+                    line-height:30px;
                     cursor:pointer;
                 "
             >
@@ -11199,28 +11308,43 @@ async function exportAllDiariesHtml(){
 
 async function exportData(){
  // UI上のdisabledだけに依存せず、実行時にも自動同期の利用状態を確認する。
- if (autoBackupSyncInProgress || await isAutomaticBackupUsable()) {
-   return;
+ if (autoBackupSyncInProgress || await isAutomaticBackupUsable()) return;
+ try {
+   if (!hasPrimaryAuth()) {
+     alert('JSONバックアップの暗号化には、でじ帖のアプリ用パスコードが必要です。先にアプリのパスコードを設定してください。');
+     return;
+   }
+   const password = prompt('でじ帖で現在使用しているアプリ用パスコードを入力してください。\nこのパスコードでバックアップを暗号化します。復元時にも、バックアップ作成時のパスコードが必要です。');
+   if (password === null) return;
+   if (!password) { alert('パスコードが入力されていません。バックアップを中止しました。'); return; }
+   if (!await verifyAuthSecret(password, config.authPasswordHash)) {
+     alert('アプリ用パスコードが一致しません。バックアップを中止しました。');
+     return;
+   }
+   const backupConfig={...config};
+   delete backupConfig.password;
+   delete backupConfig.customRecoveryPass;
+   delete backupConfig.customRecoveryWord;
+   delete backupConfig.authPasswordHash;
+   delete backupConfig.authRecoveryPassHash;
+   delete backupConfig.authRecoveryWordHash;
+   delete backupConfig.recoverySet;
+   delete backupConfig.customRecoveryHint;
+   delete backupConfig.encryptedAuthBackup;
+   const payload={version:2,exportedAt:new Date().toISOString(),diaries,schedules,memos,config:backupConfig,encryptedAuth:config.encryptedAuthBackup||null};
+   const envelope=await encryptBackupWithPassword(payload,password);
+   const blob=new Blob([JSON.stringify(envelope)],{type:'application/json'});
+   const a=document.createElement('a'),dateStr=getLocalDateString(new Date());
+   a.href=URL.createObjectURL(blob);a.download=`dejicho_backup_encrypted_${dateStr}.json`;document.body.appendChild(a);a.click();a.remove();
+   setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+   config.lastBackup=Date.now();await saveConfig();
+   await updateManualBackupUI();
+   alert('暗号化バックアップをダウンロードしました。復元には、バックアップ作成時に使用したアプリ用パスコードが必要です。');
+   if(document.getElementById('view-home')?.classList.contains('active'))renderNotifications();
+ } catch (error) {
+   console.error('暗号化バックアップの作成に失敗しました:', error);
+   alert('暗号化バックアップを作成できませんでした。データは変更されていません。');
  }
- const backupConfig={...config};
- delete backupConfig.password;
- delete backupConfig.customRecoveryPass;
- delete backupConfig.customRecoveryWord;
- delete backupConfig.authPasswordHash;
- delete backupConfig.authRecoveryPassHash;
- delete backupConfig.authRecoveryWordHash;
- delete backupConfig.recoverySet;
- delete backupConfig.customRecoveryHint;
- delete backupConfig.encryptedAuthBackup;
- const backupData=JSON.stringify({version:2,exportedAt:new Date().toISOString(),diaries,schedules,memos,config:backupConfig,encryptedAuth:config.encryptedAuthBackup||null});
- const blob=new Blob([backupData],{type:'application/json'});
- const a=document.createElement('a'),dateStr=getLocalDateString(new Date());
- a.href=URL.createObjectURL(blob);a.download=`dejicho_backup_${dateStr}.json`;document.body.appendChild(a);a.click();a.remove();
- setTimeout(()=>URL.revokeObjectURL(a.href),1000);
- config.lastBackup=Date.now();await saveConfig();
- await updateManualBackupUI();
- alert('バックアップをダウンロードしました。');
- if(document.getElementById('view-home')?.classList.contains('active'))renderNotifications();
 }
 
 async function importData(e) {
@@ -11228,13 +11352,24 @@ async function importData(e) {
     e.target.value = '';
     if (!file) return;
     try {
-        const imported = JSON.parse(await file.text());
+        let imported = JSON.parse(await file.text());
+        if (imported && imported.format === 'dejicho-encrypted-backup') {
+            const password = prompt('このバックアップを作成したときに、でじ帖で使用していたアプリ用パスコードを入力してください。\n現在の端末のパスコードと異なる場合は、バックアップ作成時のパスコードが必要です。');
+            if (password === null) return;
+            try {
+                imported = await decryptBackupWithPassword(imported, password);
+            } catch (decryptError) {
+                console.error('バックアップの復号に失敗しました:', decryptError);
+                alert('パスワードが違うか、バックアップファイルが破損しています。データは変更されていません。');
+                return;
+            }
+        }
         if (!Array.isArray(imported.diaries) || !Array.isArray(imported.schedules) || !Array.isArray(imported.memos)) throw new Error('バックアップ形式が正しくありません');
-        if (!confirm('データを上書きしますか？')) return;
+        if (!confirm('データを上書きしますか？現在のデータはバックアップ内容に置き換わります。')) return;
         await importDataObject(imported);
         alert('データの読み込みが完了しました。');
         location.reload();
-    } catch (err) { console.error(err); alert('無効なファイル形式です。'); }
+    } catch (err) { console.error(err); alert('無効なファイル形式です。データは変更されていません。'); }
 }
 
 async function startFullInitialization() {
