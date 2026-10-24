@@ -2783,44 +2783,54 @@ body[data-theme="cosmos"] {
 
         @media (max-width: 600px) {
             #view-home .card:has(#moodChart) { padding: 14px; }
+            /* モバイルでもタイトル類とグラフ切り替えボタンを同じ行にし、ボタンを右端へ寄せる。 */
             #view-home .card:has(#moodChart) .stats-chart-header {
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-areas:
-        "main"
-        "controls";
-    gap: 8px;
-    align-items: center;
-}
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                flex-wrap: nowrap;
+                gap: 6px;
+            }
 
-#view-home .card:has(#moodChart) .stats-chart-main {
-    grid-area: main;
-    min-width: 0;
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 4px;
-    text-align: left;
-}
+            #view-home .card:has(#moodChart) .stats-chart-main {
+                min-width: 0;
+                width: auto;
+                flex: 0 1 auto;
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                gap: 3px;
+                text-align: left;
+            }
 
-#view-home .card:has(#moodChart) .stats-chart-period {
-    margin-left: 0;
-}
+            #view-home .card:has(#moodChart) .stats-chart-period {
+                margin-left: 0;
+                flex: 0 1 auto;
+                min-width: 0;
+            }
+            #view-home .card:has(#moodChart) .stats-chart-period select {
+                max-width: 112px;
+                padding: 4px 3px !important;
+                font-size: 0.78rem !important;
+            }
 
-#view-home .card:has(#moodChart) .stats-chart-title {
-    min-width: 0;
-    text-align: left;
-}
+            #view-home .card:has(#moodChart) .stats-chart-title {
+                min-width: 0;
+                text-align: left;
+            }
+            #view-home .card:has(#moodChart) #stats-title {
+                font-size: 1em !important;
+            }
 
-#view-home .card:has(#moodChart) .chart-controls {
-    grid-area: controls;
-    width: 100%;
-    gap: 5px;
-    justify-content: center;
-}
+            #view-home .card:has(#moodChart) .chart-controls {
+                width: auto;
+                flex: 0 0 auto;
+                margin-left: auto;
+                gap: 3px;
+                justify-content: flex-end;
+            }
             #view-home .card:has(#moodChart) .chart-btn {
-                width: 40px; min-width: 40px; height: 29px; padding: 2px 3px;
+                width: 30px; min-width: 30px; height: 29px; padding: 2px;
                 font-size: 0.68rem;
             }
             
@@ -4262,6 +4272,85 @@ body[data-theme="scholar"] #view-viewer {
     background: transparent !important;
     background-color: transparent !important;
     background-image: none !important;
+}
+</style>
+
+<style id="stats-chart-header-mobile-final-fix">
+@media (max-width: 600px) {
+  #view-home .card:has(#moodChart) .stats-chart-header {
+    display: grid !important;
+    grid-template-columns: auto minmax(0, 1fr) auto !important;
+    align-items: center !important;
+    justify-content: initial !important;
+    column-gap: 6px !important;
+    row-gap: 0 !important;
+    flex-wrap: initial !important;
+  }
+  /* 期間選択・「〜の統計」・グラフ切り替えを明示的に同じ行へ配置 */
+  #view-home .card:has(#moodChart) .stats-chart-main {
+    display: contents !important;
+  }
+  #view-home .card:has(#moodChart) .stats-chart-period {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+  }
+  #view-home .card:has(#moodChart) .stats-chart-title {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    min-width: 0 !important;
+    overflow: hidden !important;
+  }
+  #view-home .card:has(#moodChart) .chart-controls {
+    grid-column: 3 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    width: auto !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    gap: 3px !important;
+  }
+}
+</style>
+
+<style id="stats-period-select-size-restore">
+@media (max-width: 600px) {
+  /* 期間選択バーは元の大きさに戻し、配置だけを維持する */
+  #view-home .card:has(#moodChart) .stats-chart-period select {
+    max-width: none !important;
+    padding: 5px 8px !important;
+    font-size: 1em !important;
+  }
+}
+</style>
+
+<style id="calendar-selection-cancel-complete-reset">
+/* 同じ日付を再タップして選択解除した後は、タッチ端末に残る hover/active/focus 表示も通常状態へ戻す */
+#view-calendar .calendar-day.calendar-selection-cleared,
+#view-calendar .calendar-day.calendar-selection-cleared:hover,
+#view-calendar .calendar-day.calendar-selection-cleared:active,
+#view-calendar .calendar-day.calendar-selection-cleared:focus,
+#view-calendar .calendar-day.calendar-selection-cleared:focus-visible {
+    background: transparent !important;
+    color: var(--text-color) !important;
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+    outline: none !important;
+}
+#view-calendar .calendar-day.has-diary.calendar-selection-cleared,
+#view-calendar .calendar-day.has-diary.calendar-selection-cleared:hover,
+#view-calendar .calendar-day.has-diary.calendar-selection-cleared:active,
+#view-calendar .calendar-day.has-diary.calendar-selection-cleared:focus,
+#view-calendar .calendar-day.has-diary.calendar-selection-cleared:focus-visible {
+    background: var(--calendar-mood-color) !important;
+    color: var(--text-color) !important;
+}
+/* 今日の日付の枠は維持し、選択による装飾だけを解除する */
+#view-calendar .calendar-day.calendar-day-today.calendar-selection-cleared::before {
+    pointer-events: none;
 }
 </style>
 </head>
@@ -7406,8 +7495,15 @@ function cancelEditor() {
             return messages[hash % messages.length];
         }
 
+        // 通知の再描画が短時間に複数回呼ばれた場合、最後の描画だけを反映するための世代番号。
+        // renderDashboard() などから並行して呼ばれても、古い非同期処理が通知カードを追加しないようにする。
+        let notificationRenderVersion = 0;
+
         async function renderNotifications() {
     const area = document.getElementById('notification-area');
+    if (!area) return;
+
+    const renderVersion = ++notificationRenderVersion;
     area.classList.remove('notification-special-fade-out');
     area.innerHTML = "";
     area.onclick = null;
@@ -7425,6 +7521,10 @@ function cancelEditor() {
     }
 
     const autoBackupUsable = await isAutomaticBackupUsable();
+
+    // await中に新しい描画が始まっていたら、この古い描画はDOMを更新しない。
+    if (renderVersion !== notificationRenderVersion) return;
+
     updateManualBackupUI();
 
     area.style.background = 'var(--accent-color)';
@@ -7536,7 +7636,12 @@ if (diaries.length === 0 && schedules.length === 0) {
 
 area.style.display = 'block';
 
-    targetSchedules.forEach(s => {
+    // データに同一IDが重複していても、同じ予定の通知カードを一つだけ描画する。
+    const uniqueTargetSchedules = Array.from(
+        new Map(targetSchedules.map(schedule => [String(schedule.id), schedule])).values()
+    );
+
+    uniqueTargetSchedules.forEach(s => {
         const sDate = new Date(s.date);
         sDate.setHours(0,0,0,0);
         const diffDays = Math.round((sDate - today) / (1000 * 60 * 60 * 24));
@@ -7551,7 +7656,7 @@ else if (diffDays === 30) dayText = "1ヶ月後に";
 else if (diffDays === 92) dayText = "3ヶ月後に";
 else if (diffDays === 183) dayText = "6ヶ月後に";
         if (dayText !== "") {
-            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","なんだ、この予定は楽勝だね！😀","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは60万文字もあるんだよ！🔥","コード1万行超のアツさを感じられているかな？🔥","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","いつもでじ帖をつかってくれてありがとう✨️","👁️👄👁️(..........................。)","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
+            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","このアプリまだ使ってたんだ、便利？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","なんだ、この予定は楽勝だね！😀","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは68万文字もあるんだよ！🔥","コード1万行超のアツさを感じられているかな？🔥","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","いつもでじ帖をつかってくれてありがとう✨️","👁️👄👁️(..........................。)","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
             const randomMsg = getStableNotificationMessage(messages, s.id, today);
             
             const card = document.createElement('div');
@@ -8473,7 +8578,8 @@ document.addEventListener('click', function(event) {
         if (type === 'diary') {
             diaries = diaries.filter(d => d.id !== id);
         } else {
-            schedules = schedules.filter(s => s.id !== id);
+            // IndexedDBから取得したIDと画面側のIDが数値／文字列で異なる場合も確実に除外する。
+            schedules = schedules.filter(s => String(s.id) !== String(id));
         }
 
         invalidateCaches();
@@ -9603,7 +9709,8 @@ function renderSchedules() {
     
     const upcoming = schedules
         .filter(s => s.date >= today)
-        .sort((a, b) => b.date.localeCompare(a.date))
+        // 直近の日付（今日に近い予定）から上に表示する。
+        .sort((a, b) => a.date.localeCompare(b.date))
         .slice(0, 5);
 
     if (upcoming.length === 0) {
@@ -10335,6 +10442,8 @@ onclick="showCalendarEntries('${dateStr}')">
         function clearCalendarSelection() {
     document.querySelectorAll('#view-calendar .calendar-day.calendar-day-selected').forEach(el => {
         el.classList.remove('calendar-day-selected');
+        // タッチ端末では :hover がタップ後も残ることがあるため、解除直後の残留色を抑止する。
+        el.classList.add('calendar-selection-cleared');
     });
 
     const selectedEntries = document.getElementById('selected-day-entries');
@@ -10365,6 +10474,11 @@ onclick="showCalendarEntries('${dateStr}')">
         clearCalendarSelection();
         return;
     }
+
+    // 新しい日付を選ぶときは、解除時に付けた残留ホバー抑止クラスを外す。
+    document.querySelectorAll('#view-calendar .calendar-day.calendar-selection-cleared').forEach(el => {
+        el.classList.remove('calendar-selection-cleared');
+    });
 
     // 別の日付を選んだ場合は、以前の選択を解除して新しい日付を選択する。
     document.querySelectorAll('#view-calendar .calendar-day.calendar-day-selected').forEach(el => {
@@ -10414,6 +10528,20 @@ onclick="showCalendarEntries('${dateStr}')">
         selectedEntries.innerHTML = html;
         selectedEntries.classList.add('calendar-selection-fade-in');
     }
+}
+
+// 選択解除直後だけ残留するタッチ hover を抑止し、カーソルを合わせ直したら通常の hover エフェクトを復帰させる。
+const calendarHoverResetView = document.getElementById('view-calendar');
+if (calendarHoverResetView && !calendarHoverResetView.dataset.hoverResetHandlerAdded) {
+    calendarHoverResetView.dataset.hoverResetHandlerAdded = 'true';
+    calendarHoverResetView.addEventListener('pointerenter', event => {
+        const day = event.target.closest && event.target.closest('.calendar-day.calendar-selection-cleared');
+        if (day) day.classList.remove('calendar-selection-cleared');
+    }, true);
+    calendarHoverResetView.addEventListener('pointermove', event => {
+        const day = event.target.closest && event.target.closest('.calendar-day.calendar-selection-cleared');
+        if (day) day.classList.remove('calendar-selection-cleared');
+    }, true);
 }
 
 // カレンダー内の空白部分をクリックした場合も、日付の選択を解除する。
@@ -10963,7 +11091,22 @@ function buildDiaryExportHtml(entries,{title='A Certain Day\'s Memories',include
         animation: none !important;
     }
 }
-</style></head><body data-theme="${theme}" class="${font}">${exportBg}<main class="export-page"><header class="export-header"><div class="export-header-brand">DEJICHO · OFFLINE DIARY</div><h1>${escapeExportHtml(title)}</h1><p>書き出し日 ${escapeExportHtml(exportedDate)}</p></header>${exportSearchControls}${cards||'<p style="text-align:center;opacity:.6">日記はありません。</p>'}<div class="export-footer">このページは「でじ帖」から書き出されました。</div></main><div class="export-lightbox" id="export-lightbox" aria-hidden="true"><button class="export-lb-btn export-lb-prev" id="export-lb-prev" aria-label="前の画像">‹</button><button class="export-lb-btn export-lb-next" id="export-lb-next" aria-label="次の画像">›</button><img id="export-lb-img" class="export-lb-img" src="" alt="拡大画像"></div><script>(function(){
+</style>
+<style id="calendar-selection-cancel-hover-reset">
+/* 日付選択をキャンセルした直後、タッチ端末に残る :hover の色・影を通常状態に戻す */
+#view-calendar .calendar-day.calendar-selection-cleared:hover {
+    background: var(--calendar-mood-color, var(--card-bg)) !important;
+    color: var(--text-color) !important;
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+}
+#view-calendar .calendar-day.has-diary.calendar-selection-cleared:hover {
+    background: var(--calendar-mood-color) !important;
+    color: var(--text-color) !important;
+}
+</style>
+</head><body data-theme="${theme}" class="${font}">${exportBg}<main class="export-page"><header class="export-header"><div class="export-header-brand">DEJICHO · OFFLINE DIARY</div><h1>${escapeExportHtml(title)}</h1><p>書き出し日 ${escapeExportHtml(exportedDate)}</p></header>${exportSearchControls}${cards||'<p style="text-align:center;opacity:.6">日記はありません。</p>'}<div class="export-footer">このページは「でじ帖」から書き出されました。</div></main><div class="export-lightbox" id="export-lightbox" aria-hidden="true"><button class="export-lb-btn export-lb-prev" id="export-lb-prev" aria-label="前の画像">‹</button><button class="export-lb-btn export-lb-next" id="export-lb-next" aria-label="次の画像">›</button><img id="export-lb-img" class="export-lb-img" src="" alt="拡大画像"></div><script>(function(){
 function normalizeExportSearchText(value){return String(value??'').normalize('NFKC').toLowerCase().replace(/[\u3041-\u3096]/g,ch=>String.fromCharCode(ch.charCodeAt(0)+0x60)).replace(/\s+/g,' ').trim();}
 const searchInput=document.getElementById('export-search-input'),searchDate=document.getElementById('export-search-date'),searchResult=document.getElementById('export-search-result');
 const searchableCards=Array.from(document.querySelectorAll('.export-searchable-card'));
