@@ -3618,7 +3618,7 @@ body[data-theme="cosmos"] {
       try {
         // モバイル/PWAで古いService Workerのキャッシュが残り、
         // 最新HTMLの認証・バックアップ処理が使われない状態を防ぐ。
-        const registration = await navigator.serviceWorker.register('sw.js?v=20260922', {
+        const registration = await navigator.serviceWorker.register('sw.js?v=20261026-home-diary-count-fix', {
           updateViaCache: 'none'
         });
         // 起動時にも最新版のService Workerを明示的に確認する。
@@ -4281,13 +4281,6 @@ body[data-theme="devil"] .tool-btn * {
 
   <!-- PWA Essential Settings (Auto-generated) -->
   <link rel="manifest" href="manifest.json">
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js');
-      });
-    }
-  </script>
 
 <style id="editor-mood-color-fix">
 /* 編集画面の感情選択色をテーマに依存せず固定する */
@@ -9561,8 +9554,8 @@ async function saveDiaryInternal() {
 }   
 
         function renderDashboard() {
-            const homeDiaryCount = document.getElementById('home-diary-count');
-            if (homeDiaryCount) homeDiaryCount.textContent = `${Array.isArray(diaries) ? diaries.length : 0} 件の日記`;
+            // ホームの「最近の日記」件数表示は使用しない。旧HTML由来の要素があれば確実に除去する。
+            document.getElementById('home-diary-count')?.remove();
             homeDisplayMode = config.homeListMode === 'schedule' ? 'schedule' : 'diary';
             switchHomeList(homeDisplayMode);
             function getStreak() {
