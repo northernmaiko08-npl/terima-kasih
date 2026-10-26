@@ -2015,11 +2015,12 @@ body[data-theme="cosmos"] {
             align-items: center;
             margin-bottom: 1rem;
         }
+        #emotion-heatmap-card h3 { margin-bottom: 0 !important; }
         .heatmap-container {
             display: grid;
             grid-template-columns: repeat(25, 1fr);
             gap: 3px;
-            margin-top: 10px;
+            margin-top: 0;
             justify-content: center;
             box-sizing: border-box;
             width: 100%;
@@ -4483,9 +4484,9 @@ body[data-theme="scholar"] #view-viewer {
 <h3 style="margin:0 0 10px 0;">過去の日記</h3>
 <div id="flashback-container"></div>
 </div>
-<div class="card">
-<h3>感情ヒートマップ</h3>
-<div id="streak-display" style="text-align: right; margin-bottom: 8px; font-weight: bold; font-size: 0.9em;"></div>
+<div class="card" id="emotion-heatmap-card">
+<h3 style="margin: 0 0 6px 0;">感情ヒートマップ</h3>
+<div id="streak-display" style="display: block; visibility: hidden; height: 1.2em; min-height: 1.2em; line-height: 1.2; box-sizing: border-box; text-align: right; margin-bottom: 8px; font-weight: bold; font-size: 0.9em;"></div>
 <div class="heatmap-container" id="heatmap"></div>
 <div style="font-size: 0.7rem; margin-top:10px; display:flex; gap:10px; justify-content: center;">
 <div id="streak-container" style="text-align: right; margin-bottom: 8px; font-weight: bold; color: var(--primary-color);">
@@ -9704,6 +9705,7 @@ const streakCount = getStreak();
 if (streakDisplay) {
     if (streakCount > 0) {
         streakDisplay.style.display = 'block';
+        streakDisplay.style.visibility = 'visible';
 
         const todayStr = getLocalDateString(new Date());
         const todayDiaryExists = diaries.some(d => d.date === todayStr);
@@ -9717,7 +9719,9 @@ if (streakDisplay) {
             streakDisplay.classList.remove('streak-today');
         }
     } else {
-        streakDisplay.style.display = 'none';
+        streakDisplay.style.display = 'block';
+        streakDisplay.style.visibility = 'hidden';
+        streakDisplay.innerHTML = '';
         streakDisplay.classList.remove('streak-today');
     }
 }
