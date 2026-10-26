@@ -4479,7 +4479,7 @@ body[data-theme="scholar"] #view-viewer {
 <div class="hidden" id="recent-schedules"></div>
 </div>
 <div class="card" id="flashback-card" style="display:none;">
-<h3>過去の日記</h3>
+<h3 style="margin:0 0 10px 0;">過去の日記</h3>
 <div id="flashback-container"></div>
 </div>
 <div class="card">
@@ -4566,7 +4566,7 @@ body[data-theme="scholar"] #view-viewer {
 <div id="bookmark-controls" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; gap:10px; flex-wrap:wrap;">
 <div style="display:flex; align-items:center; gap:8px;">
 <button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="switchTab('home')" type="button">戻る</button>
-<h3 id="bookmark-total-count" style="margin:0;">ブックマーク 0 件</h3>
+<h3 id="bookmark-total-count" style="margin:0;"> 0 件のブックマーク</h3>
 </div>
 <select class="kawaii-select" id="bookmark-sort" onchange="changeBookmarkSort(this.value)">
 <option value="new">新しい順</option>
@@ -9070,9 +9070,6 @@ function isOriginalTemplateUnlocked() {
 function toggleCustomTemplateManager() {
     const panel = document.getElementById('custom-template-manager');
     if (!isOriginalTemplateUnlocked()) {
-        const count = (Array.isArray(diaries) ? diaries : []).filter(item => item && item.bookmarked).length;
-        alert(`オリジナルテンプレートは、ブックマークを5件保存すると解放されます。
-現在：${count}/5件`);
         return;
     }
     if (!panel) return;
@@ -9122,8 +9119,9 @@ function renderCustomDiaryTemplates() {
     createButtons.forEach(createButton => {
         // 保存済みの解放フラグは使わず、現在のブックマーク5件以上でのみ表示する。
         if (unlocked) {
-            createButton.style.removeProperty('display');
-            createButton.style.removeProperty('visibility');
+            // 初期HTMLの display:none !important を確実に上書きして表示する。
+            createButton.style.setProperty('display', 'inline-flex', 'important');
+            createButton.style.setProperty('visibility', 'visible', 'important');
             createButton.textContent = 'オリジナルテンプレートを作成';
             createButton.title = 'オリジナルテンプレートを作成';
         } else {
@@ -9809,7 +9807,8 @@ document.getElementById('status-greeting').innerText = greetingText;
 
             const flashbackContainer = document.getElementById('flashback-container');
             const flashbackCard = document.getElementById('flashback-card');
-            const flashbackVisibilityKey = 'dejicho_flashback_card_unlocked_v1';
+            // 条件に合う過去の日記が初めて見つかった時点で解放し、以後は常時表示する。
+            const flashbackVisibilityKey = 'dejicho_flashback_card_unlocked_v3';
             const periods = [{ label: '1週間前', days: 7 }, { label: '1ヶ月前', months: 1 }, { label: '3ヶ月前', months: 3 }, { label: '6ヶ月前', months: 6 }, { label: '1年前', years: 1 }, { label: '2年前', years: 2 }, { label: '3年前', years: 3 },{ label: '4年前', years: 4 }, { label: '5年前', years: 5 }, { label: '7年前', years: 7 }, { label: '10年前', years: 10 }, { label: '15年前', years: 15 },{ label: '20年前', years: 20 }];
             let flashbackHtml = ''; let foundCount = 0;
             
@@ -9832,17 +9831,9 @@ if (entry && entry.length > 0) {
     </div>`;
 }
 });
-// アプリを開いている間に日付が切り替わり、その時点で該当日記がある場合だけ初回解放する。
-// 起動時点ですでに該当していても、閉じていた間に日付を迎えた可能性があるため解放しない。
-if (foundCount > 0 && getLocalDateString(new Date()) !== flashbackSessionStartDate) {
-  try { localStorage.setItem(flashbackVisibilityKey, '1'); } catch (e) {}
-}
-let flashbackUnlocked = false;
-try { flashbackUnlocked = localStorage.getItem(flashbackVisibilityKey) === '1'; } catch (e) {}
-if (flashbackCard) flashbackCard.style.display = flashbackUnlocked ? '' : 'none';
-flashbackContainer.innerHTML = foundCount > 0 
-  ? flashbackHtml 
-  : '<p style="opacity:0.6; text-align:center;">一定期間が経過すると表示されます</p>';
+// 該当する過去の日記があるときだけカードを表示する。
+            if (flashbackCard) flashbackCard.style.display = foundCount > 0 ? '' : 'none';
+            flashbackContainer.innerHTML = flashbackHtml;
 
 const heatmap = document.getElementById('heatmap');
 
@@ -10450,7 +10441,7 @@ function renderBookmarkList() {
         bookmarkSortOrder
     );
 
-    if (countEl) countEl.textContent = `ブックマーク ${bookmarked.length} 件`;
+    if (countEl) countEl.textContent = ` ${bookmarked.length} 件のブックマーク`;
 
     // ブックマークが0件のときは並び替えを非表示。
     // 1件以上になったら再び表示する。
@@ -11784,23 +11775,27 @@ async function completeBackupDestinationSetup() {
         // IndexedDB保存まで成功してからpending状態を解除。
         window.pendingRecoverySetup = null;
 
-        // 以前の完了時演出を復活。
+        // 自動バックアップ設定後は手動バックアップUIを非表示にする。
+        updateManualBackupUI();
+
+        // 先に完了ダイアログを表示し、ユーザーがOKを押した後に
+        // 初期設定の通知をフェードアウトさせる。
+        alert('本人確認とデータ保存先の設定が完了しました。\n以後、データの変更は自動的にJSONへ同期されます。');
+
         const area = document.getElementById('notification-area');
         const ui = document.getElementById('backup-destination-setup-ui');
 
         if (area) {
-            area.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+            // 他の通知フェードアウトと同じ 0.28 秒に統一。
+            area.style.transition = 'opacity 0.28s ease-out, transform 0.28s ease-out';
             area.style.opacity = '0';
-            area.style.transform = 'translateY(-4px)';
+            area.style.transform = 'translateY(-6px)';
         }
         if (ui) {
-            ui.style.transition = 'opacity 0.2s ease-out, transform 0.2s ease-out';
+            ui.style.transition = 'opacity 0.28s ease-out, transform 0.28s ease-out';
             ui.style.opacity = '0';
-            ui.style.transform = 'translateY(-4px)';
+            ui.style.transform = 'translateY(-6px)';
         }
-
-        // 自動バックアップ設定後は手動バックアップUIを非表示にする。
-        updateManualBackupUI();
 
         // フェードアウト完了後に通常の通知を再描画。
         setTimeout(() => {
@@ -11811,8 +11806,7 @@ async function completeBackupDestinationSetup() {
                 area.onclick = null;
             }
             renderNotifications();
-            alert('本人確認とデータ保存先の設定が完了しました。\n以後、データの変更は自動的にJSONへ同期されます。');
-        }, 220);
+        }, 280);
 
     } catch (error) {
         console.error(error);
