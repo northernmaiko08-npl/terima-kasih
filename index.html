@@ -4476,7 +4476,7 @@ body[data-theme="scholar"] #view-viewer {
 </div>
 <div class="card">
 <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-<h3 id="home-list-title" style="margin:0;">最近の日記</h3>
+<div style="display:flex; align-items:center; gap:8px; min-width:0; flex-wrap:wrap;"><h3 id="home-list-title" style="margin:0;">最近の日記</h3><span id="home-diary-count" style="display:inline-block !important; visibility:visible !important; opacity:1 !important; font-size:0.8rem; line-height:1.4; font-weight:400; white-space:nowrap; color:var(--text-color, inherit);">0 件の日記</span></div>
 <div class="chart-controls" style="margin:0;">
 <button class="chart-btn active" id="btn-show-diaries" onclick="switchHomeList('diary')">📝</button>
 <button class="chart-btn" id="btn-show-schedules" onclick="switchHomeList('schedule')">📅</button>
@@ -4911,7 +4911,7 @@ body[data-theme="scholar"] #view-viewer {
 <section class="view" id="view-about">
 <div class="card">
 <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-<button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="switchTab('settings')">戻る</button>
+<button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="handleSupportBack()">戻る</button>
 <h3 style="margin:0;">サポート</h3>
 </div>
 <div style="line-height: 1.8; font-size: 0.95rem;">
@@ -5026,12 +5026,7 @@ body[data-theme="scholar"] #view-viewer {
         </p>
 <h4 style="margin: 16px 0 8px;">5. カレンダーは「記録」と「予定」を同じ時間軸で管理</h4>
 <p>
-            カレンダーでは、過去の日記を日付から開くだけでなく、未来の日付に予定を登録できます。
-            予定が存在する日はカレンダー上で視覚的に分かるようになっているため、
-            「過去に何があったか」と「これから何があるか」を同じカレンダー上で確認できます。
-        </p>
-<p>
-            また、カレンダーから特定の日付を選んで、その日の日記を新規作成することもできます。
+            カレンダーから特定の日付を選んで、その日の日記を新規作成することもできます。
             「今日は何を書こう」と思ったときだけでなく、特定の日付の記録を先に用意したい場合にも利用できます。
         </p>
       <h4 style="margin: 16px 0 8px;">6. ブックマークで大切な日記をすぐ見つける</h4>
@@ -5057,11 +5052,6 @@ body[data-theme="scholar"] #view-viewer {
     </p>
 </div></details><details class="support-accordion-group support-accordion-nested"><summary class="support-accordion-summary">📊 記録を振り返る</summary><div class="support-accordion-body">
 <h4 style="margin: 16px 0 8px;">8. 統計画面は「記録量」と「気分」の両方を見る</h4>
-<p>
-            統計では、単純な日記件数だけではなく、記録した日と気分の情報を組み合わせて振り返れます。
-            1年間の記録をタイル状に表示するヒートマップでは、記録の密度を直感的に把握できます。
-            感情推移グラフでは、蓄積した気分の変化を時系列で確認できます。
-        </p>
 <p>
             グラフには表示期間や表示方法を切り替えるための機能もあり、
             短期間の変化を細かく見る使い方と、長期間の傾向を見る使い方を切り替えられます。
@@ -5159,8 +5149,6 @@ body[data-theme="scholar"] #view-viewer {
         </p>
 <h4 style="margin: 16px 0 8px;">18. 気分に合わせてテーマとフォントを変更</h4>
 <p>
-            テーマは「クラシック」「ゆめかわ」「ダーク」「夜空」など、雰囲気の異なるデザインを切り替えられます。
-            条件を満たして解放されるテーマも含め、記録するときの気分や時間帯に合わせてアプリの空気感を変えられます。
             また、文字の表示設定も用意されているため、長時間使う場合は読みやすさを優先した設定に調整できます。
         </p>
 <h4 style="margin: 16px 0 8px;">19. ホーム画面は「今日の記録」だけでなく継続状況も確認</h4>
@@ -7103,7 +7091,14 @@ window.onload = async () => {
                     passInput.value = '';
                     hidePasscodeKeyboard();
                     document.getElementById('lock-screen').style.transform = 'translateY(-100%)';
-                    switchTab('home');
+                    // 初回のパスコード設定完了後は、サポートページを一度だけ表示する。
+                    const showSupportOnFirstLogin = config.supportIntroShown !== true;
+                    window.supportIntroFirstLoginActive = showSupportOnFirstLogin;
+                    if (showSupportOnFirstLogin) {
+                        config.supportIntroShown = true;
+                        await saveConfig();
+                    }
+                    switchTab(showSupportOnFirstLogin ? 'about' : 'home');
                     window.scrollTo(0, 0);
                     // 初期パスコード設定直後は自動バックアップの再接続を行わない。
                     return;
@@ -7117,7 +7112,14 @@ window.onload = async () => {
                     if (passInput) passInput.value = '';
                     hidePasscodeKeyboard();
                     document.getElementById('lock-screen').style.transform = 'translateY(-100%)';
-                    switchTab('home');
+                    // サポート説明は、初回の認証成功時に限って表示する。
+                    const showSupportOnFirstLogin = config.supportIntroShown !== true;
+                    window.supportIntroFirstLoginActive = showSupportOnFirstLogin;
+                    if (showSupportOnFirstLogin) {
+                        config.supportIntroShown = true;
+                        await saveConfig();
+                    }
+                    switchTab(showSupportOnFirstLogin ? 'about' : 'home');
                     window.scrollTo(0, 0);
                     // 初期パスコード設定では上で終了する。通常ログインでは、保存フォルダ未指定なら関数側で何もせず、それ以外は問答無用で再接続する。
                     await requestPersistentStorageSilently();
@@ -7356,6 +7358,15 @@ function flushThemeUnlockNotices() {
         if (message) alert(message);
         if (pendingThemeUnlockNotices.length) flushThemeUnlockNotices();
     }, 180);
+}
+
+function handleSupportBack() {
+    if (window.supportIntroFirstLoginActive) {
+        window.supportIntroFirstLoginActive = false;
+        switchTab('home');
+    } else {
+        switchTab('settings');
+    }
 }
 
 function switchTab(tabId) {
@@ -9550,6 +9561,8 @@ async function saveDiaryInternal() {
 }   
 
         function renderDashboard() {
+            const homeDiaryCount = document.getElementById('home-diary-count');
+            if (homeDiaryCount) homeDiaryCount.textContent = `${Array.isArray(diaries) ? diaries.length : 0} 件の日記`;
             homeDisplayMode = config.homeListMode === 'schedule' ? 'schedule' : 'diary';
             switchHomeList(homeDisplayMode);
             function getStreak() {
@@ -10254,7 +10267,9 @@ function renderDiaryList() {
         document.getElementById('all-diaries-list').innerHTML =
             '<p style="opacity:0.6; text-align:center; padding:40px 20px;">まだ日記が保存されていません</p>';
         document.getElementById('diary-total-count').textContent = ' 0 件の日記';
-        if (diaryControls) diaryControls.style.display = 'none';
+        // 件数表示は日記が0件でも常に見せ、並び替えなどの操作だけを隠す。
+        if (diaryControls) diaryControls.style.display = 'flex';
+        if (diarySortSelect) diarySortSelect.style.display = 'none';
         if (diaryPaginationArea) diaryPaginationArea.style.display = 'none';
         if (diaryPaginationTopArea) diaryPaginationTopArea.style.display = 'none';
         return;
