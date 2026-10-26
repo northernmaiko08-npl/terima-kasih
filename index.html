@@ -2015,12 +2015,11 @@ body[data-theme="cosmos"] {
             align-items: center;
             margin-bottom: 1rem;
         }
-        #emotion-heatmap-card h3 { margin-bottom: 0 !important; }
         .heatmap-container {
             display: grid;
             grid-template-columns: repeat(25, 1fr);
             gap: 3px;
-            margin-top: 0;
+            margin-top: 10px;
             justify-content: center;
             box-sizing: border-box;
             width: 100%;
@@ -3786,7 +3785,7 @@ body[data-theme="cosmos"] {
   white-space: nowrap;
 }
 #view-diaries #diary-total-count { margin: 0; }
-#view-gallery #gallery-total-count { margin: 0 0 12px; }
+#view-gallery #gallery-total-count { margin: 0; }
 #view-bookmarks #bookmark-total-count {
   margin: 0;
   /* 他ページの件数表示と視覚的な大きさをそろえる */
@@ -3796,7 +3795,7 @@ body[data-theme="cosmos"] {
   padding: 0 12px;
 }
 #view-memos #memo-total-count { margin: 0; }
-#view-tags #tag-total-count { margin: 0 0 12px; }
+#view-tags #tag-total-count { margin: 0; }
 #view-bookmarks #bookmark-sort { margin-left:auto; }
 #view-bookmarks #bookmark-list {
   display:block;
@@ -4484,9 +4483,9 @@ body[data-theme="scholar"] #view-viewer {
 <h3 style="margin:0 0 10px 0;">過去の日記</h3>
 <div id="flashback-container"></div>
 </div>
-<div class="card" id="emotion-heatmap-card">
-<h3 style="margin: 0 0 6px 0;">感情ヒートマップ</h3>
-<div id="streak-display" style="display: block; visibility: hidden; height: 1.2em; min-height: 1.2em; line-height: 1.2; box-sizing: border-box; text-align: right; margin-bottom: 8px; font-weight: bold; font-size: 0.9em;"></div>
+<div class="card">
+<h3>感情ヒートマップ</h3>
+<div id="streak-display" style="text-align: right; margin-bottom: 8px; font-weight: bold; font-size: 0.9em;"></div>
 <div class="heatmap-container" id="heatmap"></div>
 <div style="font-size: 0.7rem; margin-top:10px; display:flex; gap:10px; justify-content: center;">
 <div id="streak-container" style="text-align: right; margin-bottom: 8px; font-weight: bold; color: var(--primary-color);">
@@ -4725,20 +4724,15 @@ body[data-theme="scholar"] #view-viewer {
 <div id="selected-day-entries" style="margin-top:1rem;"></div>
 </section>
 <section class="view" id="view-gallery">
-<h3 id="gallery-total-count" style="margin:0 0 12px 0;"> 0 枚のギャラリー</h3>
-<div id="gallery-sort-area" style="
-        display:flex;
-        justify-content:flex-end;
-        align-items:center;
-        margin-bottom:12px;
-        gap:10px;
-        flex-wrap:wrap;
-    ">
+<div id="gallery-header-row" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+<h3 id="gallery-total-count" style="margin:0;"> 0 枚のギャラリー</h3>
+<div id="gallery-sort-area" style="display:flex; justify-content:flex-end; align-items:center; gap:10px; flex-wrap:wrap; margin-left:auto;">
 <select class="kawaii-select" id="gallery-sort" onchange="changeGallerySort(this.value)">
 <option value="new">新しい順</option>
 <option value="old">古い順</option>
 <option value="latestViewed">最近見た順</option>
 </select>
+</div>
 </div>
 <div class="gallery-grid" id="gallery-container"></div>
 <div id="gallery-pagination-area" style="
@@ -4756,18 +4750,20 @@ body[data-theme="scholar"] #view-viewer {
 </div>
 </div></section>
 <section class="view" id="view-tags">
-<h3 id="tag-total-count" style="margin:0 0 12px 0;"> 0 件のタグ</h3>
-<div class="hidden" id="tag-back-area" style="margin-bottom:12px;">
-<button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="backToTagList()">戻る</button>
-</div>
-<div class="card" id="tags-cloud"></div>
-<div class="hidden" id="tag-filter-area" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px; flex-wrap:wrap;">
+<div id="tag-header-row" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+<h3 id="tag-total-count" style="margin:0;"> 0 件のタグ</h3>
+<div class="hidden" id="tag-filter-area" style="display:flex; justify-content:flex-end; align-items:center; gap:10px; flex-wrap:wrap; margin-left:auto; margin-bottom:0;">
 <select class="kawaii-select" id="tag-sort" onchange="changeTagSort(this.value)">
 <option value="new">新しい順</option>
 <option value="old">古い順</option>
 <option value="latestViewed">最近見た順</option>
 </select>
 </div>
+</div>
+<div class="hidden" id="tag-back-area" style="margin-bottom:12px;">
+<button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="backToTagList()">戻る</button>
+</div>
+<div class="card" id="tags-cloud"></div>
 <div id="tag-pagination-top-area" style="display:none; justify-content:center; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
 <button class="btn" id="tag-prev-top-btn" onclick="prevTagPage()">◀ 前へ</button>
 <span id="tag-page-info-top"></span>
@@ -9705,7 +9701,6 @@ const streakCount = getStreak();
 if (streakDisplay) {
     if (streakCount > 0) {
         streakDisplay.style.display = 'block';
-        streakDisplay.style.visibility = 'visible';
 
         const todayStr = getLocalDateString(new Date());
         const todayDiaryExists = diaries.some(d => d.date === todayStr);
@@ -9719,9 +9714,7 @@ if (streakDisplay) {
             streakDisplay.classList.remove('streak-today');
         }
     } else {
-        streakDisplay.style.display = 'block';
-        streakDisplay.style.visibility = 'hidden';
-        streakDisplay.innerHTML = '';
+        streakDisplay.style.display = 'none';
         streakDisplay.classList.remove('streak-today');
     }
 }
