@@ -11797,15 +11797,48 @@ async function completeBackupDestinationSetup() {
             ui.style.transform = 'translateY(-6px)';
         }
 
-        // フェードアウト完了後に通常の通知を再描画。
-        setTimeout(() => {
-            if (area) {
-                area.style.opacity = '';
-                area.style.transform = '';
-                area.style.transition = '';
-                area.onclick = null;
+        // フェードアウト完了後、通知エリアを透明のまま再描画する。
+        // 先にopacityを戻すと、再描画前の古い通知が一瞬だけ再表示されることがある。
+        setTimeout(async () => {
+            if (!area) {
+                await renderNotifications();
+                return;
             }
-            renderNotifications();
+
+            // 再描画時のCSS slideDownとopacity切替が競合しないよう、アニメーションを一時停止。
+            area.style.animation = 'none';
+            area.style.transition = 'none';
+            area.style.opacity = '0';
+            area.style.transform = '';
+            area.onclick = null;
+            void area.offsetHeight;
+
+            await renderNotifications();
+
+            if (area.style.display !== 'none') {
+                // animationを空文字に戻すとCSSのslideDownが再実行され、
+                // フェードイン後に二度目の表示アニメーションが起きる。
+                // 初期設定完了後はこの通知エリアでCSSアニメーションを再発火させない。
+                area.style.animation = 'none';
+                area.style.opacity = '0';
+                area.style.transform = 'translateY(0)';
+                void area.offsetHeight;
+                area.style.transition = 'opacity 0.2s ease-in';
+                requestAnimationFrame(() => {
+                    area.style.opacity = '1';
+                    setTimeout(() => {
+                        // transitionだけ解除し、animation:noneは維持する。
+                        area.style.transition = '';
+                        area.style.opacity = '1';
+                        area.style.transform = 'translateY(0)';
+                    }, 220);
+                });
+            } else {
+                area.style.opacity = '0';
+                area.style.transform = 'translateY(0)';
+                area.style.transition = 'none';
+                area.style.animation = 'none';
+            }
         }, 280);
 
     } catch (error) {
