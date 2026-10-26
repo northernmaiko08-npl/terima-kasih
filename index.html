@@ -2420,7 +2420,7 @@ body[data-theme="cosmos"] {
         }
 
         .image-pick-btn:active {
-            transform: translateY(5px) scale(0.98);
+            transform: translateY(3px) scale(0.98);
             box-shadow: 0 1px 0 #ff9db0;
             transition-duration: 0.06s;
         }
@@ -3206,6 +3206,35 @@ body[data-theme="cosmos"] {
     vertical-align:middle;
 }
 </style>
+<style id="diary-schedule-editor-match-memo">
+/* 日記・予定の本文欄を、メモ本文欄と同じ枠なしデザインに統一 */
+html body #view-editor #diary-content {
+    min-height: 280px !important;
+    padding: 12px 2px !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    color: var(--text-color, inherit) !important;
+    line-height: 1.75 !important;
+    outline: none !important;
+    box-shadow: none !important;
+    white-space: pre-wrap;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+html body #view-editor #diary-content:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+html body #view-editor #diary-content:empty::before,
+html body #view-editor #diary-content.diary-content-empty::before {
+    content: attr(data-placeholder);
+    color: var(--text-color, currentColor);
+    opacity: 0.42;
+    pointer-events: none;
+}
+</style>
 <style id="anti-accidental-selection">
 
 .view:not(#view-editor) * {
@@ -3631,6 +3660,40 @@ body[data-theme="cosmos"] {
 }
 #view-about .support-accordion-group-body > h4 { margin-top: 20px; }
 #view-about .support-accordion-group-body > h4:first-child { margin-top: 8px; }
+#setup-fix-pass::placeholder,
+#setup-keyword::placeholder,
+#setup-hint::placeholder {
+    opacity: 0.5;
+}
+
+#setup-fix-pass:focus,
+#setup-keyword:focus,
+#setup-hint:focus {
+    border-bottom: 1px solid var(--primary-color);
+    outline: none;
+    box-shadow: none;
+    border-radius: 0;
+}
+#search-input::placeholder {
+    opacity: 0.5;
+}
+
+#search-input:focus {
+    border-bottom: 1px solid var(--primary-color) !important;
+    outline: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+#diary-tags::placeholder {
+    opacity: 0.5;
+}
+
+#diary-tags:focus {
+    border-radius: 0;
+    border-bottom: 1px solid var(--primary-color);
+    outline: none;
+    box-shadow: none;
+}
 </style>
 
 <link href="manifest.json" rel="manifest"/>
@@ -3940,9 +4003,20 @@ body[data-theme="cosmos"] {
     display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px;
 }
 .memo-title-input {
-    width:100%; box-sizing:border-box; font-size:1.2rem; padding:10px 4px;
-    border:none; border-bottom:2px solid var(--primary-color); outline:none;
-    background:transparent; color:var(--text-color,inherit);
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 1.2rem;
+    padding: 10px 4px;
+    border: none;
+    border-bottom: none;
+border-radius: 0;
+background-image: linear-gradient(var(--primary-color), var(--primary-color));
+background-repeat: no-repeat;
+background-position: left bottom;
+background-size: 100% 2px;
+    outline: none;
+    background: transparent;
+    color: var(--text-color, inherit);
 }
 .memo-editor-tools {
     display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:12px 0 10px;
@@ -3955,7 +4029,8 @@ body[data-theme="cosmos"] {
     min-height:280px; padding:12px 2px; line-height:1.75;
     outline:none; white-space:pre-wrap; word-break:normal; overflow-wrap:anywhere;
 }
-.memo-content-editor:empty::before { content:attr(data-placeholder); opacity:.42; pointer-events:none; }
+.memo-content-editor:empty::before,
+.memo-content-editor.memo-content-empty::before { content:attr(data-placeholder); opacity:.42; pointer-events:none; }
 .memo-checklist-panel {
     margin-top:12px; padding:13px; border-radius:12px;
     background:color-mix(in srgb,var(--primary-color) 5%,transparent);
@@ -4581,7 +4656,7 @@ body[data-theme="scholar"] #view-viewer {
 <section class="view" id="view-diaries">
 <div class="card search-container">
 <div class="search-row-1">
-<input id="search-input" placeholder="日記を検索..." style="flex:1; padding:10px; border-radius:8px; border:1px solid #ddd;" type="text"/>
+<input id="search-input" placeholder="日記を検索..." style="flex:1; min-width:0; padding:10px 2px; border:none; border-bottom:1px solid var(--primary-color); border-radius:0; background:transparent; color:var(--text-color, inherit); outline:none; box-shadow:none;" type="text"/>
 <div class="date-picker-trigger" onclick="event.preventDefault(); const picker=this.querySelector('input[type=month]'); if (picker) { try { if (picker.showPicker) picker.showPicker(); else picker.focus(); } catch (e) { picker.focus(); } }">
 <i data-lucide="calendar-search" style="width:20px; height:20px;"></i>
 <input id="search-date-input" onchange="filterBySpecificDate(this.value)" type="month" aria-label="月で絞り込む"/>
@@ -5443,12 +5518,12 @@ body[data-theme="scholar"] #view-viewer {
   <div id="custom-template-list" style="margin-top:12px;"></div>
 </div>
 </div>
-<div contenteditable="true" id="diary-content" placeholder="ここに本文を書きましょう..."></div>
+<div contenteditable="true" id="diary-content" placeholder="ここに本文を入力しましょう"></div>
 <div id="char-count" style="text-align: left; font-size: 0.85rem; color: var(--primary-color); margin-top: 6px; font-weight: 500;">
     0 文字
 </div>
 <div id="diary-only-footer">
-<input id="diary-tags" placeholder="タグ (カンマ[,]区切り)" style="width: 60%; padding: 6px 12px; font-size: 0.8rem; border-radius: 20px; border: 1px solid #ddd; margin-top: 10px;" type="text"/>
+<input id="diary-tags" placeholder="タグ (カンマ[,]区切り)" style="width: 60%; padding: 6px 2px; font-size: 0.8rem; border: none; border-bottom: 1px solid var(--primary-color); border-radius: 0; background: transparent; color: var(--text-color, inherit); margin-top: 10px; outline: none;" type="text"/>
 <div id="image-upload-zone">
 <p style="font-size:0.8rem; margin-bottom:0;">添付は複数枚可能です
                         </p>
@@ -7578,10 +7653,18 @@ function switchTab(tabId) {
     // 目的の画面が切り替わった後に、保留中のテーマ解放通知を表示する。
     flushThemeUnlockNotices();
 }
+function updateDiaryPlaceholderState(content = document.getElementById('diary-content')) {
+    if (!content) return;
+    const hasVisibleContent = (content.textContent || '').trim().length > 0 ||
+        !!content.querySelector('img, video, audio, iframe, table, input');
+    content.classList.toggle('diary-content-empty', !hasVisibleContent);
+}
+
 function updateCharCount() {
     const content = document.getElementById('diary-content');
     const countEl = document.getElementById('char-count');
     if (!content || !countEl) return;
+    updateDiaryPlaceholderState(content);
 
     
     if (currentEditingType === 'schedule') {
@@ -7622,6 +7705,7 @@ function openEditor(type = 'diary', id = null) {
     const titleInput = document.getElementById('diary-title');
     const dateInput = document.getElementById('diary-date-input');
     const contentDiv = document.getElementById('diary-content');
+    contentDiv.setAttribute('data-placeholder', type === 'schedule' ? 'ここに予定を入力しましょう...' : 'ここに日記を入力しましょう...');
     const tagsInput = document.getElementById('diary-tags');
     const diaryFields = document.getElementById('diary-only-fields');
     const diaryFooter = document.getElementById('diary-only-footer');
@@ -7680,6 +7764,7 @@ function openEditor(type = 'diary', id = null) {
         }
     }
 
+    updateDiaryPlaceholderState(contentDiv);
     updateImagePreviews(); 
 
     setTimeout(() => {
@@ -11628,13 +11713,13 @@ function showRecoverySetup() {
                 【重要】この設定は一度しか行えません。忘れると二度と復旧できないため、必ずスクリーンショットなどで記録を残してください。
             </p>
             <div style="margin-bottom:10px;">
-                <input type="text" id="setup-fix-pass" placeholder="本人確認パスコード" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                <input type="text" id="setup-fix-pass" placeholder="本人確認パスコード" style="width:100%; padding:8px 2px; border:none; border-bottom:1px solid var(--primary-color); border-radius:0; background:transparent; color:var(--text-color, inherit); outline:none; box-shadow:none; box-sizing:border-box;">
             </div>
             <div style="margin-bottom:10px;">
-                <input type="text" id="setup-keyword" placeholder="合言葉" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                <input type="text" id="setup-keyword" placeholder="合言葉" style="width:100%; padding:8px 2px; border:none; border-bottom:1px solid var(--primary-color); border-radius:0; background:transparent; color:var(--text-color, inherit); outline:none; box-shadow:none; box-sizing:border-box;">
             </div>
             <div style="margin-bottom:10px;">
-                <input type="text" id="setup-hint" placeholder="合言葉のヒント" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                <input type="text" id="setup-hint" placeholder="合言葉のヒント" style="width:100%; padding:8px 2px; border:none; border-bottom:1px solid var(--primary-color); border-radius:0; background:transparent; color:var(--text-color, inherit); outline:none; box-shadow:none; box-sizing:border-box;">
             </div>
             <button class="btn btn-primary" style="width:100%; margin-bottom:8px;" onclick="saveRecoverySettings()">設定を確定して保存</button>
             <button class="forget-btn" style="width:100%;" onclick="hideRecoverySetup()">あとで設定する</button>
@@ -11931,7 +12016,7 @@ function normalizeMemoPlainText(htmlContent) {
 function formatMemoDate(timestamp) {
     const d = new Date(Number(timestamp) || Date.now());
     const pad = n => String(n).padStart(2, '0');
-    return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    return `${d.getFullYear()}/${pad(d.getMonth()+1)}/${pad(d.getDate())}`;
 }
 
 function renderMemoTabs() {
@@ -11939,10 +12024,12 @@ function renderMemoTabs() {
 }
 
 function sortMemos(items) {
+    // 作成日時の古い順に並べ、新しいメモは一覧の下に追加されるようにします。
+    // 編集しても並び順が変わらないよう、更新日時ではなく作成日時を基準にします。
     return [...items].sort((a, b) => {
-        const at = Number(a.updatedAt || a.createdAt || 0);
-        const bt = Number(b.updatedAt || b.createdAt || 0);
-        return bt - at;
+        const at = Number(a.createdAt || a.updatedAt || 0);
+        const bt = Number(b.createdAt || b.updatedAt || 0);
+        return at - bt;
     });
 }
 
@@ -12009,10 +12096,18 @@ function countMemoText(htmlContent) {
     return (temp.textContent || temp.innerText || '').length;
 }
 
+function updateMemoPlaceholderState(content = document.getElementById('memo-content')) {
+    if (!content) return;
+    const hasVisibleContent = (content.textContent || '').trim().length > 0 ||
+        !!content.querySelector('img, video, audio, iframe, table, input, .memo-checklist-item');
+    content.classList.toggle('memo-content-empty', !hasVisibleContent);
+}
+
 function updateMemoCharCount() {
     const content = document.getElementById('memo-content');
     const count = document.getElementById('memo-editor-char-count');
     if (content && count) count.textContent = `${countMemoText(content.innerHTML)}文字`;
+    updateMemoPlaceholderState(content);
 }
 
 function updateMemoViewerCharCount(htmlContent) {
@@ -12167,6 +12262,7 @@ function openMemoEditor(id = null) {
     toggle.classList.toggle('active', hasChecklist);
     renderMemoChecklistItems();
     updateMemoCharCount();
+    updateMemoPlaceholderState(content);
 
     if (deleteArea && deleteBtn) {
         deleteArea.style.display = id != null ? 'block' : 'none';
