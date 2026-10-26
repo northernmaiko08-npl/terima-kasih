@@ -2019,7 +2019,7 @@ body[data-theme="cosmos"] {
             display: grid;
             grid-template-columns: repeat(25, 1fr);
             gap: 3px;
-            margin-top: 10px;
+            margin-top: 0;
             justify-content: center;
             box-sizing: border-box;
             width: 100%;
@@ -4537,8 +4537,8 @@ body[data-theme="scholar"] #view-viewer {
 <div id="flashback-container"></div>
 </div>
 <div class="card">
-<h3>感情ヒートマップ</h3>
-<div id="streak-display" style="text-align: right; margin-bottom: 8px; font-weight: bold; font-size: 0.9em;"></div>
+<h3 style="margin-top: 0; margin-bottom: 0;">感情ヒートマップ</h3>
+<div id="streak-display" style="text-align: right; margin-top: 0; margin-bottom: 8px; font-weight: bold; font-size: 0.9em;"></div>
 <div class="heatmap-container" id="heatmap"></div>
 <div style="font-size: 0.7rem; margin-top:10px; display:flex; gap:10px; justify-content: center;">
 <div id="streak-container" style="text-align: right; margin-bottom: 8px; font-weight: bold; color: var(--primary-color);">
@@ -9768,8 +9768,14 @@ if (streakDisplay) {
             streakDisplay.classList.remove('streak-today');
         }
     } else {
-        streakDisplay.style.display = 'none';
+        // 表示がない場合も、連続更新中の表示と同じ領域を確保してレイアウトのズレを防ぐ
+        streakDisplay.style.display = 'block';
+        streakDisplay.style.visibility = 'hidden';
+        streakDisplay.innerHTML = `🔥 <span class="streak-number" style="font-size: 1.28em; color: var(--accent-color); font-weight: bold;">0</span> 日連続更新中`;
         streakDisplay.classList.remove('streak-today');
+    }
+    if (streakCount > 0) {
+        streakDisplay.style.visibility = 'visible';
     }
 }
             const now = new Date();
