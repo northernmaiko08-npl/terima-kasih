@@ -4806,6 +4806,7 @@ body[data-theme="scholar"] #view-viewer {
 </div>
 </section>
 <section class="view" id="view-settings">
+
 <div class="card">
 <div class="setting-row">
 <span><strong>テーマデザイン</strong></span>
@@ -8220,12 +8221,13 @@ function updateGalleryNavigation() {
 
     const isGallery = document.getElementById('view-gallery')?.classList.contains('active');
     const isViewer = document.getElementById('view-viewer')?.classList.contains('active');
+    const isEditor = document.getElementById('view-editor')?.classList.contains('active') && currentGalleryImage?.sourceType === 'editor';
 
     const images = isGallery
         ? (galleryNavigationItems || getGalleryImageList())
-        : (isViewer ? (diaryViewerNavigationItems || []) : []);
+        : (isViewer ? (diaryViewerNavigationItems || []) : (isEditor ? tempImages.map((src, index) => ({src, id: null, addedIndex: index})) : []));
 
-    if ((!isGallery && !isViewer) || !currentGalleryImage || images.length <= 1) {
+    if ((!isGallery && !isViewer && !isEditor) || !currentGalleryImage || images.length <= 1) {
         prevBtn.style.display='none';
         nextBtn.style.display='none';
         modal.classList.remove('gallery-navigation-active');
@@ -8403,6 +8405,7 @@ function zoomImage(src, diaryId = null, galleryIndex = null, sourceType = 'diary
 
     const isGallery=document.getElementById('view-gallery')?.classList.contains('active');
     const isViewer=document.getElementById('view-viewer')?.classList.contains('active');
+    const isEditor=sourceType === 'editor';
 
     galleryNavigationItems=isGallery ? getGalleryImageList() : null;
 
@@ -8415,9 +8418,10 @@ function zoomImage(src, diaryId = null, galleryIndex = null, sourceType = 'diary
         diaryViewerNavigationItems=null;
     }
 
-    currentGalleryImage={src,diaryId,galleryIndex:Number.isInteger(galleryIndex)?galleryIndex:null};
+    currentGalleryImage={src,diaryId,galleryIndex:Number.isInteger(galleryIndex)?galleryIndex:null,sourceType};
 
-    const activeImages=isGallery ? galleryNavigationItems : (isViewer ? diaryViewerNavigationItems : null);
+    const editorNavigationItems=isEditor ? tempImages.map((imageSrc,index)=>({src:imageSrc,id:null,addedIndex:index})) : null;
+    const activeImages=isGallery ? galleryNavigationItems : (isViewer ? diaryViewerNavigationItems : (isEditor ? editorNavigationItems : null));
     if (currentGalleryImage.galleryIndex==null && activeImages) {
         currentGalleryImage.galleryIndex=activeImages.findIndex(img =>
             img.src===src && String(img.id)===String(diaryId));
@@ -8683,11 +8687,12 @@ function navigateGalleryImage(direction,event) {
 
     const isGallery=document.getElementById('view-gallery')?.classList.contains('active');
     const isViewer=document.getElementById('view-viewer')?.classList.contains('active');
-    if(!isGallery && !isViewer) return;
+    const isEditor=document.getElementById('view-editor')?.classList.contains('active') && currentGalleryImage.sourceType === 'editor';
+    if(!isGallery && !isViewer && !isEditor) return;
 
     const images=isGallery
         ? (galleryNavigationItems || getGalleryImageList())
-        : (diaryViewerNavigationItems || []);
+        : (isViewer ? (diaryViewerNavigationItems || []) : tempImages.map((src,index)=>({src,id:null,addedIndex:index})));
     if(images.length<=1) return;
 
     let currentIndex=Number.isInteger(currentGalleryImage.galleryIndex)
@@ -8706,7 +8711,7 @@ function navigateGalleryImage(direction,event) {
     if(nextIndex<0 || nextIndex>=images.length) return;
 
     const nextImage=images[nextIndex];
-    currentGalleryImage={src:nextImage.src,diaryId:nextImage.id,galleryIndex:nextIndex};
+    currentGalleryImage={src:nextImage.src,diaryId:nextImage.id,galleryIndex:nextIndex,sourceType:isEditor?'editor':(isGallery?'gallery':'diary')};
 
     const modalDate=document.getElementById('img-modal-date');
     if(modalDate) {
@@ -8716,7 +8721,7 @@ function navigateGalleryImage(direction,event) {
     }
 
     const openDiaryBtn = document.getElementById('gallery-open-diary-btn');
-    if (openDiaryBtn) openDiaryBtn.style.display = isGallery ? 'flex' : 'none';
+    if (openDiaryBtn) openDiaryBtn.style.display = (isGallery && nextImage.id != null) ? 'flex' : 'none';
 
     modalImageScale = 1;
     modalImageTranslateX = 0;
@@ -8739,8 +8744,8 @@ function navigateGalleryImage(direction,event) {
     if(modalImg.complete) requestAnimationFrame(reveal);
 
 
-    const diary=diaries.find(d=>String(d.id)===String(nextImage.id));
-    if(diary) {
+    const diary=nextImage.id == null ? null : diaries.find(d=>String(d.id)===String(nextImage.id));
+    if(diary && !isEditor) {
         if(!diary.imageViewHistory) diary.imageViewHistory={};
         diary.imageViewHistory[nextImage.src]=Date.now();
         saveDataToDB('diaries',diary).catch(()=>{});
@@ -8753,7 +8758,8 @@ function handleGalleryModalKeydown(event) {
     if(!modal || modal.style.display==='none') return;
     const isGallery=document.getElementById('view-gallery')?.classList.contains('active');
     const isViewer=document.getElementById('view-viewer')?.classList.contains('active');
-    if(!isGallery && !isViewer) return;
+    const isEditor=document.getElementById('view-editor')?.classList.contains('active') && currentGalleryImage?.sourceType === 'editor';
+    if(!isGallery && !isViewer && !isEditor) return;
 
     if(event.key==='ArrowLeft') {
         event.preventDefault(); event.stopPropagation();
@@ -9375,13 +9381,13 @@ async function deleteCustomDiaryTemplate(id) {
             <img
                 src="${src}"
                 style="
-                    width:200px;
-                    height:200px;
+                    width:150px;
+                    height:150px;
                     object-fit:cover;
                     border-radius:4px;
                     cursor:pointer;
                 "
-                onclick="zoomImage('${src}')"
+                onclick="zoomImage('${src}', null, ${idx}, 'editor')"
             >
 
             <span
