@@ -1915,6 +1915,11 @@ body[data-theme="cosmos"] {
             margin: 0.5rem 0;
             outline: none;
         }
+        /* 通常ログインと初期パスコード設定の入力欄をカード背景に統一 */
+        #pass-input {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+        }
         header {
     width: 100%;
     padding: 1rem;
@@ -4003,20 +4008,9 @@ html body #view-editor #diary-content.diary-content-empty::before {
     display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px;
 }
 .memo-title-input {
-    width: 100%;
-    box-sizing: border-box;
-    font-size: 1.2rem;
-    padding: 10px 4px;
-    border: none;
-    border-bottom: none;
-border-radius: 0;
-background-image: linear-gradient(var(--primary-color), var(--primary-color));
-background-repeat: no-repeat;
-background-position: left bottom;
-background-size: 100% 2px;
-    outline: none;
-    background: transparent;
-    color: var(--text-color, inherit);
+    width:100%; box-sizing:border-box; font-size:1.2rem; padding:10px;
+    border:none; border-bottom:2px solid var(--primary-color); outline:none;
+    background:transparent; color:var(--text-color,inherit);
 }
 .memo-editor-tools {
     display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin:12px 0 10px;
@@ -4516,6 +4510,22 @@ body[data-theme="scholar"] #view-viewer {
 /* 今日の日付の枠は維持し、選択による装飾だけを解除する */
 #view-calendar .calendar-day.calendar-day-today.calendar-selection-cleared::before {
     pointer-events: none;
+}
+</style>
+<style id="memo-title-match-diary-schedule">
+/* メモのタイトル欄を日記・予定と同じ下線のみのデザインに統一 */
+html body #view-memo-editor #memo-title-input {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    font-size: 1.2rem !important;
+    padding: 10px !important;
+    border: none !important;
+    border-bottom: 2px solid var(--primary-color) !important;
+    border-radius: 0 !important;
+    outline: none !important;
+    background: transparent !important;
+    color: var(--text-color, inherit) !important;
+    box-shadow: none !important;
 }
 </style>
 </head>
