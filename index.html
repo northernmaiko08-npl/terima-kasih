@@ -4022,7 +4022,15 @@ body[data-theme="cosmos"] {
 @media (max-width:700px) {
     #view-memos .memo-page-card, #view-memo-editor .memo-editor-card { padding:14px; }
     .memo-page-header { flex-wrap:wrap; }
-    .memo-page-header h3 { order:2; width:100%; text-align:center; }
+    /* モバイルでは件数バッジの背景が横いっぱいに伸びないよう、文字幅に合わせる */
+    .memo-page-header h3 {
+        order:2;
+        width:fit-content;
+        max-width:100%;
+        flex:0 0 auto;
+        align-self:center;
+        text-align:center;
+    }
     .memo-card { padding:13px 14px; }
     .memo-card-title { font-size:1rem; }
     .memo-card-preview { font-size:.84rem; }
