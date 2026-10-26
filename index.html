@@ -3238,6 +3238,8 @@ html body #view-editor #diary-content.diary-content-empty::before {
     color: var(--text-color, currentColor);
     opacity: 0.42;
     pointer-events: none;
+    -webkit-user-select: none;
+    user-select: none;
 }
 </style>
 <style id="anti-accidental-selection">
@@ -3293,6 +3295,17 @@ html body #view-editor #diary-content.diary-content-empty::before {
   font-size: 12px !important;
 }
 </style>
+<style id="schedule-char-count-match-memo">
+#char-count.schedule-char-count,
+#viewer-char-count.schedule-char-count {
+    margin: 12px 0 20px !important;
+    text-align: left !important;
+    color: var(--primary-color) !important;
+    font-size: .82rem !important;
+    font-weight: 700 !important;
+    opacity: .82 !important;
+}
+</style>
 <script>
 
 (function () {
@@ -3302,7 +3315,7 @@ html body #view-editor #diary-content.diary-content-empty::before {
 
         editor.querySelectorAll(':scope > div, :scope > p').forEach(block => {
             block.style.lineHeight = '1.6';
-            block.style.minHeight = '1.6em';
+            block.style.minHeight = '0';
             block.style.margin = '0';
             block.style.padding = '0';
         });
@@ -4024,7 +4037,7 @@ html body #view-editor #diary-content.diary-content-empty::before {
     outline:none; white-space:pre-wrap; word-break:normal; overflow-wrap:anywhere;
 }
 .memo-content-editor:empty::before,
-.memo-content-editor.memo-content-empty::before { content:attr(data-placeholder); opacity:.42; pointer-events:none; }
+.memo-content-editor.memo-content-empty::before { content:attr(data-placeholder); opacity:.42; pointer-events:none; -webkit-user-select:none; user-select:none; }
 .memo-checklist-panel {
     margin-top:12px; padding:13px; border-radius:12px;
     background:color-mix(in srgb,var(--primary-color) 5%,transparent);
@@ -4034,20 +4047,26 @@ html body #view-editor #diary-content.diary-content-empty::before {
     display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;
 }
 .memo-checklist-add { white-space:nowrap; display:inline-flex; align-items:center; gap:5px; }
+#memo-checklist-items {
+    display:flex;
+    flex-direction:column;
+    width:100%;
+}
 .memo-checklist-item {
     display:flex; align-items:center; gap:10px; margin:8px 0; padding:4px 2px;
+    width:100%; box-sizing:border-box;
 }
 .memo-checklist-item input[type="checkbox"] {
     width:20px; height:20px; flex:0 0 20px; accent-color:var(--primary-color); cursor:pointer;
 }
 .memo-checklist-item input[type="text"] {
-    flex:1; min-width:0; box-sizing:border-box; padding:10px 12px;
-    border:1px solid var(--border-color,#ddd); border-radius:10px;
-    background:var(--card-bg,#fff); color:var(--text-color,inherit);
-    font-size:.92rem; line-height:1.45; outline:none;
+    flex:1; min-width:0; box-sizing:border-box; padding:10px 2px;
+    border:none; border-bottom:1px solid var(--primary-color); border-radius:0;
+    background:transparent; color:var(--text-color,inherit);
+    font-size:.92rem; line-height:1.45; outline:none; box-shadow:none;
 }
 .memo-checklist-item input[type="text"]:focus {
-    border-color:var(--primary-color); box-shadow:0 0 0 2px color-mix(in srgb,var(--primary-color) 12%,transparent);
+    border-bottom:1px solid var(--primary-color); outline:none; box-shadow:none;
 }
 .memo-checklist-item.is-done input[type="text"] { text-decoration:line-through; opacity:.52; }
 .memo-checklist-remove {
@@ -4092,8 +4111,14 @@ html body #view-editor #diary-content.diary-content-empty::before {
     border:1px solid color-mix(in srgb,var(--primary-color) 12%,transparent);
 }
 .memo-viewer-checklist-heading { margin-bottom:8px; }
+#memo-viewer-checklist-items {
+    display:flex;
+    flex-direction:column;
+    width:100%;
+}
 .memo-viewer-checklist-item {
     display:flex; align-items:center; gap:11px; padding:11px 4px;
+    width:100%; box-sizing:border-box;
     border-bottom:1px solid color-mix(in srgb,var(--border-color,#ddd) 70%,transparent);
 }
 .memo-viewer-checklist-item:last-child { border-bottom:none; }
@@ -4528,6 +4553,115 @@ html body #view-memo-editor #memo-title-input {
     box-shadow: none !important;
 }
 </style>
+<style id="editor-line-break-fix">
+/* 編集欄の元の折り返しと行高を維持する */
+html body #view-editor #diary-content,
+html body #view-memo-editor #memo-content {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: normal !important;
+    line-height: 1.6 !important;
+}
+html body #view-editor #diary-content > div,
+html body #view-editor #diary-content > p,
+html body #view-memo-editor #memo-content > div,
+html body #view-memo-editor #memo-content > p {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    line-height: 1.6 !important;
+}
+html body #view-editor #diary-content > br,
+html body #view-memo-editor #memo-content > br {
+    line-height: 1.6 !important;
+}
+html body #view-editor #diary-content *,
+html body #view-memo-editor #memo-content * {
+    line-height: inherit !important;
+}
+</style>
+
+<!-- Removed custom Enter interception: use native contenteditable/IME behavior. -->
+<script id="placeholder-never-caret-fix">
+(function () {
+    // 半透明プレースホルダーは疑似要素であり、本文やカーソル位置の対象にしない。
+    // 本文が空（br や空要素だけを含む場合も含む）のときにクリックされたら、
+    // 空の編集領域の先頭へカーソルを置く。
+    function isVisiblyEmpty(editor) {
+        if (!editor) return true;
+        const text = (editor.textContent || '').replace(/[\u200B\uFEFF\s]/g, '');
+        const meaningfulNode = editor.querySelector('img, video, audio, iframe, table, input, .memo-checklist-item');
+        return text.length === 0 && !meaningfulNode;
+    }
+
+    document.addEventListener('mousedown', function (event) {
+        const editor = event.target && event.target.closest
+            ? event.target.closest('#diary-content, #memo-content') : null;
+        if (!editor || editor.classList.contains('editor-empty-line') || !isVisiblyEmpty(editor)) return;
+
+        // 疑似プレースホルダー上のクリックをブラウザの仮想テキスト位置に任せない。
+        event.preventDefault();
+        editor.innerHTML = '';
+        editor.focus({ preventScroll: true });
+        const range = document.createRange();
+        range.setStart(editor, 0);
+        range.collapse(true);
+        const selection = window.getSelection();
+        if (selection) {
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    }, true);
+})();
+</script>
+
+<script id="empty-editor-caret-left-fix">
+(function () {
+    function isActuallyEmpty(editor) {
+        if (!editor) return false;
+        // An intentional empty line is content for caret/placeholder purposes;
+        // do not let the cleanup listener erase the BR inserted by Enter.
+        if (editor.classList.contains('editor-empty-line')) return false;
+        const text = (editor.textContent || '').replace(/[\u200B\uFEFF\s]/g, '');
+        const meaningful = editor.querySelector('img, video, audio, iframe, table, input, .memo-checklist-item');
+        return text.length === 0 && !meaningful;
+    }
+    function moveCaretToLeft(editor) {
+        if (!editor || !editor.isContentEditable || !isActuallyEmpty(editor)) return;
+        // Remove browser-generated BR/div nodes left behind by select-all + delete.
+        editor.innerHTML = '';
+        editor.classList.remove('editor-empty-line');
+        if (editor.id === 'diary-content') {
+            editor.classList.add('diary-content-empty');
+            if (typeof updateCharCount === 'function') updateCharCount();
+        } else {
+            editor.classList.add('memo-content-empty');
+            if (typeof updateMemoCharCount === 'function') updateMemoCharCount();
+        }
+        // ::before placeholder is visual only. Explicitly reset selection to host offset 0.
+        editor.focus({ preventScroll: true });
+        const range = document.createRange();
+        range.setStart(editor, 0);
+        range.collapse(true);
+        const selection = window.getSelection();
+        if (selection) { selection.removeAllRanges(); selection.addRange(range); }
+    }
+    document.addEventListener('input', function (event) {
+        const editor = event.target && event.target.closest
+            ? event.target.closest('#diary-content, #memo-content') : null;
+        if (!editor || !isActuallyEmpty(editor)) return;
+        // Run after the app's own input handlers so they cannot restore the old caret.
+        setTimeout(function () { moveCaretToLeft(editor); }, 0);
+    }, true);
+    document.addEventListener('keyup', function (event) {
+        const editor = event.target && event.target.closest
+            ? event.target.closest('#diary-content, #memo-content') : null;
+        if (!editor || !['Backspace', 'Delete'].includes(event.key)) return;
+        if (isActuallyEmpty(editor)) setTimeout(function () { moveCaretToLeft(editor); }, 0);
+    }, true);
+})();
+</script>
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -7665,7 +7799,9 @@ function switchTab(tabId) {
 }
 function updateDiaryPlaceholderState(content = document.getElementById('diary-content')) {
     if (!content) return;
-    const hasVisibleContent = (content.textContent || '').trim().length > 0 ||
+    // Enterで作った意図的な空行は、疑似プレースホルダーを隠したままにする。
+    const intentionalBlankLine = content.classList.contains('editor-empty-line');
+    const hasVisibleContent = intentionalBlankLine || (content.textContent || '').trim().length > 0 ||
         !!content.querySelector('img, video, audio, iframe, table, input');
     content.classList.toggle('diary-content-empty', !hasVisibleContent);
 }
@@ -7678,9 +7814,13 @@ function updateCharCount() {
 
     
     if (currentEditingType === 'schedule') {
-        countEl.style.display = 'none';
+        // 予定ページはメモと同じ方式で、本文のテキスト文字数を表示する。
+        countEl.classList.add('schedule-char-count');
+        countEl.style.display = 'block';
+        countEl.textContent = `${countMemoText(content.innerHTML)}文字`;
         return;
     }
+    countEl.classList.remove('schedule-char-count');
     countEl.style.display = 'block';
 
     const tempDiv = document.createElement('div');
@@ -7720,6 +7860,7 @@ function openEditor(type = 'diary', id = null) {
     const diaryFields = document.getElementById('diary-only-fields');
     const diaryFooter = document.getElementById('diary-only-footer');
     const charCountEl = document.getElementById('char-count');
+    if (charCountEl) charCountEl.classList.toggle('schedule-char-count', type === 'schedule');
 
     if (type === 'diary') { 
         renderCustomDiaryTemplates();
@@ -7982,7 +8123,7 @@ else if (diffDays === 30) dayText = "1ヶ月後に";
 else if (diffDays === 92) dayText = "3ヶ月後に";
 else if (diffDays === 183) dayText = "6ヶ月後に";
         if (dayText !== "") {
-            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","でじ帖って使いやすい？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","なんだ、この予定は楽勝だね！😀","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは68万文字もあるんだよ！🔥","コード1万行超のアツさを感じられているかな？🔥","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","いつもでじ帖をつかってくれてありがとう✨️","👁️👄👁️(..........................。)","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
+            const messages = ["万全の準備を整えましょう！","もちろん準備万端だよね...？","最高の1日になりますように！","通知があってよかったね！","予定があるっていいね👍️","君の予定って面白いよね🤭","僕も参加したいな！🫣","ここをタップして予定を確認しよう！","カウントダウン刻む？","通知を送る仕事も疲れるのよ...🥱","🫥(一言メッセージサボり中...)","↑この予定って具体的に何をするの？👀","君、けっこうマメだねぇ🤔","いつだってゆるく生きていこう👊","でじ帖って使いやすい？🤨","いつもお疲れ様だよ🐣","1ヶ月連続で日記書いたらご褒美あるらしいよ...🤫","ヒートマップ全部埋めたらご褒美あるらしいよ...🤫","予定に「誕生日」を設定したら何かが起こるかもよ...🤫","👁️ 👁️(君の動向を把握中...)","ずっと君を監視しているよ❤","いってらっしゃい！🫡","もしかして、忘れてた？😏","健闘を祈る！🫡","予定管理はバッチリだね！","僕も予定の通知を頑張るから、君も頑張って！🥺","加油〜！🔥","君、また会ったね！😉","テーマデザインは12種類あるんだよ！","たまには長文日記も書いてみない？","テンプレは15種類あるんだよ！","本人確認パスコードって覚えてるよね？？","↑そんなに大事な予定なのかい？👀","でじ帖って神アプリだよね！","100日連続で日記書いたらご褒美あるらしいよ...","予定たくさん立てるとご褒美もらえるらしいよ...","今日も生存確認っと...。","はいはいおつかれ〜👋","すっぽかし注意！","通知してくれる僕に感謝してほしいね😕","うへへwwwおつ〜wwwww🤗","おっ、この予定キマってるね😎","大丈夫だ。自信持っていけぇ🌝","✌切り替えピースでいこう✌","無理しすぎないでね🤒","へぇ、僕を置いていくんだ...。👀","なんだ、この予定は楽勝だね！😀","↑あ、なるほどね😅","相変わらず変な予定だねぇ😌","人生は急勾配のロングマラソンだよ🏃","一日一善を心がけてみよう！","北の舞妓さんの他のアプリ使ってみてね！","でじ帖は気に入っていただけましたか？","充実してるねぇ......","実はでじ帖のコードは70万文字もあるんだよ！🔥","コード1万行超のアツさを感じられているかな？🔥","僕の夢は君が書いた日記の文字を浴びることなんだ！🚿","でじ帖は僕以外には誰にも日記見られないんだよ！👀","いつもでじ帖をつかってくれてありがとう✨️","👁️👄👁️(..........................。)","テリマカシ！この予定楽しそうだね！😀","てめぇ、ピザけんな！！！🍕",];
             const randomMsg = getStableNotificationMessage(messages, s.id, today);
             
             const card = document.createElement('div');
@@ -8276,6 +8417,7 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
             .map(t => `<span class="tag-badge">${escapeHTML(t)}</span>`).join('');
 
         
+        charCountEl.classList.remove('schedule-char-count');
         charCountEl.style.display = 'block';
         updateViewerCharCount(item.content);
 
@@ -8286,7 +8428,9 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
         document.getElementById('viewer-tags').innerHTML = '';
         document.getElementById('viewer-images').innerHTML = '';
 
-        charCountEl.style.display = 'none';  
+        charCountEl.classList.add('schedule-char-count');
+        charCountEl.style.display = 'block';
+        charCountEl.textContent = `${countMemoText(item.content || '')}文字`;
 
         document.getElementById('viewer-edit-btn').onclick = () => openEditor('schedule', id);
     }
@@ -12108,7 +12252,9 @@ function countMemoText(htmlContent) {
 
 function updateMemoPlaceholderState(content = document.getElementById('memo-content')) {
     if (!content) return;
-    const hasVisibleContent = (content.textContent || '').trim().length > 0 ||
+    // Enterで作った意図的な空行は、疑似プレースホルダーを隠したままにする。
+    const intentionalBlankLine = content.classList.contains('editor-empty-line');
+    const hasVisibleContent = intentionalBlankLine || (content.textContent || '').trim().length > 0 ||
         !!content.querySelector('img, video, audio, iframe, table, input, .memo-checklist-item');
     content.classList.toggle('memo-content-empty', !hasVisibleContent);
 }
@@ -12304,7 +12450,7 @@ function renderMemoChecklistItems() {
     if (!wrap) return;
     wrap.innerHTML = memoChecklistDraft.map((item, idx) => `
         <div class="memo-checklist-item ${item.done ? 'is-done' : ''}">
-            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="updateMemoChecklistDone(${idx}, this.checked)">
+            <input type="checkbox" ${item.done ? 'checked' : ''} disabled aria-label="閲覧画面でチェックできます">
             <input type="text" value="${escapeHTML(item.text || '')}" placeholder="チェック項目"
                    oninput="updateMemoChecklistText(${idx}, this.value)">
             <button class="memo-checklist-remove" type="button" onclick="removeMemoChecklistItem(${idx})" aria-label="この項目を削除" title="この項目を削除">×</button>
@@ -12335,7 +12481,16 @@ function addMemoChecklistItem() {
 }
 
 function removeMemoChecklistItem(index) {
-    memoChecklistDraft.splice(index,1);
+    memoChecklistDraft.splice(index, 1);
+
+    // 最後の項目が削除されたら、チェックリスト機能自体を解除する
+    if (memoChecklistDraft.length === 0) {
+        const panel = document.getElementById('memo-checklist-panel');
+        const toggle = document.getElementById('memo-checklist-toggle');
+        if (panel) panel.style.display = 'none';
+        if (toggle) toggle.classList.remove('active');
+    }
+
     renderMemoChecklistItems();
 }
 
