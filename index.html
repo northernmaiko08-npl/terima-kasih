@@ -4549,7 +4549,7 @@ body[data-theme="scholar"] #view-viewer {
 </div>
 </div>
 <div id="diary-controls" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-<h3 id="diary-total-count" style="margin:0;">全 0 件</h3>
+<h3 id="diary-total-count" style="margin:0;"> 0 件</h3>
 <select class="kawaii-select" id="diary-sort" onchange="changeDiarySort(this.value)">
 <option value="new">新しい順</option>
 <option value="old">古い順</option>
@@ -4730,7 +4730,7 @@ body[data-theme="scholar"] #view-viewer {
 <div id="selected-day-entries" style="margin-top:1rem;"></div>
 </section>
 <section class="view" id="view-gallery">
-<h3 id="gallery-total-count" style="margin:0 0 12px 0;">全 0 枚のギャラリー</h3>
+<h3 id="gallery-total-count" style="margin:0 0 12px 0;"> 0 枚のギャラリー</h3>
 <div id="gallery-sort-area" style="
         display:flex;
         justify-content:flex-end;
@@ -4761,7 +4761,7 @@ body[data-theme="scholar"] #view-viewer {
 </div>
 </div></section>
 <section class="view" id="view-tags">
-<h3 id="tag-total-count" style="margin:0 0 12px 0;">全 0 件のタグ</h3>
+<h3 id="tag-total-count" style="margin:0 0 12px 0;"> 0 件のタグ</h3>
 <div class="hidden" id="tag-back-area" style="margin-bottom:12px;">
 <button class="btn back-text-btn" aria-label="戻る" title="戻る" onclick="backToTagList()">戻る</button>
 </div>
@@ -10253,7 +10253,7 @@ function renderDiaryList() {
     if (diaries.length === 0) {
         document.getElementById('all-diaries-list').innerHTML =
             '<p style="opacity:0.6; text-align:center; padding:40px 20px;">まだ日記が保存されていません</p>';
-        document.getElementById('diary-total-count').textContent = '全 0 件の日記';
+        document.getElementById('diary-total-count').textContent = ' 0 件の日記';
         if (diaryControls) diaryControls.style.display = 'none';
         if (diaryPaginationArea) diaryPaginationArea.style.display = 'none';
         if (diaryPaginationTopArea) diaryPaginationTopArea.style.display = 'none';
@@ -10301,7 +10301,7 @@ function renderDiaryList() {
         }).join('');
 
     document.getElementById('diary-total-count').textContent =
-    `全 ${filtered.length} 件の日記`;
+    ` ${filtered.length} 件の日記`;
 
 document.getElementById('diary-page-info').innerText =
     `${diaryPage} / ${totalPages}`;
@@ -10792,7 +10792,7 @@ function openEditorWithDate(type, date) {
     if (imgs.length === 0) {
         document.getElementById('gallery-container').innerHTML =
             '<p style="opacity:0.6; text-align:center; padding:40px 20px; grid-column:1 / -1;">まだ写真が保存されていません</p>';
-        document.getElementById('gallery-total-count').textContent = '全 0 枚のギャラリー';
+        document.getElementById('gallery-total-count').textContent = ' 0 枚のギャラリー';
         if (gallerySortArea) gallerySortArea.style.display = 'none';
         if (galleryPaginationArea) galleryPaginationArea.style.display = 'none';
         return;
@@ -10821,7 +10821,7 @@ function openEditorWithDate(type, date) {
             >
         `).join('');
 
-    document.getElementById('gallery-total-count').textContent = `全 ${imgs.length} 枚のギャラリー`;
+    document.getElementById('gallery-total-count').textContent = ` ${imgs.length} 枚のギャラリー`;
     document.getElementById('gallery-page-info').innerText = `${galleryPage} / ${totalPages}`;
 
     updatePaginationButtons('gallery-prev-btn', 'gallery-next-btn', galleryPage, totalPages);
@@ -10942,7 +10942,7 @@ invalidateCaches();
 
      const totalTagCountEl = document.getElementById('tag-total-count');
     if (totalTagCountEl) {
-        totalTagCountEl.textContent = `全 ${Object.keys(tagMap).length} 件のタグ`;
+        totalTagCountEl.textContent = ` ${Object.keys(tagMap).length} 件のタグ`;
     }
 
     const html = Object.keys(tagMap)
@@ -11316,7 +11316,7 @@ function applyExportDiaryFilters(){
    card.classList.toggle('is-search-hidden',!show);
    if(show)visible++;
  });
- if(searchResult)searchResult.textContent=(search||date||activeMoodFilter!==null)?('全 '+visible+' 件の日記'):('全 '+searchableCards.length+' 件の日記');
+ if(searchResult)searchResult.textContent=(search||date||activeMoodFilter!==null)?(' '+visible+' 件の日記'):(' '+searchableCards.length+' 件の日記');
 }
 if(searchInput)searchInput.addEventListener('input',applyExportDiaryFilters);
 if(searchDate)searchDate.addEventListener('change',applyExportDiaryFilters);
