@@ -4031,9 +4031,7 @@ body[data-theme="cosmos"] {
     }
     #view-memos .memo-page-header .memo-back-btn {
         justify-self:start;
-        min-width:0;
-        padding-left:9px;
-        padding-right:9px;
+        /* ボタン本来のサイズ・余白を維持し、配置だけ左端に固定 */
     }
     /* 件数バッジは文字幅のまま中央に配置 */
     #view-memos .memo-page-header #memo-total-count {
@@ -4048,10 +4046,7 @@ body[data-theme="cosmos"] {
     }
     #view-memos .memo-page-header .memo-new-btn {
         justify-self:end;
-        min-width:0;
-        padding-left:9px;
-        padding-right:9px;
-        gap:4px;
+        /* ボタン本来の高さ・左右余白を維持し、配置だけ右端に固定 */
     }
     #view-memos .memo-page-header .memo-new-btn i,
     #view-memos .memo-page-header .memo-new-btn svg {
@@ -4630,9 +4625,7 @@ body[data-theme="scholar"] #view-viewer {
     <div class="memo-page-header">
         <button class="btn memo-back-btn" type="button" onclick="closeMemoPage()" aria-label="戻る" title="戻る">戻る</button>
         <h3 id="memo-total-count" style="margin:0;">メモ 0 件</h3>
-        <button class="btn btn-primary memo-new-btn" type="button" onclick="openMemoEditor()" aria-label="新規作成" title="新規作成">
-            <i data-lucide="plus"></i> 新規作成
-        </button>
+        <button class="btn btn-primary memo-new-btn" type="button" onclick="openMemoEditor()" aria-label="新規作成" title="新規作成">新規作成</button>
     </div>
 
     <div id="memo-list"></div>
