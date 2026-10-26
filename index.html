@@ -2411,9 +2411,18 @@ body[data-theme="cosmos"] {
             border-radius: 25px;
             font-weight: bold;
             cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.16s ease, box-shadow 0.16s ease;
             box-shadow: 0 4px 0 #ff9db0;
             margin-top: 10px;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            user-select: none;
+        }
+
+        .image-pick-btn:active {
+            transform: translateY(5px) scale(0.98);
+            box-shadow: 0 1px 0 #ff9db0;
+            transition-duration: 0.06s;
         }
        .tag-badge {
     display: inline-block;
