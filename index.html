@@ -4842,6 +4842,30 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
   border-radius: inherit !important;
 }
 </style>
+
+<style id="tag-input-straight-underline-high-priority">
+/* タグ入力欄専用の最優先ルール。テーマ別・汎用inputルールより優先させる。 */
+html body.font-standard input#diary-tags,
+html body input#diary-tags,
+html body input#diary-tags:focus,
+html body input#diary-tags:hover,
+html body[data-theme] input#diary-tags,
+html body[data-theme] input#diary-tags:focus,
+html body[data-theme] input#diary-tags:hover {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border: 0 !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  border-right: 0 !important;
+  border-bottom: 2px solid var(--primary-color, currentColor) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+</style>
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -5273,7 +5297,7 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 <div class="setting-row">
 <div class="data-management-description">
 <strong>JSONから復元</strong>
-<div class="data-management-help">既存の「でじ帖」JSONバックアップを選択して、この端末のデータを復元します。</div>
+<div class="data-management-help">既存のJSONバックアップを選択して、この端末のデータを復元します。</div>
 </div>
 <button class="btn btn-primary" onclick="restoreFromAutoBackupPicker()" type="button">データ復元</button>
 <input class="hidden" id="restore-backup-file" accept=".json,application/json" onchange="restoreFromAutoBackup(event)" type="file"/>
@@ -5850,7 +5874,7 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
     0 文字
 </div>
 <div id="diary-only-footer">
-<input id="diary-tags" placeholder="タグ (カンマ[,]区切り)" style="width: 60%; padding: 6px 2px; font-size: 0.8rem; border: none; border-bottom: 1px solid var(--primary-color); border-radius: 0; background: transparent; color: var(--text-color, inherit); margin-top: 10px; outline: none;" type="text"/>
+<span id="diary-tags-underline-wrap" style="display:inline-block; position:relative; width:60%; margin-top:10px; vertical-align:middle;"><input id="diary-tags" placeholder="タグ (カンマ[,]区切り)" style="display:block; box-sizing:border-box; width:100%; padding:6px 2px; font-size:0.8rem; border:0; border-radius:0; background:transparent; color:var(--text-color, inherit); margin:0; outline:none; box-shadow:none;" type="text"/></span>
 <div id="image-upload-zone">
 <p style="font-size:0.8rem; margin-bottom:0;">添付は複数枚可能です
                         </p>
@@ -11822,59 +11846,6 @@ function buildDiaryExportHtml(entries,{title='A Certain Day\'s Memories',include
 }
 </style>
 
-<style id="classic-search-and-tags-input-fix">
-/* 日記検索欄・タグ入力欄だけをClassic基準の下線デザインに統一。テーマの色変数は維持する。 */
-html body[data-theme] #search-input {
-  box-sizing: border-box !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  padding: 10px 2px !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--primary-color) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: var(--text-color, inherit) !important;
-  box-shadow: none !important;
-  outline: none !important;
-  font: inherit !important;
-}
-html body[data-theme] #search-input:focus {
-  border: 0 !important;
-  border-bottom: 1px solid var(--primary-color) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-html body[data-theme] #diary-tags {
-  box-sizing: border-box !important;
-  width: 60% !important;
-  padding: 6px 2px !important;
-  border: 0 !important;
-  border-bottom: 1px solid var(--primary-color) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  color: var(--text-color, inherit) !important;
-  box-shadow: none !important;
-  outline: none !important;
-  font: inherit !important;
-  font-size: .8rem !important;
-}
-html body[data-theme] #diary-tags:focus {
-  border: 0 !important;
-  border-bottom: 1px solid var(--primary-color) !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-html body[data-theme] #search-input::placeholder,
-html body[data-theme] #diary-tags::placeholder {
-  color: var(--text-color, currentColor) !important;
-  opacity: .55 !important;
-}
-</style>
-
 <style id="stats-switch-arrow-remove-and-select-arrow-size-adjust">
 /* 統計グラフの切り替えボタンには矢印を一切表示しない */
 #view-home .card:has(#moodChart) .chart-controls .chart-btn::before,
@@ -11931,6 +11902,28 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
   background-image: none !important;
   background-size: auto !important;
   background-position: initial !important;
+}
+</style>
+
+<style id="memo-checklist-curved-underlines-unified-final">
+/* メモのチェック項目：全状態の下線を曲線・丸みのある形に統一 */
+html body #memo-checklist-items .memo-checklist-item input[type="text"],
+html body #memo-checklist-items .memo-checklist-item input[type="text"]:focus,
+html body #memo-checklist-items .memo-checklist-item input[type="text"]:hover,
+html body #memo-checklist-items .memo-checklist-item.is-done input[type="text"],
+html body #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:focus,
+html body #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:hover {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border: 0 !important;
+  border-bottom: 1px solid var(--primary-color, currentColor) !important;
+  border-radius: 0 0 18px 18px !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+  clip-path: none !important;
 }
 </style>
 </head><body data-theme="${escapeExportHtml(theme)}" class="${font}">${exportBg}<main class="export-page"><header class="export-header"><div class="export-header-brand">DEJICHO · OFFLINE DIARY</div><h1>${escapeExportHtml(title)}</h1><p>書き出し日 ${escapeExportHtml(exportedDate)}</p></header>${exportSearchControls}${cards||'<p style="text-align:center;opacity:.6">日記はありません</p>'}<div class="export-footer">このページは「でじ帖」から書き出されました</div></main><div class="export-lightbox" id="export-lightbox" aria-hidden="true"><button class="export-lb-btn export-lb-prev" id="export-lb-prev" aria-label="前の画像">‹</button><button class="export-lb-btn export-lb-next" id="export-lb-next" aria-label="次の画像">›</button><img id="export-lb-img" class="export-lb-img" src="" alt="拡大画像"></div><script>(function(){
@@ -12183,6 +12176,34 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 }
 </style>
 
+
+<style id="memo-checklist-all-states-straight-underline-override">
+/* 最終上書き：未選択・選択中・完了済み・hover・focus の全状態で、下線を水平な背景線に統一。 */
+html body[data-theme] #memo-checklist-items .memo-checklist-item:not(.is-done) input[type="text"],
+html body[data-theme] #memo-checklist-items .memo-checklist-item:not(.is-done) input[type="text"]:focus,
+html body[data-theme] #memo-checklist-items .memo-checklist-item:not(.is-done) input[type="text"]:hover,
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"],
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:focus,
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:hover,
+html body #memo-checklist-items .memo-checklist-item input[type="text"],
+html body #memo-checklist-items .memo-checklist-item input[type="text"]:focus,
+html body #memo-checklist-items .memo-checklist-item input[type="text"]:hover {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(to right, var(--primary-color, currentColor), var(--primary-color, currentColor)) !important;
+  background-size: 100% 1px !important;
+  background-position: left bottom !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+  clip-path: none !important;
+}
+</style>
 </body></html>`;
 }
 function downloadHtmlFile(html,filename){const blob=new Blob([html],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -12980,7 +13001,7 @@ function renderMemoChecklistItems() {
     if (!wrap) return;
     wrap.innerHTML = memoChecklistDraft.map((item, idx) => `
         <div class="memo-checklist-item ${item.done ? 'is-done' : ''}">
-            <input type="checkbox" ${item.done ? 'checked' : ''} disabled aria-label="閲覧画面でチェックできます">
+            <input type="checkbox" ${item.done ? 'checked' : ''} onchange="updateMemoChecklistDone(${idx}, this.checked)" aria-label="チェック項目を完了にする">
             <input type="text" value="${escapeHTML(item.text || '')}" placeholder="チェック項目"
                    oninput="updateMemoChecklistText(${idx}, this.value)">
             <button class="memo-checklist-remove" type="button" onclick="removeMemoChecklistItem(${idx})" aria-label="この項目を削除" title="この項目を削除">×</button>
@@ -13864,5 +13885,95 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
   background-image: none !important; background-size: auto !important; background-position: initial !important;
 }
 </style>
+<style id="final-three-input-underline-fix">
+/* 最終統一：全テーマの個別 input ルールより優先。テーマ色変数はそのまま使用する。 */
+html body[data-theme] #view-diaries #search-input,
+html body[data-theme] #view-diaries #search-input:focus {
+  -webkit-appearance: none !important; appearance: none !important;
+  box-sizing: border-box !important; width: 100% !important; min-width: 0 !important;
+  border: 0 !important; border-bottom: 2px solid var(--primary-color, currentColor) !important;
+  border-radius: 0 !important; background: transparent !important; background-image: none !important;
+  box-shadow: none !important; outline: none !important; padding: 10px 2px !important;
+  color: var(--text-color, inherit) !important; font: inherit !important;
+}
+html body[data-theme] #diary-tags,
+html body[data-theme] #diary-tags:focus {
+  -webkit-appearance: none !important; appearance: none !important;
+  box-sizing: border-box !important; width: 60% !important; min-width: 0 !important;
+  border: 0 !important; border-bottom: 1px solid var(--primary-color, currentColor) !important;
+  border-radius: 0 !important; background: transparent !important; background-image: none !important;
+  box-shadow: none !important; outline: none !important; padding: 6px 2px !important;
+  color: var(--text-color, inherit) !important; font-size: .8rem !important;
+}
+html body[data-theme] #memo-checklist-items .memo-checklist-item input[type="text"],
+html body[data-theme] #memo-checklist-items .memo-checklist-item input[type="text"]:focus,
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"],
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:focus {
+  -webkit-appearance: none !important; appearance: none !important;
+  box-sizing: border-box !important; display: block !important; flex: 1 1 0% !important;
+  width: 0 !important; min-width: 0 !important; height: 42px !important; min-height: 42px !important;
+  margin: 0 !important; padding: 10px 2px 8px !important; line-height: 1.45 !important;
+  border: 0 !important; border-bottom: 2px solid var(--primary-color, currentColor) !important;
+  border-radius: 0 !important; background: transparent !important; background-image: none !important;
+  box-shadow: none !important; outline: none !important; color: var(--text-color, inherit) !important;
+  transform: none !important; clip-path: none !important; opacity: 1 !important;
+}
+html body[data-theme] #memo-checklist-items .memo-checklist-item,
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done { align-items: center !important; }
+html body[data-theme] #memo-checklist-items .memo-checklist-item input[type="text"]::placeholder,
+html body[data-theme] #view-diaries #search-input::placeholder,
+html body[data-theme] #diary-tags::placeholder { color: var(--text-color, currentColor) !important; opacity: .55 !important; }
+</style>
+
+<style id="diary-tags-independent-straight-line">
+/* タグ欄の下線はinputのborderではなく、親要素の疑似要素で水平線として描画する。 */
+html body #diary-tags-underline-wrap {
+  display: inline-block !important; position: relative !important; width: 60% !important;
+  margin-top: 10px !important; vertical-align: middle !important; padding: 0 !important;
+  border: 0 !important; border-radius: 0 !important; background: transparent !important;
+  box-shadow: none !important; transform: none !important; clip-path: none !important;
+}
+html body #diary-tags-underline-wrap::after {
+  content: "" !important; position: absolute !important; left: 0 !important; right: 0 !important;
+  bottom: 0 !important; display: block !important; height: 1px !important;
+  border: 0 !important; border-radius: 0 !important; background: var(--primary-color, currentColor) !important;
+  box-shadow: none !important; transform: none !important; clip-path: none !important; pointer-events: none !important;
+}
+html body #diary-tags-underline-wrap > input#diary-tags,
+html body #diary-tags-underline-wrap > input#diary-tags:focus,
+html body #diary-tags-underline-wrap > input#diary-tags:hover {
+  display: block !important; box-sizing: border-box !important; width: 100% !important; min-width: 0 !important;
+  margin: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important;
+  background-image: none !important; box-shadow: none !important; outline: none !important;
+  transform: none !important; clip-path: none !important;
+}
+</style>
+
+<style id="memo-checklist-independent-straight-underlines-final">
+/* メモのチェック項目：border-bottomを使わず、背景の水平線で下線を描画する。 */
+html body #memo-checklist-items .memo-checklist-item input[type="text"],
+html body #memo-checklist-items .memo-checklist-item input[type="text"]:focus,
+html body #memo-checklist-items .memo-checklist-item input[type="text"]:hover,
+html body #memo-checklist-items .memo-checklist-item.is-done input[type="text"],
+html body #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:focus,
+html body #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:hover {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(to right, var(--primary-color, currentColor), var(--primary-color, currentColor)) !important;
+  background-size: 100% 1px !important;
+  background-position: left bottom !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+  clip-path: none !important;
+}
+</style>
 </body>
+
+
 </html>
