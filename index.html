@@ -3785,6 +3785,11 @@ html body #view-editor #diary-content.diary-content-empty::before {
     overflow-wrap: anywhere !important;
     word-break: normal !important;
 }
+#viewer-content a.hashtag-link {
+    color: #06c !important;
+    text-decoration: underline !important;
+    cursor: pointer;
+}
 </style>
 
 
@@ -6099,7 +6104,12 @@ if (config.hasUnlockedMaster) {
             delete backupConfig.encryptedAuthBackup;
             delete backupConfig.backupFileHandle;
             delete backupConfig.backupDirectoryHandle;
-            return { version: 2, exportedAt: new Date().toISOString(), diaries: Array.isArray(diaries) ? diaries : [], schedules: Array.isArray(schedules) ? schedules : [], memos: Array.isArray(memos) ? memos : [], config: backupConfig, encryptedAuth: encryptedAuth || null };
+            const backupDiaries = (Array.isArray(diaries) ? diaries : []).map(diary => {
+                const cleanDiary = { ...diary };
+                delete cleanDiary.searchText;
+                return cleanDiary;
+            });
+            return { version: 2, exportedAt: new Date().toISOString(), diaries: backupDiaries, schedules: Array.isArray(schedules) ? schedules : [], memos: Array.isArray(memos) ? memos : [], config: backupConfig, encryptedAuth: encryptedAuth || null };
         }
         function formatAutoBackupTime(timestamp) {
             if (!timestamp) return '—';
@@ -6483,8 +6493,8 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         const txS=db.transaction('schedules','readwrite');await txS.objectStore('schedules').clear();
         const txM=db.transaction('memos','readwrite');await txM.objectStore('memos').clear();
 
-        diaries=imported.diaries||[];
-        for(const d of diaries){d.searchText=(d.title+(d.tags||[]).join(' ')).toLowerCase();await saveDataToDB('diaries',d);}
+        diaries=Array.isArray(imported.diaries)?imported.diaries:[];
+        for(const d of diaries){delete d.searchText;await saveDataToDB('diaries',d);}
         schedules=imported.schedules||[];
         for(const x of schedules)await saveDataToDB('schedules',x);
         memos=Array.isArray(imported.memos)?imported.memos:[];
@@ -6935,11 +6945,24 @@ async function loadData() {
     diaries = await getAllFromDB('diaries');
     schedules = await getAllFromDB('schedules');
     memos = await getAllFromDB('memos');
-   for (let d of diaries) {
-        if (!d.lastViewed) {
-            d.lastViewed = d.updatedAt || new Date(d.date).getTime();
-        }
-    }
+   const previousMigrationWriteState = autoBackupInternalWrite;
+   autoBackupInternalWrite = true;
+   try {
+       for (let d of diaries) {
+            let needsSave = false;
+            if (Object.prototype.hasOwnProperty.call(d, 'searchText')) {
+                delete d.searchText;
+                needsSave = true;
+            }
+            if (!d.lastViewed) {
+                d.lastViewed = d.updatedAt || new Date(d.date).getTime();
+            }
+            // 旧版で保存されていた検索用データをIndexedDBからも削除する。
+            if (needsSave) await saveDataToDB('diaries', d);
+       }
+   } finally {
+       autoBackupInternalWrite = previousMigrationWriteState;
+   }
     const storedConfig = await getFromDB('config', 'main');
     if (storedConfig) { 
         delete storedConfig.key; 
@@ -7266,7 +7289,27 @@ function checkNewYearFireworks() {
 }
 
 window.onload = async () => {
-    await initDB();
+    try {
+        await initDB();
+    } catch (dbOpenError) {
+        console.error('IndexedDBを開けませんでした。データベースは自動削除していません。', dbOpenError);
+        const message = document.createElement('div');
+        message.id = 'indexeddb-open-recovery';
+        message.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;padding:22px;box-sizing:border-box;';
+        message.innerHTML = `
+            <section style="width:min(100%,520px);background:var(--card-bg,#fff);color:var(--text-color,#222);border-radius:18px;padding:24px;box-sizing:border-box;box-shadow:0 12px 40px rgba(0,0,0,.3);">
+                <h2 style="margin:0 0 12px;font-size:1.25rem;">保存データを開けません</h2>
+                <p style="line-height:1.7;">ブラウザが日記の保存領域（IndexedDB）を開けませんでした。日記データを守るため、データベースの削除や初期化は行っていません。</p>
+                <p style="line-height:1.7;">このHTMLをAndroidのファイルアプリ経由（content://）で開いている場合は、でじ帖のHTTPS版をChromeで開いてください。ローカル版を使い続ける場合は、Chromeを完全に終了して再起動してから再試行してください。</p>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;">
+                    <button id="indexeddb-retry-open" type="button" style="border:0;border-radius:10px;padding:12px 16px;cursor:pointer;">もう一度試す</button>
+                    <a href="https://northernmaiko08-npl.github.io/terima-kasih/" style="display:inline-flex;align-items:center;border-radius:10px;padding:12px 16px;text-decoration:none;background:#e8e8e8;color:#222;">HTTPS版を開く</a>
+                </div>
+            </section>`;
+        document.body.appendChild(message);
+        document.getElementById('indexeddb-retry-open').addEventListener('click', () => location.reload());
+        return;
+    }
     await protectStorage();
     await checkStorageHealth();
     await updateStorageProtectionStatus();
@@ -8193,9 +8236,8 @@ if (document.getElementById('view-tags').classList.contains('active') && current
             if (activeMoodFilter !== null && d.mood !== activeMoodFilter) return false;
 
             if (search) {
-                const targetText = normalizeSearchText(d.searchText ||
-                    (d.title + " " + (d.tags || []).join(" ")));
-                return targetText.includes(search);
+                // 一覧と同じく、タイトル・タグ・本文を日記データから直接検索する。
+                return getDiarySearchableText(d).includes(search);
             }
             return true;
         });
@@ -8234,26 +8276,21 @@ if (document.getElementById('view-tags').classList.contains('active') && current
     }
 }
        function linkifyViewerContent(html) {
-    
-    
     const wrapper = document.createElement('div');
     wrapper.innerHTML = html || '';
 
-    const walker = document.createTreeWalker(
-        wrapper,
-        NodeFilter.SHOW_TEXT,
-        {
-            acceptNode(node) {
-                const parent = node.parentElement;
-                if (!parent || parent.closest('a, script, style')) {
-                    return NodeFilter.FILTER_REJECT;
-                }
-                return /https:\/\/[^\s<>"']+/i.test(node.nodeValue || '')
-                    ? NodeFilter.FILTER_ACCEPT
-                    : NodeFilter.FILTER_REJECT;
+    // URL と #キーワードを、既存リンクやコード領域を壊さずにリンク化する。
+    const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            const parent = node.parentElement;
+            if (!parent || parent.closest('a, script, style, code, textarea')) {
+                return NodeFilter.FILTER_REJECT;
             }
+            return /https:\/\/[^\s<>"']+|#[\p{L}\p{N}_-]+/u.test(node.nodeValue || '')
+                ? NodeFilter.FILTER_ACCEPT
+                : NodeFilter.FILTER_REJECT;
         }
-    );
+    });
 
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -8261,50 +8298,54 @@ if (document.getElementById('view-tags').classList.contains('active') && current
     nodes.forEach(node => {
         const text = node.nodeValue || '';
         const fragment = document.createDocumentFragment();
+        const regex = /https:\/\/[^\s<>"']+|#[\p{L}\p{N}_-]+/gu;
         let lastIndex = 0;
-        const regex = /https:\/\/[^\s<>"']+/gi;
         let match;
 
         while ((match = regex.exec(text)) !== null) {
-            let url = match[0];
+            let token = match[0];
             let trailing = '';
+            const isUrl = /^https:\/\//i.test(token);
 
-            // 文末の句読点などはURLに含めない。
-            while (/[.,!?;:，．、。！？；：)\]}〉》」』】）］]$/.test(url)) {
-                trailing = url.slice(-1) + trailing;
-                url = url.slice(0, -1);
+            if (isUrl) {
+                // URL末尾の句読点などはリンクに含めない。
+                while (/[.,!?;:，．、。！？；：)\]}〉》」』】）］]$/.test(token)) {
+                    trailing = token.slice(-1) + trailing;
+                    token = token.slice(0, -1);
+                }
             }
-
-            if (!url) continue;
+            if (!token) continue;
 
             if (match.index > lastIndex) {
-                fragment.appendChild(
-                    document.createTextNode(text.slice(lastIndex, match.index))
-                );
+                fragment.appendChild(document.createTextNode(text.slice(lastIndex, match.index)));
             }
 
             const link = document.createElement('a');
-            link.className = 'auto-link';
-            link.href = url;
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            link.textContent = url;
-            fragment.appendChild(link);
-
-            if (trailing) {
-                fragment.appendChild(document.createTextNode(trailing));
+            if (isUrl) {
+                link.className = 'auto-link';
+                link.href = token;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = token;
+            } else {
+                const keyword = token.slice(1);
+                link.className = 'hashtag-link';
+                // アプリ内検索ではなく、ブラウザで検索エンジンの検索結果を開く。
+                link.href = `https://www.google.com/search?q=${encodeURIComponent(keyword)}`;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = token;
+                link.setAttribute('aria-label', `${keyword}を検索エンジンで検索`);
             }
-
+            fragment.appendChild(link);
+            if (trailing) fragment.appendChild(document.createTextNode(trailing));
             lastIndex = match.index + match[0].length;
         }
 
         if (lastIndex < text.length) {
             fragment.appendChild(document.createTextNode(text.slice(lastIndex)));
         }
-
-        if (fragment.childNodes.length) {
-            node.parentNode.replaceChild(fragment, node);
-        }
+        if (fragment.childNodes.length) node.parentNode.replaceChild(fragment, node);
     });
 
     return wrapper.innerHTML;
@@ -9734,8 +9775,7 @@ async function saveDiaryInternal() {
             mood: selectedMood, 
             images: tempImages, 
             bookmarked: existingDiary ? !!existingDiary.bookmarked : false,
-            updatedAt: Date.now(), 
-            searchText: (title + (tags ? tags.join(' ') : '')).toLowerCase()
+            updatedAt: Date.now()
         };
 
         const diarySaved = await saveDiaryToDBWithUniqueDate(entry, currentEditingId);
@@ -10493,6 +10533,26 @@ function normalizeSearchText(value) {
         .trim();
 }
 
+// 保存済みの検索用文字列は使わず、日記本文のHTMLから表示テキストを取り出して検索する。
+function diaryContentToSearchText(value) {
+    const source = String(value ?? '')
+        .replace(/<\s*br\s*\/?\s*>/gi, ' ')
+        .replace(/<\s*\/(?:div|p|li|blockquote|h[1-6]|tr)\s*>/gi, ' ')
+        .replace(/<\s*(?:div|p|li|blockquote|h[1-6]|tr)(?:\s[^>]*)?>/gi, ' ')
+        .replace(/<[^>]*>/g, ' ');
+    const decoder = document.createElement('textarea');
+    decoder.innerHTML = source;
+    return decoder.value;
+}
+
+function getDiarySearchableText(diary) {
+    return normalizeSearchText([
+        diary?.title ?? '',
+        Array.isArray(diary?.tags) ? diary.tags.join(' ') : '',
+        diaryContentToSearchText(diary?.content ?? '')
+    ].join(' '));
+}
+
 function escapeHTML(value) {
     return String(value ?? '')
         .replace(/&/g, '&amp;')
@@ -10523,11 +10583,8 @@ function renderDiaryList() {
         if (activeMoodFilter !== null && d.mood !== activeMoodFilter) return false;
 
         if (search) {
-            const targetText = normalizeSearchText(
-                d.searchText ||
-                (String(d.title ?? '') + " " + (Array.isArray(d.tags) ? d.tags.join(" ") : ''))
-            );
-            return targetText.includes(search);
+            // タイトル・タグ・本文を、保存済み検索用データではなく日記データから直接検索する。
+            return getDiarySearchableText(d).includes(search);
         }
         return true;
     });
@@ -11534,10 +11591,9 @@ function buildDiaryExportCard(entry){
  const moods=['','😭','😡','😐','😊','🤩'],mood=moods[entry.mood]||'';
  const tagsArray=Array.isArray(entry.tags)?entry.tags:[];
  const tags=tagsArray.map(t=>`<span class="export-tag">${escapeExportHtml(t)}</span>`).join('');
- const searchText=normalizeExportSearchText(String(entry.searchText||((entry.title||'')+' '+tagsArray.join(' '))));
  const imgs=entry.images||[];
  const images=imgs.map((src,i)=>`<figure class="export-photo" data-photo-index="${i}"><img src="${String(src)}" alt="日記の写真 ${i+1}" loading="lazy"><figcaption>${i+1}</figcaption></figure>`).join('');
- return `<article class="export-diary-card export-searchable-card" data-search-text="${escapeExportHtml(searchText)}" data-search-date="${escapeExportHtml(entry.date||'')}" data-sort-viewed="${Number(entry.lastViewed)||0}" data-search-mood="${Number(entry.mood)||0}"><div class="export-card-top"><div class="export-date">${escapeExportHtml(entry.date||'')}</div><div class="export-mood" aria-label="感情">${mood}</div></div><div class="export-heading"><h2 class="export-title">${escapeExportHtml(entry.title||'無題')}</h2>${tags?`<div class="export-tags">${tags}</div>`:''}</div><div class="export-content">${linkifyViewerContent(entry.content||'')}</div>${images?`<div class="export-photo-album count-${Math.min(imgs.length,9)}">${images}</div>`:''}</article>`;
+ return `<article class="export-diary-card export-searchable-card" data-search-date="${escapeExportHtml(entry.date||'')}" data-sort-viewed="${Number(entry.lastViewed)||0}" data-search-mood="${Number(entry.mood)||0}"><div class="export-card-top"><div class="export-date">${escapeExportHtml(entry.date||'')}</div><div class="export-mood" aria-label="感情">${mood}</div></div><div class="export-heading"><h2 class="export-title">${escapeExportHtml(entry.title||'無題')}</h2>${tags?`<div class="export-tags">${tags}</div>`:''}</div><div class="export-content">${linkifyViewerContent(entry.content||'')}</div>${images?`<div class="export-photo-album count-${Math.min(imgs.length,9)}">${images}</div>`:''}</article>`;
 }
 function normalizeExportSearchText(value){
  return String(value??'')
@@ -11608,7 +11664,12 @@ function applyExportDiaryFilters(){
  const date=searchDate?searchDate.value:'';
  let visible=0;
  searchableCards.forEach(card=>{
-   const matchesSearch=!search||normalizeExportSearchText(card.dataset.searchText||'').includes(search);
+   const searchableText = [
+     card.querySelector('.export-title')?.textContent || '',
+     card.querySelector('.export-tags')?.textContent || '',
+     card.querySelector('.export-content')?.textContent || ''
+   ].join(' ');
+   const matchesSearch=!search||normalizeExportSearchText(searchableText).includes(search);
    const matchesDate=!date||card.dataset.searchDate.startsWith(date);
    const cardMood=Number(card.dataset.searchMood||0);
    const matchesMood=activeMoodFilter===null||cardMood===activeMoodFilter;
@@ -11724,7 +11785,8 @@ async function exportData(){
    delete backupConfig.encryptedAuthBackup;
    delete backupConfig.manualBackupKey;
    delete backupConfig.manualBackupKeyWrap;
-   const payload={version:2,exportedAt:new Date().toISOString(),diaries,schedules,memos,config:backupConfig,encryptedAuth:config.encryptedAuthBackup||null};
+   const backupDiaries=diaries.map(diary=>{const cleanDiary={...diary};delete cleanDiary.searchText;return cleanDiary;});
+   const payload={version:2,exportedAt:new Date().toISOString(),diaries:backupDiaries,schedules,memos,config:backupConfig,encryptedAuth:config.encryptedAuthBackup||null};
    const envelope=await encryptBackupWithLocalKey(payload);
    const blob=new Blob([JSON.stringify(envelope)],{type:'application/json'});
    const a=document.createElement('a'),dateStr=getLocalDateString(new Date());
