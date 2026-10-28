@@ -4866,6 +4866,49 @@ html body[data-theme] input#diary-tags:hover {
   outline: 0 !important;
 }
 </style>
+
+<style id="auth-fields-hard-straight-underline">
+/* 認証・本人確認・合言葉・ヒント入力欄：実ページ側に適用し、下辺を直線で描画 */
+html body #lock-screen #pass-input,
+html body #lock-screen #recovery-fix-pass,
+html body #lock-screen #recovery-keyword,
+html body #recovery-setup-ui #setup-fix-pass,
+html body #recovery-setup-ui #setup-keyword,
+html body #recovery-setup-ui #setup-hint,
+html body #lock-screen #pass-input:hover,
+html body #lock-screen #recovery-fix-pass:hover,
+html body #lock-screen #recovery-keyword:hover,
+html body #recovery-setup-ui #setup-fix-pass:hover,
+html body #recovery-setup-ui #setup-keyword:hover,
+html body #recovery-setup-ui #setup-hint:hover,
+html body #lock-screen #pass-input:focus,
+html body #lock-screen #recovery-fix-pass:focus,
+html body #lock-screen #recovery-keyword:focus,
+html body #recovery-setup-ui #setup-fix-pass:focus,
+html body #recovery-setup-ui #setup-keyword:focus,
+html body #recovery-setup-ui #setup-hint:focus,
+html body #lock-screen #pass-input:focus-visible,
+html body #lock-screen #recovery-fix-pass:focus-visible,
+html body #lock-screen #recovery-keyword:focus-visible,
+html body #recovery-setup-ui #setup-fix-pass:focus-visible,
+html body #recovery-setup-ui #setup-keyword:focus-visible,
+html body #recovery-setup-ui #setup-hint:focus-visible {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  border-bottom: 0 !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(to right, var(--primary-color, #888), var(--primary-color, #888)) !important;
+  background-repeat: no-repeat !important;
+  background-position: left bottom !important;
+  background-size: 100% 1px !important;
+  box-shadow: none !important;
+  outline: none !important;
+  clip-path: none !important;
+  transform: none !important;
+}
+</style>
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -12204,6 +12247,61 @@ html body #memo-checklist-items .memo-checklist-item input[type="text"]:hover {
   clip-path: none !important;
 }
 </style>
+
+<style id="auth-inputs-straight-underline-match">
+/* 初期パスコード・本人確認パスコード・合言葉・ヒント欄の下線を直線に統一 */
+html body #pass-input,
+html body #recovery-fix-pass,
+html body #recovery-keyword,
+html body #setup-fix-pass,
+html body #setup-keyword,
+html body #setup-hint {
+  border: 0 !important;
+  border-bottom: 1px solid var(--primary-color, #888) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background-image: none !important;
+}
+html body #pass-input:focus,
+html body #recovery-fix-pass:focus,
+html body #recovery-keyword:focus,
+html body #setup-fix-pass:focus,
+html body #setup-keyword:focus,
+html body #setup-hint:focus,
+html body #pass-input:focus-visible,
+html body #recovery-fix-pass:focus-visible,
+html body #recovery-keyword:focus-visible,
+html body #setup-fix-pass:focus-visible,
+html body #setup-keyword:focus-visible,
+html body #setup-hint:focus-visible {
+  border: 0 !important;
+  border-bottom: 1px solid var(--primary-color, #888) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+</style>
+
+
+<style id="restore-first-passcode-screen-input-original-underline">
+/* 最初のパスコード照合画面だけ、入力欄を元の枠線デザインに戻す。他の認証入力欄は直線下線のまま維持。 */
+html body #lock-screen #pass-input,
+html body #lock-screen #pass-input:hover,
+html body #lock-screen #pass-input:focus,
+html body #lock-screen #pass-input:focus-visible {
+  -webkit-appearance: auto !important;
+  appearance: auto !important;
+  border: 2px solid var(--primary-color) !important;
+  border-radius: 8px !important;
+  background-color: var(--card-bg) !important;
+  background-image: none !important;
+  color: var(--text-color) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+</style>
+
 </body></html>`;
 }
 function downloadHtmlFile(html,filename){const blob=new Blob([html],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
@@ -14004,6 +14102,26 @@ html body[data-theme] #view-editor #diary-date-input:active {
   outline-offset: 0 !important;
 }
 </style>
+
+
+<style id="restore-first-passcode-screen-input-original-underline">
+/* 最初のパスコード照合画面だけ、入力欄を元の枠線デザインに戻す。他の認証入力欄は直線下線のまま維持。 */
+html body #lock-screen #pass-input,
+html body #lock-screen #pass-input:hover,
+html body #lock-screen #pass-input:focus,
+html body #lock-screen #pass-input:focus-visible {
+  -webkit-appearance: auto !important;
+  appearance: auto !important;
+  border: 2px solid var(--primary-color) !important;
+  border-radius: 8px !important;
+  background-color: var(--card-bg) !important;
+  background-image: none !important;
+  color: var(--text-color) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+</style>
+
 </body>
 
 
