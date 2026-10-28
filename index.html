@@ -13973,7 +13973,262 @@ html body #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:
   clip-path: none !important;
 }
 </style>
+
+
+<style id="editor-date-select-match-stats-period">
+/* 日記・予定の編集画面の日付選択を、統計グラフの期間選択と同じ輪郭・配色・質感に統一。ネイティブのカレンダー操作は維持。 */
+html body[data-theme] #view-editor #diary-date-input {
+  box-sizing: border-box !important;
+  padding: 4px 8px !important;
+  border: 1px solid color-mix(in srgb, var(--primary-color, #777) 58%, transparent) !important;
+  border-radius: 8px !important;
+  background-color: var(--card-bg, #fff) !important;
+  color: var(--text-color, inherit) !important;
+  font: inherit !important;
+  font-weight: bold !important;
+  box-shadow: none !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+  transition: none !important;
+}
+html body[data-theme] #view-editor #diary-date-input:hover,
+html body[data-theme] #view-editor #diary-date-input:focus,
+html body[data-theme] #view-editor #diary-date-input:focus-visible,
+html body[data-theme] #view-editor #diary-date-input:active {
+  border: 1px solid color-mix(in srgb, var(--primary-color, #777) 58%, transparent) !important;
+  border-radius: 8px !important;
+  background-color: var(--card-bg, #fff) !important;
+  color: var(--text-color, inherit) !important;
+  box-shadow: none !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+</style>
 </body>
 
 
 </html>
+
+
+<style id="stats-period-select-polished-design">
+/* 統計グラフの期間選択：サイズ・余白・配置は維持し、見た目だけを上品に調整 */
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select {
+  box-sizing: border-box !important;
+  color: var(--text-color, inherit) !important;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--primary-color, #777) 7%, var(--card-bg, #fff)),
+    var(--card-bg, #fff)
+  ) !important;
+  border: 1px solid color-mix(in srgb, var(--primary-color, #777) 30%, transparent) !important;
+  border-radius: 10px !important;
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.045),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.015em !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-image: none !important;
+  transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:hover {
+  border-color: color-mix(in srgb, var(--primary-color, #777) 58%, transparent) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.07) !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--primary-color, #777) 55%, transparent) !important;
+  outline-offset: 2px !important;
+}
+</style>
+
+
+<style id="stats-period-subtle-down-arrow">
+/* 統計グラフの期間選択バー：サイズを変えず、右端に控えめな下向きマークを重ねる */
+html body #view-home .card:has(#moodChart) .stats-chart-period {
+  position: relative !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period::after {
+  content: "⌄" !important;
+  display: block !important;
+  position: absolute !important;
+  right: 7px !important;
+  top: 50% !important;
+  transform: translateY(-58%) !important;
+  color: var(--primary-color, currentColor) !important;
+  opacity: 0.72 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  pointer-events: none !important;
+  background: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+</style>
+
+
+<style id="stats-period-arrow-refined-with-reserved-space">
+/* 統計グラフの期間選択：右側に専用スペースを確保し、細いシェブロンを上品に表示 */
+html body #view-home .card:has(#moodChart) .stats-chart-period {
+  position: relative !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select {
+  padding-right: 34px !important;
+  background-image: none !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period::before {
+  content: "" !important;
+  position: absolute !important;
+  right: 5px !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 7px !important;
+  background: color-mix(in srgb, var(--primary-color, #777) 9%, transparent) !important;
+  pointer-events: none !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period::after {
+  content: "" !important;
+  position: absolute !important;
+  right: 13px !important;
+  top: calc(50% - 3px) !important;
+  width: 6px !important;
+  height: 6px !important;
+  border-right: 1.8px solid var(--primary-color, currentColor) !important;
+  border-bottom: 1.8px solid var(--primary-color, currentColor) !important;
+  border-radius: 0 0 1px 0 !important;
+  transform: rotate(45deg) !important;
+  opacity: .82 !important;
+  pointer-events: none !important;
+  background: none !important;
+}
+</style>
+
+
+<style id="stats-period-hover-focus-always-visible">
+/* 統計グラフの期間選択：ホバー時・フォーカス時の強調を常時表示 */
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select {
+  border-color: color-mix(in srgb, var(--primary-color, #777) 58%, transparent) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.07) !important;
+  outline: 2px solid color-mix(in srgb, var(--primary-color, #777) 35%, transparent) !important;
+  outline-offset: 2px !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:hover,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus-visible {
+  border-color: color-mix(in srgb, var(--primary-color, #777) 58%, transparent) !important;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.07) !important;
+  outline: 2px solid color-mix(in srgb, var(--primary-color, #777) 35%, transparent) !important;
+  outline-offset: 2px !important;
+}
+</style>
+
+
+<style id="stats-period-no-shadow-smaller-arrow">
+/* 期間選択：影を取り除き、矢印をひと回り小さくする */
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:hover,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus-visible {
+  box-shadow: none !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  right: 14px !important;
+  top: calc(50% - 2px) !important;
+  width: 4px !important;
+  height: 4px !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  border-right: 1.4px solid var(--primary-color, currentColor) !important;
+  border-bottom: 1.4px solid var(--primary-color, currentColor) !important;
+  border-radius: 0 0 1px 0 !important;
+  transform: rotate(45deg) !important;
+  opacity: .82 !important;
+  pointer-events: none !important;
+  background: none !important;
+}
+</style>
+
+
+<style id="stats-period-compact-arrow-space">
+/* 小さくした矢印に合わせ、右側の予約スペースも縮小 */
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select {
+  padding-right: 26px !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period::before {
+  right: 5px !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 5px !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period::after {
+  right: 10px !important;
+  top: calc(50% - 2px) !important;
+  width: 4px !important;
+  height: 4px !important;
+}
+</style>
+
+
+<style id="stats-period-tighter-space-no-focus">
+/* 期間選択：矢印用の右余白をさらに縮小し、常時表示のフォーカス輪郭を解除 */
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:hover,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus-visible {
+  padding-right: 18px !important;
+  box-shadow: none !important;
+  outline: none !important;
+  outline-offset: 0 !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select:focus-visible {
+  border-color: revert !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period::before {
+  right: 3px !important;
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 4px !important;
+}
+html body #view-home .card:has(#moodChart) .stats-chart-period::after {
+  right: 8px !important;
+  top: calc(50% - 2px) !important;
+  width: 4px !important;
+  height: 4px !important;
+}
+</style>
+
+
+<style id="memo-checklist-force-straight-underline-all-states">
+/* メモのチェック項目：全テーマ・通常/ホバー/フォーカス・完了状態で、曲線になり得る枠線を除去して水平線のみ表示 */
+html body[data-theme] #memo-checklist-items .memo-checklist-item input[type="text"],
+html body[data-theme] #memo-checklist-items .memo-checklist-item input[type="text"]:hover,
+html body[data-theme] #memo-checklist-items .memo-checklist-item input[type="text"]:focus,
+html body[data-theme] #memo-checklist-items .memo-checklist-item input[type="text"]:focus-visible,
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"],
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:hover,
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:focus,
+html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[type="text"]:focus-visible {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border: 0 !important;
+  border-bottom: 0 !important;
+  border-radius: 0 !important;
+  background-color: transparent !important;
+  background-image: linear-gradient(to right, var(--primary-color, currentColor), var(--primary-color, currentColor)) !important;
+  background-size: 100% 1px !important;
+  background-position: left bottom !important;
+  background-repeat: no-repeat !important;
+  box-shadow: none !important;
+  outline: none !important;
+  transform: none !important;
+  clip-path: none !important;
+}
+</style>
