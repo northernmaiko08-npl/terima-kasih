@@ -4867,6 +4867,17 @@ html body[data-theme] input#diary-tags:hover {
 }
 </style>
 
+<style id="auth-input-text-size">
+/* 拡大対象は本人確認パスコード・合言葉・設定時のヒント欄のみ。起動時パスコード欄は変更しない */
+html body #lock-screen #recovery-fix-pass,
+html body #lock-screen #recovery-keyword,
+html body #recovery-setup-ui #setup-fix-pass,
+html body #recovery-setup-ui #setup-keyword,
+html body #recovery-setup-ui #setup-hint {
+  font-size: 1rem !important;
+}
+</style>
+
 <style id="auth-fields-hard-straight-underline">
 /* 認証・本人確認・合言葉・ヒント入力欄：実ページ側に適用し、下辺を直線で描画 */
 html body #lock-screen #pass-input,
@@ -5788,7 +5799,7 @@ html body #recovery-setup-ui #setup-hint:focus-visible {
 </div>
 </div></details>
 <p style="text-align: center; margin-top: 2rem; opacity: 0.6;">
-                ver 3.4.2 © 2026 でじ帖プロジェクト
+                ver 3.4.8 © 2026 でじ帖プロジェクト
             <br/>Developed by northern maiko (北の舞妓さん)
             </p>
 </div>
