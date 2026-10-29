@@ -4920,6 +4920,17 @@ html body #recovery-setup-ui #setup-hint:focus-visible {
   transform: none !important;
 }
 </style>
+
+<style id="stats-period-dropdown-options-black-text">
+/* ダーク・夜空テーマでも、統計グラフの期間選択を開いた選択肢は黒文字に固定 */
+html body[data-theme="dark"] #view-home #stats-period-select option,
+html body[data-theme="night"] #view-home #stats-period-select option,
+html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-period-select option {
+  color: #000000 !important;
+  -webkit-text-fill-color: #000000 !important;
+  background-color: #ffffff !important;
+}
+</style>
 </head>
 <body class="font-standard">
 <div id="lock-screen">
