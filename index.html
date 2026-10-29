@@ -8415,6 +8415,11 @@ if (diaries.length === 0 && schedules.length === 0) {
     }
 
 
+// 初期設定のフェードアウト処理などで通知エリアに opacity:0 が残っていても、
+// 予定通知を表示するときは必ず可視状態へ戻す。透明でもクリックだけできる症状を防ぐ。
+area.style.opacity = '1';
+area.style.transform = 'translateY(0)';
+area.style.transition = '';
 area.style.display = 'block';
 
     // データに同一IDが重複していても、同じ予定の通知カードを一つだけ描画する。
@@ -10141,10 +10146,20 @@ async function saveDiaryInternal() {
         }
     }
 
+    // 予定を保存した直後は、ホーム画面の一覧を「これからの予定」に切り替える。
+    // 初期設定が「最近の日記」のままだと、保存・再描画が成功していても
+    // 新しい予定がホーム画面に表示されていないように見えるため。
+    config.homeListMode = 'schedule';
+    homeDisplayMode = 'schedule';
+    await saveConfig();
+
     invalidateCaches();
 
     if (document.getElementById('view-home').classList.contains('active')) {
         renderDashboard();
+        // renderDashboard 内の描画タイミングに依存せず、予定一覧を明示的に更新する。
+        switchHomeList('schedule');
+        renderSchedules();
     } else {
         renderAll();
     }
