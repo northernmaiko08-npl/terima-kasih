@@ -8228,21 +8228,25 @@ function openEditor(type = 'diary', id = null) {
     updateDiaryPlaceholderState(contentDiv);
     updateImagePreviews(); 
 
-    setTimeout(() => {
-        const contentArea = document.getElementById('diary-content');
-        if (contentArea) {
-            updateCharCount(); 
-            
-            contentArea.removeEventListener('input', updateCharCount);
-            contentArea.addEventListener('input', updateCharCount);
-            
-            contentArea.removeEventListener('paste', updateCharCount);
-            contentArea.addEventListener('paste', () => setTimeout(updateCharCount, 10));
-            
-            contentArea.removeEventListener('keyup', updateCharCount);
-            contentArea.addEventListener('keyup', updateCharCount);
+    // 編集画面を切り替える前に文字数カウントを確定し、表示後に要素が追加されて
+    // 削除ボタンが押し下げられるレイアウトの跳ねを防ぐ。
+    const contentArea = document.getElementById('diary-content');
+    if (contentArea) {
+        updateCharCount();
+
+        contentArea.removeEventListener('input', updateCharCount);
+        contentArea.addEventListener('input', updateCharCount);
+
+        contentArea.removeEventListener('keyup', updateCharCount);
+        contentArea.addEventListener('keyup', updateCharCount);
+
+        // paste用リスナーを使い回し、編集画面を開くたびに増殖しないようにする。
+        if (!contentArea._charCountPasteHandler) {
+            contentArea._charCountPasteHandler = () => setTimeout(updateCharCount, 10);
         }
-    }, 150);
+        contentArea.removeEventListener('paste', contentArea._charCountPasteHandler);
+        contentArea.addEventListener('paste', contentArea._charCountPasteHandler);
+    }
 
     captureEditorSnapshot(type === 'memo' ? 'memo' : type);
     switchTab('editor');
