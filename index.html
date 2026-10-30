@@ -5639,7 +5639,7 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 <h4 style="margin: 16px 0 8px;">13. JSONバックアップの使い分け</h4>
 <p>
             でじ帖のJSONバックアップには、<strong>自動バックアップ（ファイル上書き）</strong>と<strong>手動バックアップ（ファイル別途保存）</strong>があります。
-            自動保存に対応している環境では、設定した <strong>dejicho_backup.json</strong> を最新データへ自動更新でき、「今すぐ接続」から任意のタイミングで同期することもできます。
+            自動保存に対応している環境では、設定した <strong>dejicho_auto_backup.json</strong> を最新データへ自動更新でき、「今すぐ接続」から任意のタイミングで同期することもできます。
             自動保存に対応していない環境や、上書きを利用できない状態では、「バックアップ」から新しいJSONファイルを保存してください。
         </p>
 <p>
@@ -5728,12 +5728,12 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
             でじ帖のバックアップには、<strong>自動バックアップ（同期）</strong>と<strong>手動バックアップ</strong>の2つの方法があります。使える方法は端末・ブラウザによって異なります。
         </p>
 <ul>
-<li><strong>自動バックアップに対応している環境：</strong> 初回設定で保存先のフォルダとJSONファイルを指定すると、<strong>dejicho_backup.json</strong>へ最新のデータを自動的に上書きします。設定画面の「今すぐ接続」から、必要なときに手動で最新状態へ同期することもできます。自動保存が利用できる間は、手動の「バックアップ」は利用できません。</li>
+<li><strong>自動バックアップに対応している環境：</strong> 初回設定で保存先のフォルダとJSONファイルを指定すると、<strong>dejicho_auto_backup.json</strong>へ最新のデータを自動的に上書きします。設定画面の「今すぐ接続」から、必要なときに手動で最新状態へ同期することもできます。自動保存が利用できる間は、手動の「バックアップ」は利用できません。</li>
 <li><strong>自動バックアップに対応していない環境：</strong> 保存先を選択する自動保存は利用できません。その代わり、設定の「バックアップ」から、その時点のデータを新しいJSONファイルとして保存できます。ホーム画面には、最後のバックアップから<strong>2週間以上</strong>経過すると「バックアップのお願い」が表示されます。</li>
 <li><strong>自動保存が一時的に利用できない場合：</strong> 保存先へのアクセス権が失われた場合なども、自動保存が利用できない状態として扱われ、手動バックアップを利用できます。</li>
 </ul>
 <p>
-            自動保存で使用する <strong>dejicho_backup.json</strong> は、毎回新しいファイルを増やすのではなく、同じファイルを最新データで更新します。一方、手動の「バックアップ」は、その都度新しいJSONバックアップファイルを保存します。
+            自動保存で使用する <strong>dejicho_auto_backup.json</strong> は、毎回新しいファイルを増やすのではなく、同じファイルを最新データで更新します。一方、手動の「バックアップ」は、その都度新しいJSONバックアップファイルを保存します。
         <br/><br/>
             どちらの方法でも、バックアップファイル自体が端末の故障・紛失などで失われる可能性があります。大切な記録は、必要に応じてUSBメモリ、外付けストレージ、信頼できるクラウドストレージなど、別の場所にもコピーして保管してください。別の端末へ移行するときは、保存しておいたJSONバックアップを「データ復元」から読み込むことで、日記・メモ・予定などのデータを復元できます。
         </p>
@@ -5752,7 +5752,7 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
         </p>
 <ul>
 <li><strong>推奨環境：</strong> 常に最新バージョンのブラウザ（Chrome、Safari等）を使用してください。</li>
-<li><strong>機種変更時の移行：</strong> 新しい端末へ移行する際は、保存しておいた <strong>dejicho_backup.json</strong> を新しい端末で「バックアップから復元」から読み込むことで、これまでの記録を引き継ぐことができます。</li>
+<li><strong>機種変更時の移行：</strong> 新しい端末へ移行する際は、保存しておいた <strong>dejicho_auto_backup.json</strong> を新しい端末で「バックアップから復元」から読み込むことで、これまでの記録を引き継ぐことができます。</li>
 <li><strong>ストレージの空き容量：</strong> 画像を多く保存する場合、ブラウザの保存容量制限に達することがあります。定期的に不要な画像を整理するか、端末のストレージに余裕を持たせてください。</li>
 </ul>
 </div><div class="support-accordion-static-item"><div class="support-accordion-static-title">4. 長文・写真データの蓄積による「動作の重さ」と「容量制限」</div>
@@ -6143,9 +6143,11 @@ const TAG_PAGE_SIZE = 15;
 let tagSortOrder = 'new';
 let currentTag = null;
         
-        const DB_NAME = 'でじでじDB';
+        const DB_NAME = 'dejichoDB';
         const DB_VERSION = 4;
         let db;
+        // 全データ初期化中にバックグラウンド処理がDBを再接続・再作成しないための保護フラグ。
+        let fullInitializationInProgress = false;
 
         function setMood(n) {
     selectedMood = n;
@@ -6306,12 +6308,18 @@ if (config.hasUnlockedMaster) {
             if (!isValidAuthHash(passwordHash)) throw new Error('最新パスコード情報が不正です');
             return passwordHash;
         }
-        async function decryptBackupAuth(encryptedAuth) {
+        async function decryptBackupAuth(encryptedAuth, suppliedRecoveryPass = null, suppliedRecoveryWord = null) {
             if (!encryptedAuth || encryptedAuth.version !== 1) throw new Error('対応していない暗号化認証情報です');
-            const recoveryPass = prompt('バックアップから認証設定を復元します。\n本人確認パスコードを入力してください。');
+            // バックアップ本体の復号時に入力済みの本人確認パスコードを再利用する。
+            // 同じパスコードを二度入力させない。旧形式などで値が渡らない場合のみ入力を求める。
+            const recoveryPass = suppliedRecoveryPass !== null
+                ? suppliedRecoveryPass
+                : prompt('バックアップから認証設定を復元します。\n本人確認パスコードを入力してください。');
             if (recoveryPass === null) throw new Error('認証情報の復元をキャンセルしました');
             const backupHint = encryptedAuth.hint ? `\n合言葉のヒント：${encryptedAuth.hint}` : '\n合言葉のヒント：設定されていません。';
-            const recoveryWord = prompt(`本人確認の合言葉を入力してください。${backupHint}`);
+            const recoveryWord = suppliedRecoveryWord !== null
+                ? suppliedRecoveryWord
+                : prompt(`本人確認の合言葉を入力してください。${backupHint}`);
             if (recoveryWord === null) throw new Error('認証情報の復元をキャンセルしました');
             try {
                 const salt = base64ToBytes(encryptedAuth.salt);
@@ -6369,6 +6377,10 @@ if (config.hasUnlockedMaster) {
             delete backupConfig.recoverySet;
             delete backupConfig.customRecoveryHint;
             delete backupConfig.encryptedAuthBackup;
+            // 復号鍵本体・鍵ラップ情報はバックアップ本文の設定領域へ重複保存しない。
+            // 鍵ラップ情報は暗号化エンベロープ側にのみ格納する。
+            delete backupConfig.manualBackupKey;
+            delete backupConfig.manualBackupKeyWrap;
             delete backupConfig.backupFileHandle;
             delete backupConfig.backupDirectoryHandle;
             const backupDiaries = (Array.isArray(diaries) ? diaries : []).map(diary => {
@@ -6412,7 +6424,7 @@ if (config.hasUnlockedMaster) {
             return false;
         }
 
-        const fileName='dejicho_backup.json';
+        const fileName='dejicho_auto_backup.json';
         const fileHandle=await directoryHandle.getFileHandle(fileName,{create:true});
         const filePermission=await fileHandle.requestPermission({mode:'readwrite'});
         if(filePermission!=='granted'){
@@ -6456,6 +6468,7 @@ if (config.hasUnlockedMaster) {
     }
 }
         async function syncAutoBackupFile(force=false, silentFailure=false, allowPermissionRequest=false){
+            if(fullInitializationInProgress) return false;
             if(autoBackupSyncInProgress){autoBackupSyncQueued=true;return false;}
             autoBackupLastAttemptCancelled = false;
             const handle=config.backupFileHandle;if(!handle||typeof handle.createWritable!=='function')return false;
@@ -6486,6 +6499,21 @@ if (config.hasUnlockedMaster) {
                     }
                 }
                 if(permission!=='granted')throw new Error('バックアップファイルへのアクセスが許可されていません');
+                // 旧バージョンから更新した既存ユーザーは、明示的な同期操作時に一度だけ
+                // 本人確認パスコードを確認して、端末内鍵からポータブル鍵へ移行する。
+                if (force && config.recoverySet && config.authRecoveryPassHash && (!config.manualBackupKey || !config.manualBackupKeyWrap)) {
+                    const recoveryPass = prompt('別の端末でも自動バックアップを復元できるように暗号化方式を更新します。初期設定時の本人確認パスコードを入力してください。');
+                    if (recoveryPass === null) return false;
+                    if (!recoveryPass || !await verifyAuthSecret(recoveryPass, config.authRecoveryPassHash)) {
+                        alert('本人確認パスコードが一致しないため、バックアップ方式の更新を中止しました。');
+                        return false;
+                    }
+                    const portableKey = await createPortableBackupKey(recoveryPass);
+                    config.manualBackupKey = portableKey.rawKey;
+                    config.manualBackupKeyWrap = portableKey.keyWrap;
+                    autoBackupInternalWrite = true;
+                    try { await saveConfig(); } finally { autoBackupInternalWrite = false; }
+                }
                 const writable=await handle.createWritable();
                 await writable.write(JSON.stringify(await encryptAutoBackupPayload(await buildAutoBackupPayload()),null,2));
                 await writable.close();
@@ -6601,7 +6629,7 @@ if (config.hasUnlockedMaster) {
         // 復帰時に同期を再開し、表示中も定期的にJSONバックアップを更新する。
         // ブラウザが停止している間の連続実行は保証できないので、復帰時の同期で補う。
         function resumeAutoBackupSync(reason){
-            if(!config.backupFileHandle) return;
+            if(fullInitializationInProgress || !config.backupFileHandle) return;
             if(document.visibilityState === 'hidden' && reason !== 'pageshow') return;
             void checkAutoBackupReconnectSilently(reason);
         }
@@ -6642,7 +6670,7 @@ if (config.hasUnlockedMaster) {
                 console.warn('起動時の自動バックアップ保護確認に失敗しました:', error);
             }
         }
-        function queueAutoBackupSync(){if(!config.backupFileHandle)return;clearTimeout(autoBackupSyncTimer);autoBackupSyncTimer=setTimeout(()=>syncAutoBackupFile(false),300);}
+        function queueAutoBackupSync(){if(fullInitializationInProgress || !config.backupFileHandle)return;clearTimeout(autoBackupSyncTimer);autoBackupSyncTimer=setTimeout(()=>syncAutoBackupFile(false),300);}
         async function retryAutoBackup(){
     await requestPersistentStorageSilently();
     if(!config.backupFileHandle){
@@ -6694,48 +6722,50 @@ async function restoreFromBackupFileObject(file, restoredBackupFileHandle = null
     if (!file) return;
     try {
         let imported = JSON.parse(await file.text());
-        if (imported && imported.format === 'dejicho-local-encrypted-auto-backup') {
-            try {
-                imported = await decryptAutoBackupPayload(imported);
-            } catch (decryptError) {
-                console.error('自動バックアップの復号に失敗しました:', decryptError);
-                alert('この自動バックアップは別のブラウザ環境で作成されたか、復号鍵が見つかりません。データは変更されていません。');
-                return;
-            }
-        }
-        if (imported && imported.format === 'dejicho-local-encrypted-auto-backup') {
-            try {
-                imported = await decryptAutoBackupPayload(imported);
-            } catch (decryptError) {
-                console.error('自動バックアップの復号に失敗しました:', decryptError);
-                alert('この自動バックアップは別のブラウザ環境で作成されたか、復号鍵が見つかりません。データは変更されていません。');
-                return;
-            }
-        }
+
+        // 既存の入力方法を維持する。新しい入力画面は作らず、
+        // バックアップ本体の復号時に従来どおり prompt で本人確認パスコードを受け取る。
         if (imported && imported.format === 'dejicho-encrypted-backup') {
-            const password = prompt('バックアップ作成時に設定されていた「本人確認パスコード」を入力してください。');
+            const password = prompt('このバックアップを作成したときに設定されていた「本人確認パスコード」を入力してください。');
             if (password === null) return;
             try {
                 imported = await decryptBackupWithPassword(imported, password);
+                // 認証情報の復元時に同じ本人確認パスコードを再入力させない。
+                imported.__recoveryPassForAuth = password;
             } catch (decryptError) {
                 console.error('バックアップの復号に失敗しました:', decryptError);
                 alert('本人確認パスコードが違うか、バックアップファイルが破損しています。データは変更されていません。');
                 return;
             }
+        } else if (imported && imported.format === 'dejicho-local-encrypted-auto-backup') {
+            try {
+                imported = await decryptAutoBackupPayload(imported);
+            } catch (decryptError) {
+                console.error('自動バックアップの復号に失敗しました:', decryptError);
+                alert('この自動バックアップは別のブラウザ環境で作成されたか、復号鍵が見つかりません。データは変更されていません。');
+                return;
+            }
         }
+
         if (!Array.isArray(imported.diaries) || !Array.isArray(imported.schedules) || !Array.isArray(imported.memos)) {
             throw new Error('バックアップ形式が正しくありません');
         }
-        if (!confirm('JSONバックアップの内容で現在のでじ帖データを置き換えますか？\n現在のデータは上書きされます。')) return;
+
+        // 既存の prompt で本人確認パスコード・合言葉を順番に入力する。
+        // 先に認証を完了させ、最後に「復元しますか？」だけを表示する。
+        if (imported.encryptedAuth) {
+            imported.__restoredAuthForImport = await decryptBackupAuth(
+                imported.encryptedAuth,
+                imported.__recoveryPassForAuth !== undefined ? imported.__recoveryPassForAuth : null
+            );
+        }
+
+        if (!confirm('JSONバックアップの復元に成功しました\n現在のでじ帖データはバックアップの内容に置き換わります。')) return;
+
         await importDataObject(imported, restoredBackupFileHandle);
-        alert(
-            restoredBackupFileHandle
-                ? 'JSONバックアップからデータを復元しました。\nこのファイルを今後の自動バックアップ先として引き継ぎ、現在のデータを同期しました。'
-                : 'JSONバックアップからデータを復元しました。'
-        );
+        // 復元後は再読み込みするため、成功通知の追加ポップアップは表示しない。
         location.reload();
     } catch (error) {
-        // ファイル選択や確認操作をユーザーがキャンセルした場合は、失敗通知を表示しない。
         const cancelled = error && (
             error.name === 'AbortError' ||
             error.name === 'NotAllowedError' ||
@@ -6756,26 +6786,14 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
     autoBackupInternalWrite = true;
     let currentBackupFileHandle = null;
     try {
-        const txD=db.transaction('diaries','readwrite');await txD.objectStore('diaries').clear();
-        const txS=db.transaction('schedules','readwrite');await txS.objectStore('schedules').clear();
-        const txM=db.transaction('memos','readwrite');await txM.objectStore('memos').clear();
-
-        diaries=Array.isArray(imported.diaries)?imported.diaries:[];
-        for(const d of diaries){delete d.searchText;await saveDataToDB('diaries',d);}
-        schedules=imported.schedules||[];
-        for(const x of schedules)await saveDataToDB('schedules',x);
-        memos=Array.isArray(imported.memos)?imported.memos:[];
-        for(const m of memos)await saveDataToDB('memos',m);
-
+        // 先にバックアップ設定を検証し、必要な認証情報を復号する。
+        // 認証入力のキャンセルや不一致で、既存データを先に消してしまわないため。
         const importedConfig=(imported.config&&typeof imported.config==='object')?{...imported.config}:{};
-        // 復元では、バックアップ側の認証設定を優先する。
-        // つまり、復元前に「初期パスワード設定」などで設定していた
-        // パスコードがあっても、バックアップに暗号化認証情報が含まれている場合は
-        // バックアップ時点のパスコードへ切り替える。
-        // 認証情報がバックアップに存在しない旧形式の場合だけ、現在端末の認証設定を維持する。
+        if (imported.__portableBackupKey && imported.__portableBackupKeyWrap) {
+            importedConfig.manualBackupKey = imported.__portableBackupKey;
+            importedConfig.manualBackupKeyWrap = imported.__portableBackupKeyWrap;
+        }
 
-        // 現行バックアップでは認証情報をAES-GCMで暗号化して保存する。
-        // 復元時だけ本人確認パスコード＋合言葉から鍵を再生成し、認証設定を復元する。
         delete importedConfig.password;
         delete importedConfig.customRecoveryPass;
         delete importedConfig.customRecoveryWord;
@@ -6786,27 +6804,48 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         delete importedConfig.customRecoveryHint;
 
         if (imported.encryptedAuth) {
-            // バックアップ側の認証情報を復元し、現在端末の初期パスワードを上書きする。
-            const restoredAuth = await decryptBackupAuth(imported.encryptedAuth);
+            // 復元前に確認済みの認証情報があれば再利用し、認証入力を繰り返さない。
+            const restoredAuth = imported.__restoredAuthForImport || await decryptBackupAuth(
+                imported.encryptedAuth,
+                imported.__recoveryPassForAuth !== undefined ? imported.__recoveryPassForAuth : null,
+                imported.__recoveryWordForAuth !== undefined ? imported.__recoveryWordForAuth : null
+            );
             Object.assign(importedConfig, restoredAuth);
             importedConfig.encryptedAuthBackup = imported.encryptedAuth;
-        } else {
-            // 認証情報を持たない旧バックアップでは、現在端末の認証を壊さない。
-            if (hasPrimaryAuth()) {
-                importedConfig.authPasswordHash = config.authPasswordHash;
-                importedConfig.authRecoveryPassHash = config.authRecoveryPassHash;
-                importedConfig.authRecoveryWordHash = config.authRecoveryWordHash;
-                importedConfig.recoverySet = config.recoverySet;
-                importedConfig.customRecoveryHint = config.customRecoveryHint || '';
-                importedConfig.encryptedAuthBackup = config.encryptedAuthBackup || null;
-            }
+        } else if (hasPrimaryAuth()) {
+            importedConfig.authPasswordHash = config.authPasswordHash;
+            importedConfig.authRecoveryPassHash = config.authRecoveryPassHash;
+            importedConfig.authRecoveryWordHash = config.authRecoveryWordHash;
+            importedConfig.recoverySet = config.recoverySet;
+            importedConfig.customRecoveryHint = config.customRecoveryHint || '';
+            importedConfig.encryptedAuthBackup = config.encryptedAuthBackup || null;
         }
+
+        // 一時的な秘密情報を、設定・保存データへ混入させない。
+        delete imported.__recoveryPassForAuth;
+        delete imported.__recoveryWordForAuth;
+        delete imported.__restoredAuthForImport;
+        delete imported.__portableBackupKey;
+        delete imported.__portableBackupKeyWrap;
+
         delete importedConfig.backupFileHandle;
         delete importedConfig.backupDirectoryHandle;
         delete importedConfig.backupFileName;
         delete importedConfig.backupSyncStatus;
         delete importedConfig.backupLastSync;
         delete importedConfig.backupDisconnectedSince;
+
+        // 認証確認がすべて完了してから、初めて既存データを置き換える。
+        const txD=db.transaction('diaries','readwrite'); await txD.objectStore('diaries').clear();
+        const txS=db.transaction('schedules','readwrite'); await txS.objectStore('schedules').clear();
+        const txM=db.transaction('memos','readwrite'); await txM.objectStore('memos').clear();
+
+        diaries=Array.isArray(imported.diaries)?imported.diaries:[];
+        for(const d of diaries){delete d.searchText;await saveDataToDB('diaries',d);}
+        schedules=Array.isArray(imported.schedules)?imported.schedules:[];
+        for(const x of schedules) await saveDataToDB('schedules',x);
+        memos=Array.isArray(imported.memos)?imported.memos:[];
+        for(const m of memos) await saveDataToDB('memos',m);
 
         currentBackupFileHandle = config.backupFileHandle || null;
         const currentBackupDirectoryHandle = config.backupDirectoryHandle;
@@ -6816,22 +6855,14 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         const currentBackupDisconnectedSince = config.backupDisconnectedSince;
 
         config={...config,...importedConfig};
-        // 認証情報を含むバックアップでは、上で復元したバックアップ側の認証設定を使用する。
-
         if (restoredBackupFileHandle && typeof restoredBackupFileHandle.createWritable === 'function') {
-            // 選択したJSONそのものを、新端末での今後の自動バックアップ先として引き継ぐ。
             config.backupFileHandle = restoredBackupFileHandle;
-            config.backupFileName = restoredBackupFileHandle.name || 'dejicho_backup.json';
+            config.backupFileName = restoredBackupFileHandle.name || 'dejicho_auto_backup.json';
             delete config.backupDirectoryHandle;
             config.backupSyncStatus = 'pending';
             delete config.backupLastSync;
             config.backupDisconnectedSince = null;
-
-            // バックアップから認証設定が復元された場合、再設定を促す通知は不要。
-            // 認証情報そのものは上の config マージでバックアップ側を採用している。
-            if (hasPrimaryAuth()) {
-                config.recoveryReminderDismissed = true;
-            }
+            if (hasPrimaryAuth()) config.recoveryReminderDismissed = true;
         } else {
             config.backupFileHandle = currentBackupFileHandle;
             config.backupDirectoryHandle = currentBackupDirectoryHandle;
@@ -6847,7 +6878,6 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         autoBackupInternalWrite = previousAutoBackupInternalWrite;
     }
 
-    // 復元先JSONへ、復元後の最新データを即時書き戻す。
     if (restoredBackupFileHandle || currentBackupFileHandle) {
         await syncAutoBackupFile(true, true, false);
     }
@@ -7030,6 +7060,9 @@ function isInstalledPWA(){
         }
 
         async function initDB() {
+            if (fullInitializationInProgress) {
+                throw new Error('全データ初期化中のため、データベースへの再接続を停止しています。');
+            }
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
                 request.onupgradeneeded = (e) => {
@@ -7354,6 +7387,14 @@ async function cleanupPassedSchedules(force = false) {
             const wrapped = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, rawKeyBytes);
             return { salt: bytesToBase64(salt), iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(wrapped)), iterations: 310000 };
         }
+        async function createPortableBackupKey(password) {
+            ensureAuthCryptoAvailable();
+            const rawKey = crypto.getRandomValues(new Uint8Array(32));
+            return {
+                rawKey: bytesToBase64(rawKey),
+                keyWrap: await wrapManualBackupKey(rawKey, password)
+            };
+        }
         async function encryptBackupWithLocalKey(payload) {
             ensureAuthCryptoAvailable();
             if (!config.manualBackupKey || !config.manualBackupKeyWrap) throw new Error('自動暗号化キーが未設定です');
@@ -7380,15 +7421,43 @@ async function cleanupPassedSchedules(force = false) {
                 const rawKey = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(wrap.iv) }, wrapKey, base64ToBytes(wrap.data));
                 const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
                 const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(envelope.iv) }, key, base64ToBytes(envelope.data));
-                return JSON.parse(new TextDecoder().decode(plaintext));
+                const payload = JSON.parse(new TextDecoder().decode(plaintext));
+                // 復元先端末でも以後の自動バックアップを同じ本人確認パスコードで
+                // 作成できるよう、復号した鍵を端末内設定へ引き継ぐため一時的に添付する。
+                payload.__portableBackupKey = bytesToBase64(new Uint8Array(rawKey));
+                payload.__portableBackupKeyWrap = wrap;
+                payload.__recoveryPassForAuth = String(password);
+                return payload;
             }
             if (envelope.version !== 1) return envelope;
             const key = await deriveBackupKeyFromPassword(password, base64ToBytes(envelope.salt), ['decrypt']);
             const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(envelope.iv) }, key, base64ToBytes(envelope.data));
-            return JSON.parse(new TextDecoder().decode(plaintext));
+            const payload = JSON.parse(new TextDecoder().decode(plaintext));
+            payload.__recoveryPassForAuth = String(password);
+            return payload;
         }
 
         async function encryptAutoBackupPayload(payload) {
+            // 本人確認パスコードで鍵を復元できるポータブル方式を優先する。
+            // 初期設定前の既存環境では旧端末内鍵方式を維持し、データを失わせない。
+            if (config.manualBackupKey && config.manualBackupKeyWrap) {
+                const rawKey = base64ToBytes(config.manualBackupKey);
+                const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt']);
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const cipher = await crypto.subtle.encrypt(
+                    { name: 'AES-GCM', iv }, key,
+                    new TextEncoder().encode(JSON.stringify(payload))
+                );
+                return {
+                    format: 'dejicho-encrypted-backup',
+                    version: 2,
+                    algorithm: 'AES-256-GCM',
+                    iv: bytesToBase64(iv),
+                    data: bytesToBase64(new Uint8Array(cipher)),
+                    keyWrap: config.manualBackupKeyWrap,
+                    backupType: 'automatic'
+                };
+            }
             const keyMaterial = await getInternalDataKey();
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const cipher = await crypto.subtle.encrypt(
@@ -7405,6 +7474,7 @@ async function cleanupPassedSchedules(force = false) {
         }
         async function decryptAutoBackupPayload(envelope) {
             if (!envelope || envelope.format !== 'dejicho-local-encrypted-auto-backup' || envelope.version !== 1) return envelope;
+            // 旧形式は作成元ブラウザのIndexedDB鍵でのみ復号可能。旧データの救出用に残す。
             const keyMaterial = await getInternalDataKey();
             const plaintext = await crypto.subtle.decrypt(
                 { name: 'AES-GCM', iv: base64ToBytes(envelope.iv) },
@@ -7413,7 +7483,11 @@ async function cleanupPassedSchedules(force = false) {
             return JSON.parse(new TextDecoder().decode(plaintext));
         }
 
+
 async function saveDataToDB(storeName, data) {
+            if (fullInitializationInProgress) {
+                throw new Error('全データ初期化中のため、データの保存を停止しています。');
+            }
             if (!db || !db.objectStoreNames.contains(storeName)) await initDB();
             const storedData = await encryptInternalRecord(storeName, data);
             return new Promise((resolve, reject) => {
@@ -12396,9 +12470,9 @@ async function exportData(){
        alert('本人確認パスコードが一致しません。バックアップを中止しました。');
        return;
      }
-     const rawKey = crypto.getRandomValues(new Uint8Array(32));
-     config.manualBackupKey = bytesToBase64(rawKey);
-     config.manualBackupKeyWrap = await wrapManualBackupKey(rawKey, password);
+     const portableKey = await createPortableBackupKey(password);
+     config.manualBackupKey = portableKey.rawKey;
+     config.manualBackupKeyWrap = portableKey.keyWrap;
      await saveConfig();
    }
    const backupConfig={...config};
@@ -12418,11 +12492,11 @@ async function exportData(){
    const envelope=await encryptBackupWithLocalKey(payload);
    const blob=new Blob([JSON.stringify(envelope)],{type:'application/json'});
    const a=document.createElement('a'),dateStr=getLocalDateString(new Date());
-   a.href=URL.createObjectURL(blob);a.download=`dejicho_backup_encrypted_${dateStr}.json`;document.body.appendChild(a);a.click();a.remove();
+   a.href=URL.createObjectURL(blob);a.download=`dejicho_manual_backup_${dateStr}.json`;document.body.appendChild(a);a.click();a.remove();
    setTimeout(()=>URL.revokeObjectURL(a.href),1000);
    config.lastBackup=Date.now();await saveConfig();
    await updateManualBackupUI();
-   alert('バックアップをダウンロードしました。次回以降、保存時のパスコード入力は不要です。復元には本人確認パスコードが必要です。');
+   alert('バックアップをダウンロードしました。\n復元には本人確認パスコードが必要です。');
    if(document.getElementById('view-home')?.classList.contains('active'))renderNotifications();
  } catch (error) {
    console.error('バックアップの作成に失敗しました。:', error);
@@ -12456,22 +12530,15 @@ async function importData(e) {
 }
 
 async function startFullInitialization() {
-    if (!confirm("【警告】\nすべてのデータを完全に消去しますか？\nこの操作は取り消せません。")) {
-        return;
-    }
-    const currentPassInput = prompt(
-        "【パスコード認証】 \n現在使用中のパスコードを入力してください。"
-    );
+    if (!confirm("【警告】\nすべてのデータを完全に消去しますか？\nこの操作は取り消せません。")) return;
 
+    const currentPassInput = prompt("【パスコード認証】\n現在使用中のパスコードを入力してください。");
     if (!currentPassInput || !await verifyAuthSecret(currentPassInput, config.authPasswordHash)) {
         alert("現在のパスコードが一致しない、またはキャンセルされました。初期化を中止します。");
         return;
     }
 
-    const userInput = prompt(
-        "【本人確認パスコード認証】\n本人確認が必要です。\n設定した「本人確認パスコード」を入力してください。"
-    );
-
+    const userInput = prompt("【本人確認パスコード認証】\n本人確認が必要です。\n設定した「本人確認パスコード」を入力してください。");
     if (!userInput || !await verifyAuthSecret(userInput, config.authRecoveryPassHash)) {
         alert("本人確認パスコードが一致しない、またはキャンセルされました。初期化を中止します。");
         return;
@@ -12480,57 +12547,79 @@ async function startFullInitialization() {
     const recoveryHint = (typeof config.customRecoveryHint === 'string' && config.customRecoveryHint.trim())
         ? config.customRecoveryHint.trim()
         : 'ヒントは設定されていません。';
-    const recoveryWordInput = prompt(
-        `【合言葉認証】\n設定した合言葉を入力してください。\n合言葉のヒント：${recoveryHint}`
-    );
-
+    const recoveryWordInput = prompt(`【合言葉認証】\n設定した合言葉を入力してください。\n合言葉のヒント：${recoveryHint}`);
     if (!recoveryWordInput || !config.authRecoveryWordHash || !await verifyAuthSecret(recoveryWordInput, config.authRecoveryWordHash)) {
         alert("合言葉が一致しない、またはキャンセルされました。初期化を中止します。");
         return;
     }
 
-const finalCheck = prompt(
-    "【最終確認】\n認証されました。\n本当に全データを削除する場合は大文字で「DELETE」と入力してください。\n記録をすべて抹消する準備は整いましたか？"
-);
+    const finalCheck = prompt("【最終確認】\n認証されました。\n本当に全データを削除する場合は大文字で「DELETE」と入力してください。\n記録をすべて抹消する準備は整いましたか？");
+    if (finalCheck !== "DELETE") {
+        alert("初期化を中止しました。");
+        return;
+    }
 
-if (finalCheck !== "DELETE") {
-    alert("初期化を中止しました。");
-    return;
+    try {
+        // 全データ削除はバックアップ保存先の接続状態に依存させない。
+        // 削除前の強制同期や鍵移行の認証要求が、削除そのものを妨げないようにする。
+        fullInitializationInProgress = true;
+        if (autoBackupSyncTimer) { clearTimeout(autoBackupSyncTimer); autoBackupSyncTimer = null; }
+        if (autoBackupReconnectTimer) { clearTimeout(autoBackupReconnectTimer); autoBackupReconnectTimer = null; }
+        autoBackupSyncQueued = false;
+        if (typeof stopAutoBackupReconnectMonitor === 'function') stopAutoBackupReconnectMonitor();
+
+        // 進行中の同期だけを完了させてからDBを閉じる。新しい同期は上のフラグで停止済み。
+        if (autoBackupSyncInProgress) {
+            await new Promise((resolve, reject) => {
+                const started = Date.now();
+                const check = () => {
+                    if (!autoBackupSyncInProgress) return resolve();
+                    if (Date.now() - started > 10000) return reject(new Error('自動バックアップ処理が終了しませんでした'));
+                    setTimeout(check, 100);
+                };
+                check();
+            });
+        }
+
+        if (db) { db.close(); db = null; }
+        await clearDatabase();
+        alert("すべてのデータが初期化されました。既存のバックアップJSONファイル自体は削除されません。");
+        location.reload();
+    } catch (error) {
+        console.error("全データ初期化に失敗しました:", error);
+        fullInitializationInProgress = false;
+        if (!db) {
+            try { await initDB(); } catch (reopenError) {
+                console.error('初期化失敗後のDB再接続にも失敗しました:', reopenError);
+            }
+        }
+        alert("削除を完了できませんでした。ほかのでじ帖のタブを閉じてから、ページを再読み込みしてもう一度お試しください。");
+    }
 }
-
-try {
-    if (config.backupFileHandle) await syncAutoBackupFile(true, true, false);
-    if (db) db.close();
-    await clearDatabase();
-    alert("すべてのデータが初期化されました。既存のバックアップJSONは残っています。再起動後に新しいバックアップ保存先を設定できます。");
-
-    location.reload();
-
-} catch (error) {
-    console.error("削除中にエラーが発生しました。もう一度時間をおいてから再開してください。", error);
-    alert("削除に失敗しました。");
-}
-
-} 
 
 function clearDatabase() {
     return new Promise((resolve, reject) => {
-
-        const deleteRequest = indexedDB.deleteDatabase("でじでじDB");
+        let blockedNoticeShown = false;
+        const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
 
         deleteRequest.onsuccess = () => {
-            console.log("DB削除成功　\nデータをすべて消去しました。");
+            db = null;
+            console.log("DB削除成功\nデータをすべて消去しました。");
             resolve();
         };
 
         deleteRequest.onerror = (event) => {
-            console.error("DB削除失敗 \nタブ内の「でじ帖」アプリをすべて閉じてからもう一度再開してください。", event);
-            reject(event);
+            console.error("DB削除失敗", event);
+            reject(deleteRequest.error || event);
         };
 
         deleteRequest.onblocked = () => {
-            alert("他のタブや接続がDBを使用中です。\nタブ内の「でじ帖」アプリをすべて閉じてからもう一度再開してください。");
-            reject("blocked");
+            // blockedは「削除失敗」ではなく、他タブの接続が閉じるまで待機中という状態。
+            // ここでrejectすると、後から削除が成功しても画面側は失敗扱いになる。
+            if (!blockedNoticeShown) {
+                blockedNoticeShown = true;
+                alert("別のタブまたは画面がでじ帖のデータベースを使用しています。ほかのでじ帖のタブを閉じてください。この画面は閉じず、そのまま待つと削除が続行されます。");
+            }
         };
     });
 }
@@ -12624,12 +12713,15 @@ async function saveRecoverySettings() {
     try {
         // ここではまだ本人確認設定を「完了」にしない。
         // データ保存先の設定まで成功した時点で初めて完了とする。
+        const portableKey = await createPortableBackupKey(pass);
         const pending = {
             authRecoveryPassHash: await hashAuthSecret(pass),
             authRecoveryWordHash: await hashAuthSecret(word),
             customRecoveryHint: hint,
             recoveryPassForBackup: pass,
-            recoveryWordForBackup: word
+            recoveryWordForBackup: word,
+            manualBackupKey: portableKey.rawKey,
+            manualBackupKeyWrap: portableKey.keyWrap
         };
         window.pendingRecoverySetup = pending;
 
@@ -12661,6 +12753,8 @@ async function completeRecoverySetupWithoutAutoBackup() {
         config.authRecoveryPassHash = pending.authRecoveryPassHash;
         config.authRecoveryWordHash = pending.authRecoveryWordHash;
         config.customRecoveryHint = pending.customRecoveryHint;
+        config.manualBackupKey = pending.manualBackupKey;
+        config.manualBackupKeyWrap = pending.manualBackupKeyWrap;
         config.encryptedAuthBackup = await encryptBackupAuth(config, pending.recoveryPassForBackup, pending.recoveryWordForBackup);
         if (config.encryptedAuthBackup) {
             config.encryptedAuthBackup.primaryPasswordUpdate = await encryptPrimaryPasswordUpdate(config.authPasswordHash, pending.recoveryPassForBackup);
@@ -12669,6 +12763,8 @@ async function completeRecoverySetupWithoutAutoBackup() {
         delete config.customRecoveryWord;
         delete pending.recoveryPassForBackup;
         delete pending.recoveryWordForBackup;
+        delete pending.manualBackupKey;
+        delete pending.manualBackupKeyWrap;
         await saveConfig();
         window.pendingRecoverySetup = null;
         renderNotifications();
@@ -12704,7 +12800,7 @@ function showBackupDestinationSetup() {
 
             <p style="font-size:0.84rem; line-height:1.7; opacity:0.9; margin-bottom:14px; color:var(--text-color);">
                 「保存フォルダを選択」を押すとフォルダ選択画面が開きます。
-                選択したフォルダに <strong>dejicho_backup.json</strong> を自動作成し、
+                選択したフォルダに <strong>dejicho_auto_backup.json</strong> を自動作成し、
                 日記・メモ・予定などの変更があるたびに最新の状態へ自動保存します。
                 一度設定すれば、次回から保存先を指定する必要はありません。
             </p>
@@ -12729,6 +12825,10 @@ async function completeBackupDestinationSetup() {
     }
 
     try {
+        // 保存先の初回作成時点から、本人確認パスコードで復号できる鍵を使用する。
+        // 失敗してもpending内に鍵を保持するため、設定をやり直せる。
+        config.manualBackupKey = pending.manualBackupKey;
+        config.manualBackupKeyWrap = pending.manualBackupKeyWrap;
         const success = await configureAutoBackupFile();
         if (!success) {
             if (button) {
@@ -12744,6 +12844,8 @@ async function completeBackupDestinationSetup() {
         config.authRecoveryPassHash = pending.authRecoveryPassHash;
         config.authRecoveryWordHash = pending.authRecoveryWordHash;
         config.customRecoveryHint = pending.customRecoveryHint;
+        config.manualBackupKey = pending.manualBackupKey;
+        config.manualBackupKeyWrap = pending.manualBackupKeyWrap;
         config.encryptedAuthBackup = await encryptBackupAuth(config, pending.recoveryPassForBackup, pending.recoveryWordForBackup);
         if (config.encryptedAuthBackup) {
             config.encryptedAuthBackup.primaryPasswordUpdate =
@@ -12753,6 +12855,8 @@ async function completeBackupDestinationSetup() {
         delete config.customRecoveryWord;
         delete pending.recoveryPassForBackup;
         delete pending.recoveryWordForBackup;
+        delete pending.manualBackupKey;
+        delete pending.manualBackupKeyWrap;
 
         try {
             await saveConfig();
@@ -12767,6 +12871,9 @@ async function completeBackupDestinationSetup() {
 
         // IndexedDB保存まで成功してからpending状態を解除。
         window.pendingRecoverySetup = null;
+
+        // 初回同期時は本人確認設定の確定前なので、確定後に認証情報も含めて再同期する。
+        await syncAutoBackupFile(true, true, false);
 
         // 自動バックアップ設定後は手動バックアップUIを非表示にする。
         updateManualBackupUI();
