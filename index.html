@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- セキュリティ強化：ユーザーHTMLの許可リスト無害化と画像URL検証を適用。認証・暗号鍵方式は変更しない。 -->
 
 <html lang="ja">
 <head>
@@ -1880,6 +1881,39 @@ body[data-theme="cosmos"] {
             .lock-brand { bottom: calc(50% + 190px); }
             .lock-brand-main { font-size: 1.7rem; }
         }
+
+        /* 起動時はデータの読み込み・描画が完了するまで空の画面を見せない */
+        #startup-loading-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            transition: opacity 0.18s ease;
+        }
+        #startup-loading-screen .startup-loading-brand {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: 0.22em;
+        }
+        #startup-loading-screen .startup-loading-caption {
+            font-size: 0.82rem;
+            opacity: 0.68;
+        }
+        #startup-loading-screen .startup-loading-spinner {
+            width: 25px;
+            height: 25px;
+            border: 2px solid color-mix(in srgb, var(--primary-color) 22%, transparent);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: startup-loading-spin 0.8s linear infinite;
+        }
+        @keyframes startup-loading-spin { to { transform: rotate(360deg); } }
 
         #lock-screen {
             position: fixed;
@@ -4940,7 +4974,7 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 </div>
 <div class="lock-credit" aria-label="northern maiko / 北の舞妓さん"><div class="lock-credit-main">northern maiko / 北の舞妓さん</div></div>
 <div class="lock-container" id="lock-standard">
-<i data-lucide="lock" style="width: 1000px; height: 1000px; color: var(--primary-color);"></i>
+<i data-lucide="lock" style="width: 48px; height: 48px; color: var(--primary-color);"></i>
 <h2 id="lock-title">パスコードを入力</h2>
 <p id="lock-msg">※アプリを保護しています</p>
 <input id="pass-input" placeholder="••••" type="password" enterkeyhint="go"/>
@@ -4962,6 +4996,11 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 <br/>
 <button class="forget-btn" aria-label="戻る" title="戻る" onclick="hideRecovery()" style="text-decoration: underline;">戻る</button>
 </div>
+</div>
+<div id="startup-loading-screen" role="status" aria-live="polite">
+    <div class="startup-loading-brand">で じ 帖</div>
+    <div class="startup-loading-spinner" aria-hidden="true"></div>
+    <div class="startup-loading-caption">記録を準備しています...</div>
 </div>
 <div id="img-modal">
 <div aria-label="日記に画像を追加した日" id="img-modal-date"></div>
@@ -5975,6 +6014,10 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 <script>
         let diaries = [];
         let schedules = [];
+        // 起動時認証が有効な場合、ユーザーデータの読み込みを認証完了まで待機させる。
+        let startupUnlockResolver = null;
+        let startupDataReadyResolver = null;
+        let startupDataReadyPromise = Promise.resolve();
         
         let cachedSortedDiaries = null; 
         let diaryMap = new Map();      
@@ -7241,6 +7284,15 @@ function hasRecoveryAuth() {
     return !!(config.authRecoveryPassHash && config.authRecoveryWordHash);
 }
 
+async function loadConfigBeforeUserData() {
+    const storedConfig = await getFromDB('config', 'main');
+    if (storedConfig) {
+        delete storedConfig.key;
+        config = { ...config, ...storedConfig };
+    }
+    await migrateLegacyAuthConfig();
+}
+
 async function loadData() {
     diaries = await getAllFromDB('diaries');
     schedules = await getAllFromDB('schedules');
@@ -7263,13 +7315,6 @@ async function loadData() {
    } finally {
        autoBackupInternalWrite = previousMigrationWriteState;
    }
-    const storedConfig = await getFromDB('config', 'main');
-    if (storedConfig) { 
-        delete storedConfig.key; 
-        config = { ...config, ...storedConfig }; 
-    }
-
-    await migrateLegacyAuthConfig();
 
     
     
@@ -7630,6 +7675,9 @@ function checkNewYearFireworks() {
 }
 
 window.onload = async () => {
+    // 認証待機中でもロック画面のアイコンを先に描画する。
+    // createIcons() をデータ読み込み後まで遅らせると、認証画面では data-lucide が未変換のまま残る。
+    createIcons();
     try {
         await initDB();
     } catch (dbOpenError) {
@@ -7651,26 +7699,63 @@ window.onload = async () => {
         document.getElementById('indexeddb-retry-open').addEventListener('click', () => location.reload());
         return;
     }
-    await protectStorage();
-    await checkStorageHealth();
-    await updateStorageProtectionStatus();
-    await loadData();
-    // 保存済みHandleがある場合は、起動直後から自動バックアップを保護・再接続する。
-    // ここでは権限を要求せず、grantedなら静かに同期、失われていればHandleを保持する。
-    await ensureBackupProtectionOnStartup();
-    await updateAutoBackupStatus();
-    createIcons();
+    // 認証設定だけを先に読み込み、起動時パスコードが有効なら
+    // 日記・予定・メモの復号／読み込みを認証完了まで行わない。
+    await loadConfigBeforeUserData();
+    const needsStartupUnlock = !hasPrimaryAuth() || config.startupPasswordRequired !== false;
+    let unlockPromise = null;
+    if (needsStartupUnlock) {
+        startupDataReadyPromise = new Promise(resolve => { startupDataReadyResolver = resolve; });
+        unlockPromise = new Promise(resolve => { startupUnlockResolver = resolve; });
+    }
+    // パスコード省略設定の場合も、従来どおりロック画面を閉じる。
     checkSecurity();
-    
+    if (unlockPromise) await unlockPromise;
+
+    // 認証設定は loadConfigBeforeUserData() で取得済み。
+    // 日記・予定・メモの読み込みを待たず、セキュリティ設定のお願いだけ先にDOMへ反映する。
+    renderSecurityReminderImmediately();
+
+    // 画面表示に不要なストレージ保護・容量確認・バックアップ再接続は、
+    // 初回描画を待たせないようバックグラウンドで実行する。
+    await loadData();
+    // 通常の予定・バックアップ通知はデータ読み込み後に更新する。
+    renderNotifications();
     if (!hasPrimaryAuth()) {
     } else {
         await cleanupPassedSchedules(true);
     }
-    
+
+    // データ読み込み直後に画面と通知を描画する。
+    createIcons();
     renderAll();
     const startupViewerBookmarkBtn = document.getElementById('viewer-bookmark-btn');
     if (startupViewerBookmarkBtn) startupViewerBookmarkBtn.style.setProperty('display', 'none', 'important');
     applyTheme();
+
+    // 全データの読み込み・初回描画・テーマ適用が終わってから、起動中カバー／認証画面を閉じる。
+    const startupLoadingScreen = document.getElementById('startup-loading-screen');
+    if (startupLoadingScreen) startupLoadingScreen.style.display = 'none';
+    const startupLockScreen = document.getElementById('lock-screen');
+    if (startupLockScreen) startupLockScreen.style.transform = 'translateY(-100%)';
+
+    // 認証処理側の画面遷移は、初回描画が終わってから続行する。
+    if (startupDataReadyResolver) {
+        startupDataReadyResolver();
+        startupDataReadyResolver = null;
+    }
+
+    // 保存領域の保護・容量確認・自動バックアップの状態更新は描画後に行う。
+    void (async () => {
+        try {
+            await protectStorage();
+            await checkStorageHealth();
+            await ensureBackupProtectionOnStartup();
+            await updateAutoBackupStatus();
+        } catch (startupMaintenanceError) {
+            console.warn('起動後のバックグラウンド確認に失敗しました:', startupMaintenanceError);
+        }
+    })();
 
     
     requestAnimationFrame(() => {
@@ -7739,7 +7824,10 @@ window.onload = async () => {
                     await saveConfig();
                     passInput.value = '';
                     hidePasscodeKeyboard();
-                    document.getElementById('lock-screen').style.transform = 'translateY(-100%)';
+                    // ロック画面はデータ読み込みと初回描画が完了するまで表示したままにする。
+                    if (startupUnlockResolver) { const resolve = startupUnlockResolver; startupUnlockResolver = null; resolve(); await startupDataReadyPromise; }
+                    // 初回設定時も通常ログインと同様に、日記・予定・メモの読み込みと初回描画が
+                    // 完了するまで画面遷移を待つ。空の配列で画面が先に描画される競合を防ぐ。
                     // 初回のパスコード設定完了後は、サポートページを一度だけ表示する。
                     const showSupportOnFirstLogin = config.supportIntroShown !== true;
                     window.supportIntroFirstLoginActive = showSupportOnFirstLogin;
@@ -7760,7 +7848,8 @@ window.onload = async () => {
                     }
                     if (passInput) passInput.value = '';
                     hidePasscodeKeyboard();
-                    document.getElementById('lock-screen').style.transform = 'translateY(-100%)';
+                    // ロック画面はデータ読み込みと初回描画が完了するまで表示したままにする。
+                    if (startupUnlockResolver) { const resolve = startupUnlockResolver; startupUnlockResolver = null; resolve(); await startupDataReadyPromise; }
                     // サポート説明は、初回の認証成功時に限って表示する。
                     const showSupportOnFirstLogin = config.supportIntroShown !== true;
                     window.supportIntroFirstLoginActive = showSupportOnFirstLogin;
@@ -8278,7 +8367,7 @@ function openEditor(type = 'diary', id = null) {
         const item = type === 'diary' ? diaryMap.get(id) : scheduleMap.get(id);
         titleInput.value = item.title; 
         dateInput.value = item.date; 
-        contentDiv.innerHTML = item.content || '';
+        contentDiv.innerHTML = sanitizeRichHtml(item.content || '');
         
         if (type === 'diary') { 
             tagsInput.value = item.tags ? item.tags.join(', ') : ''; 
@@ -8350,6 +8439,19 @@ function cancelEditor() {
             return messages[hash % messages.length];
         }
 
+        // 起動時のセキュリティ設定リマインダー専用の同期描画。
+        // loadData() や renderDashboard() の完了を待たずに表示する。
+        function renderSecurityReminderImmediately() {
+            const area = document.getElementById('notification-area');
+            if (!area || !hasPrimaryAuth() || config.recoverySet || config.recoveryReminderDismissed) return;
+
+            area.classList.remove('notification-special-fade-out');
+            area.innerHTML = `<strong>⚠️ セキュリティ設定のお願い</strong><br>パスコードを忘れた時のための「本人確認パスコード」が未設定です。ここをタップして設定してください。`;
+            area.style.display = 'block';
+            area.style.background = '#ff8a80';
+            area.onclick = () => showRecoverySetup();
+        }
+
         // 通知の再描画が短時間に複数回呼ばれた場合、最後の描画だけを反映するための世代番号。
         // renderDashboard() などから並行して呼ばれても、古い非同期処理が通知カードを追加しないようにする。
         let notificationRenderVersion = 0;
@@ -8375,11 +8477,8 @@ function cancelEditor() {
         return;
     }
 
-    const autoBackupUsable = await isAutomaticBackupUsable();
-
-    // await中に新しい描画が始まっていたら、この古い描画はDOMを更新しない。
-    if (renderVersion !== notificationRenderVersion) return;
-
+    // 通知の表示判定に保存先の権限確認は不要。
+    // 権限確認の応答待ちで予定通知まで遅れないよう、表示と状態確認を分離する。
     updateManualBackupUI();
 
     area.style.background = 'var(--accent-color)';
@@ -8426,7 +8525,7 @@ if (diaries.length === 0 && schedules.length === 0) {
     // 自動保存先が設定済みなら、接続切れ・アクセス権喪失中でも
     // 手動バックアップの通知は表示しない。再接続通知だけを優先する。
     // 手動バックアップの通知は、自動保存先が未設定の場合に限って表示する。
-    if (!config.backupFileHandle && !autoBackupUsable) {
+    if (!config.backupFileHandle) {
         const lastBackupDate = config.lastBackup ? new Date(config.lastBackup) : null;
         const FOURTEEN_DAYS = 14 * 24 * 60 * 60 * 1000;
         const skippedAt = config.backupReminderSkippedAt ? Number(config.backupReminderSkippedAt) : null;
@@ -8627,7 +8726,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
 }
        function linkifyViewerContent(html) {
     const wrapper = document.createElement('div');
-    wrapper.innerHTML = html || '';
+    wrapper.innerHTML = sanitizeRichHtml(html || '');
 
     // URL と #キーワードを、既存リンクやコード領域を壊さずにリンク化する。
     const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT, {
@@ -8780,23 +8879,27 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
     if (isDiary) {
         document.getElementById('viewer-mood').innerText = ['', '😭', '😡', '😐', '😊', '🤩'][item.mood] || '';
         
-       const imagesHtml = (item.images || []).map((src, imageIndex) => `
-            <img 
-                src="${src}" 
-                loading="lazy" 
-                class="viewer-img" 
-                onclick="zoomImage('${src}', ${item.id}, ${imageIndex})"
-            >
-        `).join('');
-
-        document.getElementById('viewer-images').innerHTML = imagesHtml;
+       const viewerImagesContainer = document.getElementById('viewer-images');
+        viewerImagesContainer.replaceChildren();
+        (Array.isArray(item.images) ? item.images : []).forEach((rawSrc, imageIndex) => {
+            const src = getSafeImageSource(rawSrc);
+            if (!src) return;
+            const image = document.createElement('img');
+            image.src = src;
+            image.loading = 'lazy';
+            image.referrerPolicy = 'no-referrer';
+            image.className = 'viewer-img';
+            image.dataset.imageIndex = String(imageIndex);
+            image.addEventListener('click', () => zoomImage(src, Number(item.id), imageIndex));
+            viewerImagesContainer.appendChild(image);
+        });
 
         // ギャラリーから「この写真の日記に移動」で開いた場合は、
         // 選択していた写真が画面の中心付近に直接表示されるようにする。
         if (selectedImageIndex != null) {
             requestAnimationFrame(() => {
                 const viewerImages = document.querySelectorAll('#viewer-images .viewer-img');
-                const targetImage = viewerImages[Number(selectedImageIndex)];
+                const targetImage = document.querySelector(`#viewer-images .viewer-img[data-image-index="${Number(selectedImageIndex)}"]`);
                 if (targetImage) {
                     targetImage.scrollIntoView({ behavior: 'auto', block: 'center' });
                 }
@@ -9024,6 +9127,8 @@ function getTouchDistance(t1, t2) {
 }
 
 function zoomImage(src, diaryId = null, galleryIndex = null, sourceType = 'diary') {
+    src = getSafeImageSource(src);
+    if (!src) return;
     const modal=document.getElementById('img-modal');
     const modalImg=document.getElementById('modal-img');
 
@@ -10027,42 +10132,39 @@ async function deleteCustomDiaryTemplate(id) {
 
        function updateImagePreviews() {
     const container = document.getElementById('image-previews');
+    if (!container) return;
+    container.replaceChildren();
 
-    container.innerHTML = tempImages.map((src, idx) => `
-        <div style="position:relative;">
-            <img
-                src="${src}"
-                style="
-                    width:150px;
-                    height:150px;
-                    object-fit:cover;
-                    border-radius:4px;
-                    cursor:pointer;
-                "
-                onclick="zoomImage('${src}', null, ${idx}, 'editor')"
-            >
+    tempImages.forEach((rawSrc, idx) => {
+        const src = getSafeImageSource(rawSrc);
+        if (!src) return;
+        const wrapper = document.createElement('div');
+        wrapper.style.position = 'relative';
 
-            <span
-                onclick="removeTempImg(${idx})"
-                style="
-                    position:absolute;
-                    top:0;
-                    right:0;
-                    background:rgba(0,0,0,0.5);
-                    color:white;
-                    border-radius:50%;
-                    width:30px;
-                    height:30px;
-                    text-align:center;
-                    font-size:27px;
-                    line-height:30px;
-                    cursor:pointer;
-                "
-            >
-                ×
-            </span>
-        </div>
-    `).join('');
+        const image = document.createElement('img');
+        image.src = src;
+        image.loading = 'lazy';
+        image.referrerPolicy = 'no-referrer';
+        image.style.cssText = 'width:150px;height:150px;object-fit:cover;border-radius:4px;cursor:pointer;';
+        image.addEventListener('click', () => zoomImage(src, null, idx, 'editor'));
+
+        const removeButton = document.createElement('span');
+        removeButton.textContent = '×';
+        removeButton.setAttribute('role', 'button');
+        removeButton.setAttribute('tabindex', '0');
+        removeButton.setAttribute('aria-label', '写真を削除');
+        removeButton.style.cssText = 'position:absolute;top:0;right:0;background:rgba(0,0,0,0.5);color:white;border-radius:50%;width:30px;height:30px;text-align:center;font-size:27px;line-height:30px;cursor:pointer;';
+        removeButton.addEventListener('click', () => removeTempImg(idx));
+        removeButton.addEventListener('keydown', event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                removeTempImg(idx);
+            }
+        });
+
+        wrapper.append(image, removeButton);
+        container.appendChild(wrapper);
+    });
 }
 
         function removeTempImg(idx) { tempImages.splice(idx, 1); updateImagePreviews(); }
@@ -10081,7 +10183,7 @@ async function deleteCustomDiaryTemplate(id) {
 async function saveDiaryInternal() {
     updateCharCount();
     const title = document.getElementById('diary-title').value || '無題';
-    const content = document.getElementById('diary-content').innerHTML;
+    const content = sanitizeRichHtml(document.getElementById('diary-content').innerHTML);
     const date = document.getElementById('diary-date-input').value;
 
     if (currentEditingType === 'diary') {
@@ -10923,6 +11025,121 @@ function escapeHTML(value) {
 }
 
 
+// ユーザー入力・バックアップ由来のHTMLを、表示前に許可リスト方式で無害化する。
+// contenteditable の基本的な書式は維持し、スクリプト・イベント属性・危険なURLを除去する。
+function getSafeImageSource(value) {
+    const src = String(value ?? '').trim();
+    if (!src || src.length > 20000000) return '';
+    if (/^data:image\/(?:png|jpeg|jpg|gif|webp);base64,[a-z0-9+/=]+$/i.test(src)) return src;
+    try {
+        const parsed = new URL(src, location.href);
+        return (parsed.protocol === 'https:' || parsed.protocol === 'http:') ? parsed.href : '';
+    } catch (_) {
+        return '';
+    }
+}
+
+function sanitizeRichHtml(value) {
+    const template = document.createElement('template');
+    template.innerHTML = String(value ?? '');
+    const allowedTags = new Set([
+        'A','B','STRONG','I','EM','U','S','STRIKE','BR','DIV','P','UL','OL','LI',
+        'BLOCKQUOTE','SPAN','IMG','H1','H2','H3','H4','H5','H6','PRE','CODE',
+        'SUB','SUP','MARK','HR','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD'
+    ]);
+    const blockedTags = new Set([
+        'SCRIPT','STYLE','IFRAME','FRAME','FRAMESET','OBJECT','EMBED','APPLET',
+        'SVG','MATH','FORM','INPUT','BUTTON','TEXTAREA','SELECT','OPTION',
+        'VIDEO','AUDIO','SOURCE','TRACK','LINK','META','BASE','TEMPLATE'
+    ]);
+
+    const safeStyleValue = (property, rawValue) => {
+        const v = String(rawValue || '').trim();
+        if (!v || /url\s*\(|expression\s*\(|javascript:|\\|[<>]/i.test(v)) return '';
+        if (property === 'font-weight') return /^(normal|bold|[1-9]00)$/i.test(v) ? v : '';
+        if (property === 'font-style') return /^(normal|italic|oblique)$/i.test(v) ? v : '';
+        if (property === 'text-decoration') return /^(none|underline|line-through|overline)(\s+(underline|line-through|overline))*$/i.test(v) ? v : '';
+        if (property === 'color' || property === 'background-color') {
+            return /^(#[0-9a-f]{3,8}|[a-z]{1,20}|rgba?\([0-9.% ,]+\)|hsla?\([0-9.% ,]+\))$/i.test(v) ? v : '';
+        }
+        return '';
+    };
+
+    const cleanChildren = parent => {
+        Array.from(parent.childNodes).forEach(node => {
+            if (node.nodeType === Node.COMMENT_NODE) {
+                node.remove();
+                return;
+            }
+            if (node.nodeType !== Node.ELEMENT_NODE) return;
+            const tag = node.tagName;
+            if (blockedTags.has(tag)) {
+                node.remove();
+                return;
+            }
+            cleanChildren(node);
+            if (!allowedTags.has(tag)) {
+                node.replaceWith(...Array.from(node.childNodes));
+                return;
+            }
+
+            const originalAttributes = Array.from(node.attributes);
+            originalAttributes.forEach(attr => node.removeAttribute(attr.name));
+
+            if (tag === 'A') {
+                const hrefAttr = originalAttributes.find(a => a.name.toLowerCase() === 'href');
+                const titleAttr = originalAttributes.find(a => a.name.toLowerCase() === 'title');
+                if (hrefAttr) {
+                    const raw = hrefAttr.value.trim();
+                    try {
+                        const parsed = new URL(raw, location.href);
+                        if (['http:', 'https:', 'mailto:'].includes(parsed.protocol)) {
+                            node.setAttribute('href', parsed.href);
+                            node.setAttribute('target', '_blank');
+                            node.setAttribute('rel', 'noopener noreferrer');
+                        }
+                    } catch (_) {}
+                }
+                if (titleAttr) node.setAttribute('title', titleAttr.value.slice(0, 300));
+            } else if (tag === 'IMG') {
+                const srcAttr = originalAttributes.find(a => a.name.toLowerCase() === 'src');
+                const altAttr = originalAttributes.find(a => a.name.toLowerCase() === 'alt');
+                const safeSrc = srcAttr ? getSafeImageSource(srcAttr.value) : '';
+                if (!safeSrc) {
+                    node.remove();
+                    return;
+                }
+                node.setAttribute('src', safeSrc);
+                node.setAttribute('loading', 'lazy');
+                node.setAttribute('referrerpolicy', 'no-referrer');
+                if (altAttr) node.setAttribute('alt', altAttr.value.slice(0, 500));
+                ['width','height'].forEach(name => {
+                    const attr = originalAttributes.find(a => a.name.toLowerCase() === name);
+                    if (attr && /^\d{1,4}$/.test(attr.value)) node.setAttribute(name, String(Math.min(2000, Number(attr.value))));
+                });
+            } else if (tag === 'SPAN') {
+                const styleAttr = originalAttributes.find(a => a.name.toLowerCase() === 'style');
+                if (styleAttr) {
+                    const safeDeclarations = [];
+                    styleAttr.value.split(';').forEach(declaration => {
+                        const colon = declaration.indexOf(':');
+                        if (colon < 1) return;
+                        const property = declaration.slice(0, colon).trim().toLowerCase();
+                        if (!['color','background-color','font-weight','font-style','text-decoration'].includes(property)) return;
+                        const safeValue = safeStyleValue(property, declaration.slice(colon + 1));
+                        if (safeValue) safeDeclarations.push(`${property}:${safeValue}`);
+                    });
+                    if (safeDeclarations.length) node.setAttribute('style', safeDeclarations.join(';'));
+                }
+            }
+        });
+    };
+
+    cleanChildren(template.content);
+    return template.innerHTML;
+}
+
+
 // 日記本文のプレビュー用に、HTML上の改行もテキストの改行として保持する。
 function diaryPreviewText(value) {
     return String(value ?? '')
@@ -11530,15 +11747,19 @@ function openEditorWithDate(type, date) {
     const start = (galleryPage - 1) * GALLERY_PAGE_SIZE;
     const visibleImgs = imgs.slice(start, start + GALLERY_PAGE_SIZE);
 
-    document.getElementById('gallery-container').innerHTML =
-        visibleImgs.map((obj, index) => `
-            <img
-                src="${obj.src}"
-                class="gallery-img"
-                loading="lazy"
-                onclick="zoomImage('${obj.src}', ${obj.id}, ${start + index})"
-            >
-        `).join('');
+    const galleryContainer = document.getElementById('gallery-container');
+    galleryContainer.replaceChildren();
+    visibleImgs.forEach((obj, index) => {
+        const src = getSafeImageSource(obj && obj.src);
+        if (!src) return;
+        const image = document.createElement('img');
+        image.src = src;
+        image.className = 'gallery-img';
+        image.loading = 'lazy';
+        image.referrerPolicy = 'no-referrer';
+        image.addEventListener('click', () => zoomImage(src, Number(obj.id), start + index));
+        galleryContainer.appendChild(image);
+    });
 
     document.getElementById('gallery-total-count').textContent = ` ${imgs.length} 枚のギャラリー`;
     document.getElementById('gallery-page-info').innerText = `${galleryPage} / ${totalPages}`;
@@ -11952,7 +12173,7 @@ function buildDiaryExportCard(entry){
  const tagsArray=Array.isArray(entry.tags)?entry.tags:[];
  const tags=tagsArray.map(t=>`<span class="export-tag">${escapeExportHtml(t)}</span>`).join('');
  const imgs=entry.images||[];
- const images=imgs.map((src,i)=>`<figure class="export-photo" data-photo-index="${i}"><img src="${String(src)}" alt="日記の写真 ${i+1}" loading="lazy"><figcaption>${i+1}</figcaption></figure>`).join('');
+ const images=imgs.map((src,i)=>{const safeSrc=getSafeImageSource(src);return safeSrc?`<figure class="export-photo" data-photo-index="${i}"><img src="${escapeExportHtml(safeSrc)}" alt="日記の写真 ${i+1}" loading="lazy" referrerpolicy="no-referrer"><figcaption>${i+1}</figcaption></figure>`:'';}).join('');
  return `<article class="export-diary-card export-searchable-card" data-search-date="${escapeExportHtml(entry.date||'')}" data-sort-viewed="${Number(entry.lastViewed)||0}" data-search-mood="${Number(entry.mood)||0}"><div class="export-card-top"><div class="export-date">${escapeExportHtml(entry.date||'')}</div><div class="export-mood" aria-label="感情">${mood}</div></div><div class="export-heading"><h2 class="export-title">${escapeExportHtml(entry.title||'無題')}</h2>${tags?`<div class="export-tags">${tags}</div>`:''}</div><div class="export-content">${linkifyViewerContent(entry.content||'')}</div>${images?`<div class="export-photo-album count-${Math.min(imgs.length,9)}">${images}</div>`:''}</article>`;
 }
 function normalizeExportSearchText(value){
@@ -13071,7 +13292,7 @@ function updateMemoViewerCharCount(htmlContent) {
 function linkifyMemoHTML(html) {
     if (!html) return '';
     const box = document.createElement('div');
-    box.innerHTML = html;
+    box.innerHTML = sanitizeRichHtml(html);
     const walker = document.createTreeWalker(box, NodeFilter.SHOW_TEXT);
     const nodes = [];
     let node;
@@ -13200,7 +13421,7 @@ function openMemoEditor(id = null) {
         memo.lastViewed = Date.now();
         saveDataToDB('memos', memo).catch(()=>{});
         title.value = memo.title || '';
-        content.innerHTML = memo.content || '';
+        content.innerHTML = sanitizeRichHtml(memo.content || '');
         memoChecklistDraft = Array.isArray(memo.checklist)
             ? memo.checklist.map(i => ({ text: i.text || '', done: !!i.done }))
             : [];
@@ -13311,7 +13532,7 @@ async function saveMemoInternal() {
     if (!titleEl || !contentEl) return;
 
     const title = titleEl.value.trim() || '無題';
-    const content = linkifyMemoHTML(contentEl.innerHTML);
+    const content = linkifyMemoHTML(sanitizeRichHtml(contentEl.innerHTML));
     contentEl.innerHTML = content;
     updateMemoCharCount();
     const checklist = memoChecklistDraft
