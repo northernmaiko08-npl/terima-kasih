@@ -6191,6 +6191,19 @@ let currentTag = null;
         let db;
         // 全データ初期化中にバックグラウンド処理がDBを再接続・再作成しないための保護フラグ。
         let fullInitializationInProgress = false;
+        // 同じでじ帖を開いている別タブにも初期化を通知し、古いメモリ上のデータが再保存されるのを防ぐ。
+        const fullResetChannel = (typeof BroadcastChannel !== 'undefined')
+            ? new BroadcastChannel('dejicho-full-reset') : null;
+        if (fullResetChannel) {
+            fullResetChannel.addEventListener('message', (event) => {
+                if (event.data?.type === 'prepare') {
+                    fullInitializationInProgress = true;
+                    if (db) { try { db.close(); } catch (_) {} db = null; }
+                } else if (event.data?.type === 'complete') {
+                    location.reload();
+                }
+            });
+        }
 
         function setMood(n) {
     selectedMood = n;
@@ -6431,7 +6444,7 @@ if (config.hasUnlockedMaster) {
                 delete cleanDiary.searchText;
                 return cleanDiary;
             });
-            return { version: 2, exportedAt: new Date().toISOString(), diaries: backupDiaries, schedules: Array.isArray(schedules) ? schedules : [], memos: Array.isArray(memos) ? memos : [], config: backupConfig, encryptedAuth: encryptedAuth || null };
+            return { version: 2, exportedAt: new Date().toISOString(), diaries: backupDiaries, schedules: Array.isArray(schedules) ? schedules : [], memos: Array.isArray(memos) ? memos : [], config: backupConfig, encryptedAuth: encryptedAuth || null, internalDataKeyEnvelope: await getInternalDataKeyBackupEnvelope() };
         }
         function formatAutoBackupTime(timestamp) {
             if (!timestamp) return '—';
@@ -6544,16 +6557,24 @@ if (config.hasUnlockedMaster) {
                 if(permission!=='granted')throw new Error('バックアップファイルへのアクセスが許可されていません');
                 // 旧バージョンから更新した既存ユーザーは、明示的な同期操作時に一度だけ
                 // 本人確認パスコードを確認して、端末内鍵からポータブル鍵へ移行する。
-                if (force && config.recoverySet && config.authRecoveryPassHash && (!config.manualBackupKey || !config.manualBackupKeyWrap)) {
+                if (force && config.recoverySet && config.authRecoveryPassHash && (
+                    !config.manualBackupKeyWrap || !(await hasPortableBackupKey()) || !(await getInternalDataKeyBackupEnvelope())
+                )) {
                     const recoveryPass = prompt('別の端末でも自動バックアップを復元できるように暗号化方式を更新します。初期設定時の本人確認パスコードを入力してください。');
                     if (recoveryPass === null) return false;
                     if (!recoveryPass || !await verifyAuthSecret(recoveryPass, config.authRecoveryPassHash)) {
                         alert('本人確認パスコードが一致しないため、バックアップ方式の更新を中止しました。');
                         return false;
                     }
-                    const portableKey = await createPortableBackupKey(recoveryPass);
-                    config.manualBackupKey = portableKey.rawKey;
-                    config.manualBackupKeyWrap = portableKey.keyWrap;
+                    if (!config.manualBackupKeyWrap || !(await hasPortableBackupKey())) {
+                        const portableKey = await createPortableBackupKey(recoveryPass);
+                        await storePortableBackupKey(portableKey.rawKey);
+                        config.manualBackupKeyWrap = portableKey.keyWrap;
+                        delete config.manualBackupKey;
+                    }
+                    if (!(await getInternalDataKeyBackupEnvelope())) {
+                        await ensureInternalDataKeyRecoveryWrap(recoveryPass);
+                    }
                     autoBackupInternalWrite = true;
                     try { await saveConfig(); } finally { autoBackupInternalWrite = false; }
                 }
@@ -6833,8 +6854,9 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         // 認証入力のキャンセルや不一致で、既存データを先に消してしまわないため。
         const importedConfig=(imported.config&&typeof imported.config==='object')?{...imported.config}:{};
         if (imported.__portableBackupKey && imported.__portableBackupKeyWrap) {
-            importedConfig.manualBackupKey = imported.__portableBackupKey;
+            await storePortableBackupKey(imported.__portableBackupKey);
             importedConfig.manualBackupKeyWrap = imported.__portableBackupKeyWrap;
+            delete importedConfig.manualBackupKey;
         }
 
         delete importedConfig.password;
@@ -6864,7 +6886,48 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
             importedConfig.encryptedAuthBackup = config.encryptedAuthBackup || null;
         }
 
+        // バックアップに含まれる端末内データ鍵を本人確認パスコードで復元し、
+        // 復元先でも同じ鍵で再暗号化して保存する。鍵ラップ情報はIndexedDBに保持する。
+        let importedInternalKeyRecord = null;
+        if (imported.__internalDataKeyRawBytes && imported.__internalDataKeyEnvelope) {
+            const raw = base64ToBytes(imported.__internalDataKeyRawBytes);
+            const keyMaterial = await importInternalRawKey(raw);
+            internalDataKeyRawBytes = raw;
+            internalDataKeyPromise = Promise.resolve(keyMaterial);
+            importedInternalKeyRecord = {
+                key: INTERNAL_DATA_KEY_ID,
+                version: 3,
+                primaryWrap: imported.__internalDataKeyEnvelope.primaryWrap || null,
+                // primaryWrap がない旧形式バックアップでは、元端末専用の親鍵チェーンを
+                // 別端末へ持ち込めないため破棄する。復元した本人確認鍵を使い、初回ログイン時に
+                // 新端末のパスコードで直接ラップし直す。
+                primaryKeyWraps: imported.__internalDataKeyEnvelope.primaryWrap
+                    ? (Array.isArray(imported.__internalDataKeyEnvelope.primaryKeyWraps)
+                        ? imported.__internalDataKeyEnvelope.primaryKeyWraps
+                        : (imported.__internalDataKeyEnvelope.primaryKeyWrap ? [imported.__internalDataKeyEnvelope.primaryKeyWrap] : []))
+                    : [],
+                recoveryWrap: imported.__internalDataKeyEnvelope.recoveryWrap || null,
+                recoveryKeyWraps: Array.isArray(imported.__internalDataKeyEnvelope.recoveryKeyWraps)
+                    ? imported.__internalDataKeyEnvelope.recoveryKeyWraps
+                    : (imported.__internalDataKeyEnvelope.recoveryKeyWrap ? [imported.__internalDataKeyEnvelope.recoveryKeyWrap] : [])
+            };
+            if (importedConfig.startupPasswordRequired === false || !importedInternalKeyRecord.primaryWrap) {
+                importedInternalKeyRecord.localKeyMaterial = keyMaterial;
+            }
+            await saveInternalKeyRecord(importedInternalKeyRecord);
+        } else {
+            // 旧形式バックアップとの互換性を維持するため、旧バックアップでは
+            // 現在の端末鍵を端末内に保持してからデータを再保存する。
+            const currentKey = await getInternalDataKey();
+            const currentRecord = await readInternalKeyRecord() || { key: INTERNAL_DATA_KEY_ID, version: 2 };
+            currentRecord.localKeyMaterial = currentKey;
+            currentRecord.legacyLocalKeyFallback = true;
+            await saveInternalKeyRecord(currentRecord);
+        }
+
         // 一時的な秘密情報を、設定・保存データへ混入させない。
+        delete imported.__internalDataKeyRawBytes;
+        delete imported.__internalDataKeyEnvelope;
         delete imported.__recoveryPassForAuth;
         delete imported.__recoveryWordForAuth;
         delete imported.__restoredAuthForImport;
@@ -7363,58 +7426,421 @@ async function cleanupPassedSchedules(force = false) {
     console.log(`✅ ${passedSchedules.length}件の過去予定を削除完了`);
 }
         
-        // IndexedDB内の日記・メモ・予定はAES-GCMで暗号化して保存する。
-        // 暗号鍵は抽出不可のCryptoKeyとして別ストアに保持し、既存データは読み込み時に移行する。
+        // 日記・予定・メモはAES-GCM 256bitで暗号化する。
+        // 日記・予定・メモのデータ鍵は、起動時パスコードと本人確認パスコードの
+        // それぞれから復元できるように保護する。省略設定では端末内CryptoKeyを保持しつつ、
+        // 本人確認パスコードによるポータブルな復元経路も必ず維持する。
         let internalDataKeyPromise = null;
+        let internalDataKeyRawBytes = null;
+        const INTERNAL_DATA_KEY_ID = 'internal-data-key-v2';
+        const INTERNAL_KEY_KDF_ITERATIONS = 310000;
         function isUserDataStore(storeName) {
             return storeName === 'diaries' || storeName === 'schedules' || storeName === 'memos';
         }
         function bytesToHex(bytes) {
             return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
         }
-        async function getInternalDataKey() {
-            ensureAuthCryptoAvailable();
-            if (internalDataKeyPromise) return internalDataKeyPromise;
-            internalDataKeyPromise = (async () => {
-                const existing = await new Promise((resolve, reject) => {
-                    const tx = db.transaction('cryptoKeys', 'readonly');
-                    const req = tx.objectStore('cryptoKeys').get('internal-data-key');
-                    req.onsuccess = () => resolve(req.result || null);
-                    req.onerror = () => reject(req.error || new Error('暗号鍵の読み込みに失敗しました'));
-                });
-                if (existing && existing.keyMaterial) return existing.keyMaterial;
-                const keyMaterial = await crypto.subtle.generateKey(
-                    { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
-                );
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction('cryptoKeys', 'readwrite');
-                    tx.objectStore('cryptoKeys').put({ key: 'internal-data-key', keyMaterial });
-                    tx.oncomplete = resolve;
-                    tx.onerror = () => reject(tx.error || new Error('暗号鍵の保存に失敗しました'));
-                    tx.onabort = () => reject(tx.error || new Error('暗号鍵の保存が中断されました'));
-                });
-                return keyMaterial;
-            })().catch(error => {
-                internalDataKeyPromise = null;
-                throw error;
+        async function readInternalKeyRecord() {
+            // 旧版では暗号鍵を 'internal-data-key' というIDで保存していた。
+            // 新方式への初回移行時に旧IDを見落とすと、既存データが暗号化済みでも
+            // 鍵がないと誤判定して移行を中止してしまうため、旧IDも読み込む。
+            const readById = id => new Promise((resolve, reject) => {
+                const tx = db.transaction('cryptoKeys', 'readonly');
+                const req = tx.objectStore('cryptoKeys').get(id);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error || new Error('暗号鍵の読み込みに失敗しました'));
             });
-            return internalDataKeyPromise;
+            const currentRecord = await readById(INTERNAL_DATA_KEY_ID);
+            if (currentRecord) return currentRecord;
+            const legacyRecord = await readById('internal-data-key');
+            if (!legacyRecord) return null;
+            // 保存時には新IDへ正規化し、saveInternalKeyRecord() で旧IDを削除できるようにする。
+            return { ...legacyRecord, key: INTERNAL_DATA_KEY_ID, version: legacyRecord.version || 1 };
         }
-        async function encryptInternalRecord(storeName, record) {
-            if (!isUserDataStore(storeName)) return record;
-            const keyMaterial = await getInternalDataKey();
+        function deriveInternalWrapKey(password, salt, usages) {
+            const material = crypto.subtle.importKey('raw', new TextEncoder().encode(String(password)), 'PBKDF2', false, ['deriveKey']);
+            return material.then(key => crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt, iterations: INTERNAL_KEY_KDF_ITERATIONS, hash: 'SHA-256' },
+                key, { name: 'AES-GCM', length: 256 }, false, usages
+            ));
+        }
+        async function wrapInternalRawKey(rawBytes, password) {
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const wrappingKey = await deriveInternalWrapKey(password, salt, ['encrypt']);
+            const wrapped = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, rawBytes);
+            return { algorithm: 'PBKDF2-SHA-256/AES-256-GCM', iterations: INTERNAL_KEY_KDF_ITERATIONS,
+                salt: bytesToBase64(salt), iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(wrapped)) };
+        }
+        async function unwrapInternalRawKey(wrap, password) {
+            if (!wrap || !wrap.salt || !wrap.iv || !wrap.data) throw new Error('暗号鍵の保護情報が見つかりません');
+            const iterations = Number(wrap.iterations) || INTERNAL_KEY_KDF_ITERATIONS;
+            const material = await crypto.subtle.importKey('raw', new TextEncoder().encode(String(password)), 'PBKDF2', false, ['deriveKey']);
+            const wrappingKey = await crypto.subtle.deriveKey(
+                { name: 'PBKDF2', salt: base64ToBytes(wrap.salt), iterations, hash: 'SHA-256' },
+                material, { name: 'AES-GCM', length: 256 }, false, ['decrypt']
+            );
+            const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(wrap.iv) }, wrappingKey, base64ToBytes(wrap.data));
+            return new Uint8Array(raw);
+        }
+        // 既存の抽出不可CryptoKeyを親鍵として使い、新しいデータ鍵をラップする。
+        // パスコード省略中でも鍵を再生成でき、あとから起動時認証を有効にした場合は
+        // primaryWrap → primaryKeyWraps の順にたどって新しいデータ鍵を復元できる。
+        async function wrapInternalRawKeyWithCryptoKey(rawBytes, wrappingKey) {
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const wrapped = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, rawBytes);
+            return { algorithm: 'AES-256-GCM-KEY-WRAP', iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(wrapped)) };
+        }
+        async function unwrapInternalRawKeyWithCryptoKey(wrap, wrappingKey) {
+            if (!wrap || !wrap.iv || !wrap.data) throw new Error('連結された暗号鍵の保護情報が見つかりません');
+            const raw = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: base64ToBytes(wrap.iv) }, wrappingKey, base64ToBytes(wrap.data)
+            );
+            return new Uint8Array(raw);
+        }
+        function getInternalKeyWrapChain(record, kind) {
+            if (!record) return [];
+            const plural = record[`${kind}KeyWraps`];
+            if (Array.isArray(plural)) return plural.slice();
+            const singular = record[`${kind}KeyWrap`];
+            return singular ? [singular] : [];
+        }
+        async function unwrapInternalKeyWrapChain(rawBytes, wraps) {
+            let currentRaw = rawBytes;
+            let currentKey = await importInternalRawKey(currentRaw);
+            for (const wrap of (Array.isArray(wraps) ? wraps : [])) {
+                currentRaw = await unwrapInternalRawKeyWithCryptoKey(wrap, currentKey);
+                currentKey = await importInternalRawKey(currentRaw);
+            }
+            return { rawBytes: currentRaw, keyMaterial: currentKey };
+        }
+        async function importInternalRawKey(rawBytes) {
+            return crypto.subtle.importKey('raw', rawBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        }
+        async function saveInternalKeyRecord(record) {
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction('cryptoKeys', 'readwrite');
+                tx.objectStore('cryptoKeys').put(record);
+                tx.objectStore('cryptoKeys').delete('internal-data-key');
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error('暗号鍵の保存に失敗しました'));
+                tx.onabort = () => reject(tx.error || new Error('暗号鍵の保存が中断されました'));
+            });
+        }
+        let portableBackupKeyPromise = null;
+        async function storePortableBackupKey(rawKeyBase64) {
+            const raw = base64ToBytes(rawKeyBase64);
+            const keyMaterial = await crypto.subtle.importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction('cryptoKeys', 'readwrite');
+                tx.objectStore('cryptoKeys').put({ key: 'portable-backup-key-v2', keyMaterial });
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error('バックアップ鍵の保存に失敗しました'));
+                tx.onabort = () => reject(tx.error || new Error('バックアップ鍵の保存が中断されました'));
+            });
+            portableBackupKeyPromise = Promise.resolve(keyMaterial);
+            if (Object.prototype.hasOwnProperty.call(config, 'manualBackupKey')) delete config.manualBackupKey;
+            return keyMaterial;
+        }
+        async function getPortableBackupKey() {
+            if (portableBackupKeyPromise) return portableBackupKeyPromise;
+            const stored = await new Promise((resolve, reject) => {
+                const tx = db.transaction('cryptoKeys', 'readonly');
+                const req = tx.objectStore('cryptoKeys').get('portable-backup-key-v2');
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error || new Error('バックアップ鍵の読み込みに失敗しました'));
+            });
+            if (stored && stored.keyMaterial) {
+                portableBackupKeyPromise = Promise.resolve(stored.keyMaterial);
+                return portableBackupKeyPromise;
+            }
+            // 旧版で設定に平文保存されていた鍵は、初回利用時に抽出不可CryptoKeyへ移行する。
+            if (typeof config.manualBackupKey === 'string' && config.manualBackupKey) {
+                const key = await storePortableBackupKey(config.manualBackupKey);
+                await saveConfig();
+                return key;
+            }
+            throw new Error('バックアップ用の暗号鍵が見つかりません。本人確認設定から再設定してください。');
+        }
+        async function hasPortableBackupKey() {
+            try { await getPortableBackupKey(); return true; } catch (_) { return false; }
+        }
+        async function readRawUserRecords() {
+            const names = ['diaries', 'schedules', 'memos'];
+            const result = {};
+            for (const name of names) {
+                result[name] = await new Promise((resolve, reject) => {
+                    const tx = db.transaction(name, 'readonly');
+                    const req = tx.objectStore(name).getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error || new Error('既存データの読み込みに失敗しました'));
+                });
+            }
+            return result;
+        }
+        async function decryptRawRecordWithKey(record, oldKey) {
+            if (!record || record.__encryptedRecord !== true) return record;
+            if (!oldKey) throw new Error('既存データの暗号鍵が見つからないため、安全な移行を中止しました。データは変更していません。');
+            const plaintext = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: base64ToBytes(record.iv) }, oldKey, base64ToBytes(record.cipher)
+            );
+            return JSON.parse(new TextDecoder().decode(plaintext));
+        }
+        async function encryptRecordWithKey(record, keyMaterial) {
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const plaintext = new TextEncoder().encode(JSON.stringify(record));
             const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, keyMaterial, plaintext);
             return { id: record.id, __encryptedRecord: true, iv: bytesToBase64(iv), cipher: bytesToBase64(new Uint8Array(cipher)) };
         }
+        async function migrateInternalDataKey(oldKey, primaryPassword = null, recoveryPassword = null, keepLocalKey = false, previousRecord = null) {
+            ensureAuthCryptoAvailable();
+            const rawStores = await readRawUserRecords();
+            const decoded = {};
+            for (const name of ['diaries', 'schedules', 'memos']) {
+                decoded[name] = [];
+                for (const record of rawStores[name]) decoded[name].push(await decryptRawRecordWithKey(record, oldKey));
+            }
+
+            // 旧鍵で全レコードを復号できたことを確認してから、新しいランダム鍵で再暗号化する。
+            const rawBytes = crypto.getRandomValues(new Uint8Array(32));
+            const newKey = await importInternalRawKey(rawBytes);
+            const encrypted = {};
+            for (const name of ['diaries', 'schedules', 'memos']) {
+                encrypted[name] = [];
+                for (const record of decoded[name]) encrypted[name].push(await encryptRecordWithKey(record, newKey));
+            }
+
+            const record = { key: INTERNAL_DATA_KEY_ID, version: 3 };
+            if (primaryPassword !== null) {
+                record.primaryWrap = await wrapInternalRawKey(rawBytes, primaryPassword);
+            } else if (oldKey) {
+                // 既存のパスコード保護を残し、その親鍵から新鍵へつなぐ。
+                if (previousRecord && previousRecord.primaryWrap) {
+                    record.primaryWrap = previousRecord.primaryWrap;
+                    const chain = getInternalKeyWrapChain(previousRecord, 'primary');
+                    chain.push(await wrapInternalRawKeyWithCryptoKey(rawBytes, oldKey));
+                    record.primaryKeyWraps = chain;
+                } else {
+                    const chain = getInternalKeyWrapChain(previousRecord, 'primary');
+                    chain.push(await wrapInternalRawKeyWithCryptoKey(rawBytes, oldKey));
+                    record.primaryKeyWraps = chain;
+                    record.primaryUnlockKeyMaterial = previousRecord?.primaryUnlockKeyMaterial || oldKey;
+                }
+            }
+
+            if (recoveryPassword !== null) {
+                record.recoveryWrap = await wrapInternalRawKey(rawBytes, recoveryPassword);
+            } else if (previousRecord && previousRecord.recoveryWrap && oldKey) {
+                // 本人確認パスコードを再入力できない処理でも、既存の回復経路を切らさない。
+                record.recoveryWrap = previousRecord.recoveryWrap;
+                const chain = getInternalKeyWrapChain(previousRecord, 'recovery');
+                chain.push(await wrapInternalRawKeyWithCryptoKey(rawBytes, oldKey));
+                record.recoveryKeyWraps = chain;
+            }
+
+            if (keepLocalKey) record.localKeyMaterial = newKey;
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction(['diaries', 'schedules', 'memos', 'cryptoKeys'], 'readwrite');
+                for (const name of ['diaries', 'schedules', 'memos']) {
+                    const store = tx.objectStore(name);
+                    store.clear();
+                    for (const item of encrypted[name]) store.put(item);
+                }
+                const keys = tx.objectStore('cryptoKeys');
+                keys.put(record);
+                keys.delete('internal-data-key');
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error || new Error('暗号鍵の安全な移行に失敗しました'));
+                tx.onabort = () => reject(tx.error || new Error('暗号鍵の移行が中断されました'));
+            });
+            internalDataKeyRawBytes = rawBytes;
+            internalDataKeyPromise = Promise.resolve(newKey);
+            return newKey;
+        }
+        async function unlockInternalDataKeyWithPrimaryPassword(password) {
+            ensureAuthCryptoAvailable();
+            const record = await readInternalKeyRecord();
+            if (record && record.primaryWrap) {
+                try {
+                    const rootRaw = await unwrapInternalRawKey(record.primaryWrap, password);
+                    const rootKey = await importInternalRawKey(rootRaw);
+                    const chain = getInternalKeyWrapChain(record, 'primary');
+                    let raw = rootRaw;
+                    let key = rootKey;
+                    if (chain.length) {
+                        const unwrapped = await unwrapInternalKeyWrapChain(rootRaw, chain);
+                        raw = unwrapped.rawBytes;
+                        key = unwrapped.keyMaterial;
+                        // 一度正常に復元できたら、次回以降は新しい鍵を直接パスコードで保護する。
+                        record.primaryWrap = await wrapInternalRawKey(raw, password);
+                        delete record.primaryKeyWraps;
+                        delete record.primaryKeyWrap;
+                        delete record.primaryUnlockKeyMaterial;
+                        delete record.localKeyMaterial;
+                        await saveInternalKeyRecord(record);
+                    } else if (record.localKeyMaterial) {
+                        delete record.localKeyMaterial;
+                        await saveInternalKeyRecord(record);
+                    }
+                    internalDataKeyRawBytes = raw;
+                    internalDataKeyPromise = Promise.resolve(key);
+                    return key;
+                } catch (error) {
+                    // パスコード照合自体は unlockApp() 側で完了している。
+                    // 旧版から残った端末内鍵がある場合は、それを使ってデータ鍵を再構成し、
+                    // 正しいパスコードで新しい primaryWrap を作り直す。
+                    // localKeyMaterial がない場合は誤った鍵で上書きしない。
+                    if (record.localKeyMaterial) {
+                        console.warn('保存済みの起動用鍵ラップを復元できないため、端末内鍵から安全に再構成します。', error);
+                        return migrateInternalDataKey(record.localKeyMaterial, password, null, false, record);
+                    }
+                    throw new Error('暗号鍵を復元できませんでした。パスコードと暗号鍵の保護情報が一致しません。');
+                }
+            }
+
+            // 旧形式または省略設定中に作成された鍵チェーンは、本人パスコード照合後に
+            // 新しい鍵を直接ラップし直して、次回から通常の起動認証だけで復元できるようにする。
+            const chain = getInternalKeyWrapChain(record, 'primary');
+            const chainRoot = record && record.primaryUnlockKeyMaterial;
+            if (record && chain.length && chainRoot) {
+                let key = chainRoot;
+                let raw = null;
+                for (const wrap of chain) {
+                    raw = await unwrapInternalRawKeyWithCryptoKey(wrap, key);
+                    key = await importInternalRawKey(raw);
+                }
+                if (!raw) throw new Error('暗号鍵の連結情報が不完全です');
+                record.primaryWrap = await wrapInternalRawKey(raw, password);
+                delete record.primaryKeyWraps;
+                delete record.primaryKeyWrap;
+                delete record.primaryUnlockKeyMaterial;
+                delete record.localKeyMaterial;
+                await saveInternalKeyRecord(record);
+                internalDataKeyRawBytes = raw;
+                internalDataKeyPromise = Promise.resolve(key);
+                return key;
+            }
+
+            const legacyKey = record && (record.keyMaterial || record.localKeyMaterial);
+            if (legacyKey) return migrateInternalDataKey(legacyKey, password, null, false, record);
+            return migrateInternalDataKey(null, password, null, false, record);
+        }
+        async function unlockInternalDataKeyWithoutPassword() {
+            ensureAuthCryptoAvailable();
+            const record = await readInternalKeyRecord();
+            if (record && record.localKeyMaterial) {
+                internalDataKeyPromise = Promise.resolve(record.localKeyMaterial);
+                internalDataKeyRawBytes = null;
+                return record.localKeyMaterial;
+            }
+            if (record && record.primaryUnlockKeyMaterial && getInternalKeyWrapChain(record, 'primary').length) {
+                let key = record.primaryUnlockKeyMaterial;
+                let raw = null;
+                for (const wrap of getInternalKeyWrapChain(record, 'primary')) {
+                    raw = await unwrapInternalRawKeyWithCryptoKey(wrap, key);
+                    key = await importInternalRawKey(raw);
+                }
+                internalDataKeyRawBytes = raw;
+                internalDataKeyPromise = Promise.resolve(key);
+                return key;
+            }
+            if (record && record.keyMaterial) {
+                internalDataKeyPromise = Promise.resolve(record.keyMaterial);
+                internalDataKeyRawBytes = null;
+                return record.keyMaterial;
+            }
+            if (record && record.primaryWrap) {
+                throw new Error('端末内の暗号鍵が見つかりません。起動時パスコードを一時的に有効にして認証してください。');
+            }
+            return migrateInternalDataKey(null, null, null, true, record);
+        }
+        async function unlockInternalDataKeyWithRecoveryPassword(password) {
+            ensureAuthCryptoAvailable();
+            const record = await readInternalKeyRecord();
+            if (record && record.recoveryWrap) {
+                let raw = await unwrapInternalRawKey(record.recoveryWrap, password);
+                let key = await importInternalRawKey(raw);
+                const chain = getInternalKeyWrapChain(record, 'recovery');
+                if (chain.length) {
+                    const unwrapped = await unwrapInternalKeyWrapChain(raw, chain);
+                    raw = unwrapped.rawBytes;
+                    key = unwrapped.keyMaterial;
+                }
+                internalDataKeyRawBytes = raw;
+                internalDataKeyPromise = Promise.resolve(key);
+                return key;
+            }
+            const legacyKey = record && (record.keyMaterial || record.localKeyMaterial);
+            if (legacyKey) {
+                internalDataKeyPromise = Promise.resolve(legacyKey);
+                internalDataKeyRawBytes = null;
+                return legacyKey;
+            }
+            throw new Error('本人確認用の暗号鍵情報がありません。');
+        }
+        async function rewrapInternalDataKeyWithPrimaryPassword(newPassword, recoveryPassword = null) {
+            if (!internalDataKeyPromise) throw new Error('暗号鍵がまだ読み込まれていません');
+            if (!internalDataKeyRawBytes) {
+                const oldKey = await internalDataKeyPromise;
+                const record = await readInternalKeyRecord();
+                return migrateInternalDataKey(oldKey, newPassword, recoveryPassword, config.startupPasswordRequired === false, record);
+            }
+            const record = await readInternalKeyRecord() || { key: INTERNAL_DATA_KEY_ID, version: 3 };
+            record.primaryWrap = await wrapInternalRawKey(internalDataKeyRawBytes, newPassword);
+            delete record.primaryKeyWraps;
+            delete record.primaryKeyWrap;
+            delete record.primaryUnlockKeyMaterial;
+            if (config.startupPasswordRequired === false) {
+                record.localKeyMaterial = await internalDataKeyPromise;
+            } else {
+                delete record.localKeyMaterial;
+            }
+            await saveInternalKeyRecord(record);
+        }
+        async function ensureInternalDataKeyRecoveryWrap(recoveryPassword) {
+            if (!internalDataKeyPromise) throw new Error('暗号鍵がまだ読み込まれていません');
+            if (!internalDataKeyRawBytes) {
+                const oldKey = await internalDataKeyPromise;
+                const existingRecord = await readInternalKeyRecord();
+                // 省略設定でも既存CryptoKeyを捨てず、新しいデータ鍵へ安全に移行する。
+                // 起動時パスコード用の親鍵チェーンは維持し、本人確認パスコード用の
+                // recoveryWrap は新しいデータ鍵を直接復元できる形で作成する。
+                await migrateInternalDataKey(oldKey, null, recoveryPassword, config.startupPasswordRequired === false, existingRecord);
+                return true;
+            }
+            const record = await readInternalKeyRecord() || { key: INTERNAL_DATA_KEY_ID, version: 3 };
+            record.recoveryWrap = await wrapInternalRawKey(internalDataKeyRawBytes, recoveryPassword);
+            delete record.recoveryKeyWraps;
+            delete record.recoveryKeyWrap;
+            await saveInternalKeyRecord(record);
+            return true;
+        }
+        async function getInternalDataKeyBackupEnvelope() {
+            const record = await readInternalKeyRecord();
+            if (!record || !record.recoveryWrap) return null;
+            return {
+                version: 2,
+                primaryWrap: record.primaryWrap || null,
+                primaryKeyWraps: getInternalKeyWrapChain(record, 'primary'),
+                recoveryWrap: record.recoveryWrap,
+                recoveryKeyWraps: getInternalKeyWrapChain(record, 'recovery')
+            };
+        }
+        async function getInternalDataKey() {
+            ensureAuthCryptoAvailable();
+            if (!internalDataKeyPromise) throw new Error('暗号鍵が認証後に読み込まれていません');
+            return internalDataKeyPromise;
+        }
+        async function encryptInternalRecord(storeName, record) {
+            if (!isUserDataStore(storeName)) return record;
+            const keyMaterial = await getInternalDataKey();
+            return encryptRecordWithKey(record, keyMaterial);
+        }
         async function decryptInternalRecord(storeName, record) {
             if (!isUserDataStore(storeName) || !record || record.__encryptedRecord !== true) return record;
             const keyMaterial = await getInternalDataKey();
             const plaintext = await crypto.subtle.decrypt(
-                { name: 'AES-GCM', iv: base64ToBytes(record.iv) },
-                keyMaterial,
-                base64ToBytes(record.cipher)
+                { name: 'AES-GCM', iv: base64ToBytes(record.iv) }, keyMaterial, base64ToBytes(record.cipher)
             );
             return JSON.parse(new TextDecoder().decode(plaintext));
         }
@@ -7442,9 +7868,8 @@ async function cleanupPassedSchedules(force = false) {
         }
         async function encryptBackupWithLocalKey(payload) {
             ensureAuthCryptoAvailable();
-            if (!config.manualBackupKey || !config.manualBackupKeyWrap) throw new Error('自動暗号化キーが未設定です');
-            const rawKey = base64ToBytes(config.manualBackupKey);
-            const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt']);
+            if (!config.manualBackupKeyWrap) throw new Error('自動暗号化キーが未設定です');
+            const key = await getPortableBackupKey();
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
             return { format: 'dejicho-encrypted-backup', version: 2, algorithm: 'AES-256-GCM', iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(cipher)), keyWrap: config.manualBackupKeyWrap };
@@ -7457,6 +7882,21 @@ async function cleanupPassedSchedules(force = false) {
             const cipher = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(payload)));
             return { format: 'dejicho-encrypted-backup', version: 1, algorithm: 'AES-256-GCM', kdf: 'PBKDF2-SHA-256', iterations: 310000, salt: bytesToBase64(salt), iv: bytesToBase64(iv), data: bytesToBase64(new Uint8Array(cipher)) };
         }
+        async function attachPortableInternalDataKey(payload, password) {
+            const envelope = payload && payload.internalDataKeyEnvelope;
+            if (!envelope || !envelope.recoveryWrap) return payload;
+            let raw = await unwrapInternalRawKey(envelope.recoveryWrap, password);
+            const chain = Array.isArray(envelope.recoveryKeyWraps)
+                ? envelope.recoveryKeyWraps
+                : (envelope.recoveryKeyWrap ? [envelope.recoveryKeyWrap] : []);
+            if (chain.length) {
+                const unwrapped = await unwrapInternalKeyWrapChain(raw, chain);
+                raw = unwrapped.rawBytes;
+            }
+            payload.__internalDataKeyRawBytes = bytesToBase64(raw);
+            payload.__internalDataKeyEnvelope = envelope;
+            return payload;
+        }
         async function decryptBackupWithPassword(envelope, password) {
             if (!envelope || envelope.format !== 'dejicho-encrypted-backup') return envelope;
             ensureAuthCryptoAvailable();
@@ -7467,6 +7907,7 @@ async function cleanupPassedSchedules(force = false) {
                 const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
                 const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(envelope.iv) }, key, base64ToBytes(envelope.data));
                 const payload = JSON.parse(new TextDecoder().decode(plaintext));
+                await attachPortableInternalDataKey(payload, password);
                 // 復元先端末でも以後の自動バックアップを同じ本人確認パスコードで
                 // 作成できるよう、復号した鍵を端末内設定へ引き継ぐため一時的に添付する。
                 payload.__portableBackupKey = bytesToBase64(new Uint8Array(rawKey));
@@ -7478,43 +7919,32 @@ async function cleanupPassedSchedules(force = false) {
             const key = await deriveBackupKeyFromPassword(password, base64ToBytes(envelope.salt), ['decrypt']);
             const plaintext = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(envelope.iv) }, key, base64ToBytes(envelope.data));
             const payload = JSON.parse(new TextDecoder().decode(plaintext));
+            await attachPortableInternalDataKey(payload, password);
             payload.__recoveryPassForAuth = String(password);
             return payload;
         }
 
         async function encryptAutoBackupPayload(payload) {
-            // 本人確認パスコードで鍵を復元できるポータブル方式を優先する。
-            // 初期設定前の既存環境では旧端末内鍵方式を維持し、データを失わせない。
-            if (config.manualBackupKey && config.manualBackupKeyWrap) {
-                const rawKey = base64ToBytes(config.manualBackupKey);
-                const key = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt']);
-                const iv = crypto.getRandomValues(new Uint8Array(12));
-                const cipher = await crypto.subtle.encrypt(
-                    { name: 'AES-GCM', iv }, key,
-                    new TextEncoder().encode(JSON.stringify(payload))
-                );
-                return {
-                    format: 'dejicho-encrypted-backup',
-                    version: 2,
-                    algorithm: 'AES-256-GCM',
-                    iv: bytesToBase64(iv),
-                    data: bytesToBase64(new Uint8Array(cipher)),
-                    keyWrap: config.manualBackupKeyWrap,
-                    backupType: 'automatic'
-                };
+            // 自動バックアップは別端末でも本人確認パスコードで復元できる形式に統一する。
+            // ポータブル鍵が未設定の場合、端末固有鍵へ黙ってフォールバックすると
+            // 「自動同期できているのに別端末では復元できない」状態になるため、保存自体を中止する。
+            if (!config.manualBackupKeyWrap) {
+                throw new Error('自動バックアップの共通暗号鍵が未設定です。本人確認設定を完了してから自動バックアップを利用してください。');
             }
-            const keyMaterial = await getInternalDataKey();
+            const key = await getPortableBackupKey();
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const cipher = await crypto.subtle.encrypt(
-                { name: 'AES-GCM', iv }, keyMaterial,
+                { name: 'AES-GCM', iv }, key,
                 new TextEncoder().encode(JSON.stringify(payload))
             );
             return {
-                format: 'dejicho-local-encrypted-auto-backup',
-                version: 1,
+                format: 'dejicho-encrypted-backup',
+                version: 2,
                 algorithm: 'AES-256-GCM',
                 iv: bytesToBase64(iv),
-                data: bytesToBase64(new Uint8Array(cipher))
+                data: bytesToBase64(new Uint8Array(cipher)),
+                keyWrap: config.manualBackupKeyWrap,
+                backupType: 'automatic'
             };
         }
         async function decryptAutoBackupPayload(envelope) {
@@ -7711,6 +8141,7 @@ window.onload = async () => {
     // パスコード省略設定の場合も、従来どおりロック画面を閉じる。
     checkSecurity();
     if (unlockPromise) await unlockPromise;
+    else await unlockInternalDataKeyWithoutPassword();
 
     // 認証設定は loadConfigBeforeUserData() で取得済み。
     // 日記・予定・メモの読み込みを待たず、セキュリティ設定のお願いだけ先にDOMへ反映する。
@@ -7800,7 +8231,20 @@ window.onload = async () => {
                 return;
             }
 
-            config.startupPasswordRequired = value === 'required';
+            const requirePassword = value === 'required';
+            const keyRecord = await readInternalKeyRecord();
+            if (!requirePassword) {
+                const keyMaterial = await getInternalDataKey();
+                const nextRecord = keyRecord || { key: INTERNAL_DATA_KEY_ID, version: 3 };
+                nextRecord.localKeyMaterial = keyMaterial;
+                await saveInternalKeyRecord(nextRecord);
+            } else if (keyRecord && (keyRecord.primaryWrap || keyRecord.primaryUnlockKeyMaterial || getInternalKeyWrapChain(keyRecord, 'primary').length)) {
+                // 起動時パスコードで復元できる親鍵または鍵チェーンがある場合だけ、
+                // 省略用の端末内データ鍵を削除する。旧形式の鍵しかない場合はロックアウト防止で保持。
+                delete keyRecord.localKeyMaterial;
+                await saveInternalKeyRecord(keyRecord);
+            }
+            config.startupPasswordRequired = requirePassword;
             await saveConfig();
         }
 
@@ -7822,6 +8266,7 @@ window.onload = async () => {
                 if (!hasPrimaryAuth()) {
                     config.authPasswordHash = await hashAuthSecret(input);
                     await saveConfig();
+                    await unlockInternalDataKeyWithPrimaryPassword(input);
                     passInput.value = '';
                     hidePasscodeKeyboard();
                     // ロック画面はデータ読み込みと初回描画が完了するまで表示したままにする。
@@ -7846,6 +8291,7 @@ window.onload = async () => {
                         config.authPasswordHash = await hashAuthSecret(input);
                         await saveConfig();
                     }
+                    await unlockInternalDataKeyWithPrimaryPassword(input);
                     if (passInput) passInput.value = '';
                     hidePasscodeKeyboard();
                     // ロック画面はデータ読み込みと初回描画が完了するまで表示したままにする。
@@ -7935,6 +8381,8 @@ window.onload = async () => {
                     if (isLegacyAuthHash(config.authRecoveryWordHash)) {
                         config.authRecoveryWordHash = await hashAuthSecret(inputWord);
                     }
+                    await unlockInternalDataKeyWithRecoveryPassword(inputPass);
+                    await rewrapInternalDataKeyWithPrimaryPassword(newPass, inputPass);
                     config.authPasswordHash = await hashAuthSecret(newPass);
                     await saveConfig();
                     alert('パスコードを更新しました。');
@@ -12137,6 +12585,7 @@ async function changePassword() {
     }
 
     try {
+        await rewrapInternalDataKeyWithPrimaryPassword(newPass, recoveryPass);
         const newHash = await hashAuthSecret(newPass);
         config.authPasswordHash = newHash;
 
@@ -12683,17 +13132,21 @@ async function exportData(){
      alert('JSONバックアップには「本人確認パスコード」の認証が必要です。先に設定してください。');
      return;
    }
-   // 初回だけ本人確認パスコードを確認し、以後は端末内の鍵で自動暗号化する。
-   if (!config.manualBackupKey || !config.manualBackupKeyWrap) {
-     const password = prompt('プライバシー管理のため、自動暗号化します。本人確認パスコードを入力してください。次回以降のバックアップ保存では入力不要です。復元時にはこのパスコードが必要です。');
+   // バックアップ用鍵と端末内データ鍵の両方を、本人確認パスコードで復元できるようにする。
+   if (!config.manualBackupKeyWrap || !(await hasPortableBackupKey()) || !(await getInternalDataKeyBackupEnvelope())) {
+     const password = prompt('バックアップと端末間移行の暗号鍵を保護するため、本人確認パスコードを入力してください。復元時にも必要です。');
      if (password === null) return;
      if (!password || !await verifyAuthSecret(password, config.authRecoveryPassHash)) {
        alert('本人確認パスコードが一致しません。バックアップを中止しました。');
        return;
      }
-     const portableKey = await createPortableBackupKey(password);
-     config.manualBackupKey = portableKey.rawKey;
-     config.manualBackupKeyWrap = portableKey.keyWrap;
+     if (!config.manualBackupKeyWrap || !(await hasPortableBackupKey())) {
+       const portableKey = await createPortableBackupKey(password);
+       await storePortableBackupKey(portableKey.rawKey);
+       config.manualBackupKeyWrap = portableKey.keyWrap;
+       delete config.manualBackupKey;
+     }
+     if (!(await getInternalDataKeyBackupEnvelope())) await ensureInternalDataKeyRecoveryWrap(password);
      await saveConfig();
    }
    const backupConfig={...config};
@@ -12709,7 +13162,7 @@ async function exportData(){
    delete backupConfig.manualBackupKey;
    delete backupConfig.manualBackupKeyWrap;
    const backupDiaries=diaries.map(diary=>{const cleanDiary={...diary};delete cleanDiary.searchText;return cleanDiary;});
-   const payload={version:2,exportedAt:new Date().toISOString(),diaries:backupDiaries,schedules,memos,config:backupConfig,encryptedAuth:config.encryptedAuthBackup||null};
+   const payload={version:2,exportedAt:new Date().toISOString(),diaries:backupDiaries,schedules,memos,config:backupConfig,encryptedAuth:config.encryptedAuthBackup||null,internalDataKeyEnvelope:await getInternalDataKeyBackupEnvelope()};
    const envelope=await encryptBackupWithLocalKey(payload);
    const blob=new Blob([JSON.stringify(envelope)],{type:'application/json'});
    const a=document.createElement('a'),dateStr=getLocalDateString(new Date());
@@ -12802,9 +13255,11 @@ async function startFullInitialization() {
             });
         }
 
-        if (db) { db.close(); db = null; }
+        // DB接続はclearDatabase()内で全ストアを消去した後に閉じる。
+        // ここで先に閉じると、消去トランザクションを開始できず初期化が失敗する。
         await clearDatabase();
-        alert("すべてのデータが初期化されました。既存のバックアップJSONファイル自体は削除されません。");
+        alert("すべてのデータが初期化されました。次回起動時は初期パスコード設定から始まります。既存のバックアップJSONファイル自体は削除されません。");
+        if (fullResetChannel) { try { fullResetChannel.postMessage({ type: 'complete' }); } catch (_) {} }
         location.reload();
     } catch (error) {
         console.error("全データ初期化に失敗しました:", error);
@@ -12820,28 +13275,80 @@ async function startFullInitialization() {
 
 function clearDatabase() {
     return new Promise((resolve, reject) => {
-        let blockedNoticeShown = false;
-        const deleteRequest = indexedDB.deleteDatabase(DB_NAME);
+        // 先に全タブへ停止を通知する。受信側はDB接続を閉じ、完了通知で再読み込みする。
+        if (fullResetChannel) {
+            try { fullResetChannel.postMessage({ type: 'prepare' }); } catch (_) {}
+        }
 
-        deleteRequest.onsuccess = () => {
-            db = null;
-            console.log("DB削除成功\nデータをすべて消去しました。");
-            resolve();
-        };
-
-        deleteRequest.onerror = (event) => {
-            console.error("DB削除失敗", event);
-            reject(deleteRequest.error || event);
-        };
-
-        deleteRequest.onblocked = () => {
-            // blockedは「削除失敗」ではなく、他タブの接続が閉じるまで待機中という状態。
-            // ここでrejectすると、後から削除が成功しても画面側は失敗扱いになる。
-            if (!blockedNoticeShown) {
-                blockedNoticeShown = true;
-                alert("別のタブまたは画面がでじ帖のデータベースを使用しています。ほかのでじ帖のタブを閉じてください。この画面は閉じず、そのまま待つと削除が続行されます。");
+        const finish = (error) => {
+            if (error) reject(error);
+            else {
+                db = null;
+                // このページに残っているメモリ上のデータ・鍵も破棄する。
+                diaries = [];
+                schedules = [];
+                memos = [];
+                config = {};
+                internalDataKeyPromise = null;
+                internalDataKeyRawBytes = null;
+                if (typeof portableBackupKeyPromise !== 'undefined') portableBackupKeyPromise = null;
+                if (typeof invalidateCaches === 'function') invalidateCaches();
+                console.log('でじ帖の全ストアを空にし、暗号鍵と設定を含む保存データを初期化しました。');
+                resolve();
             }
         };
+
+        // DB全体の削除だけに頼ると、他タブの接続でdeleteDatabaseがblockedになり、
+        // 削除が完了しない場合がある。まず全ストアを1トランザクションで空にする。
+        // これにより、DB削除が遅延しても日記・予定・メモ・設定・暗号鍵は残らない。
+        const clearAllStores = () => {
+            if (!db) return Promise.reject(new Error('初期化対象のデータベース接続がありません'));
+            return new Promise((resolveClear, rejectClear) => {
+                let tx;
+                try {
+                    const storeNames = Array.from(db.objectStoreNames);
+                    if (!storeNames.length) return resolveClear();
+                    tx = db.transaction(storeNames, 'readwrite');
+                    for (const name of storeNames) tx.objectStore(name).clear();
+                    tx.oncomplete = () => resolveClear();
+                    tx.onerror = () => rejectClear(tx.error || new Error('保存データの消去に失敗しました'));
+                    tx.onabort = () => rejectClear(tx.error || new Error('保存データの消去が中断されました'));
+                } catch (error) { rejectClear(error); }
+            });
+        };
+
+        (async () => {
+            try {
+                // 他タブがprepare通知を受け取ってDBを閉じる時間を確保。
+                await new Promise(resolveWait => setTimeout(resolveWait, 250));
+                await clearAllStores();
+
+                // 全ストアの消去が確定してからDB自体も削除する。
+                if (db) { try { db.close(); } catch (_) {} db = null; }
+                let request;
+                try { request = indexedDB.deleteDatabase(DB_NAME); }
+                catch (error) { return finish(error); }
+
+                let settled = false;
+                let blockedTimer = null;
+                const complete = (error) => {
+                    if (settled) return;
+                    settled = true;
+                    if (blockedTimer) clearTimeout(blockedTimer);
+                    // deleteDatabaseがblockedでも、先行する全ストアclearは完了済み。
+                    // 空DBが残るだけなので、初期化成功として次回起動時に新規設定へ進める。
+                    finish(error || null);
+                };
+                request.onsuccess = () => complete();
+                request.onerror = () => complete(request.error || new Error('データベースの削除に失敗しました'));
+                request.onblocked = () => {
+                    console.warn('別タブのDB接続が残っています。全ストアの消去は完了しているため、接続解放を待っています。');
+                    blockedTimer = setTimeout(() => complete(), 3000);
+                };
+            } catch (error) {
+                finish(error);
+            }
+        })();
     });
 }
 
@@ -12935,6 +13442,7 @@ async function saveRecoverySettings() {
         // ここではまだ本人確認設定を「完了」にしない。
         // データ保存先の設定まで成功した時点で初めて完了とする。
         const portableKey = await createPortableBackupKey(pass);
+        await ensureInternalDataKeyRecoveryWrap(pass);
         const pending = {
             authRecoveryPassHash: await hashAuthSecret(pass),
             authRecoveryWordHash: await hashAuthSecret(word),
@@ -12974,8 +13482,9 @@ async function completeRecoverySetupWithoutAutoBackup() {
         config.authRecoveryPassHash = pending.authRecoveryPassHash;
         config.authRecoveryWordHash = pending.authRecoveryWordHash;
         config.customRecoveryHint = pending.customRecoveryHint;
-        config.manualBackupKey = pending.manualBackupKey;
+        await storePortableBackupKey(pending.manualBackupKey);
         config.manualBackupKeyWrap = pending.manualBackupKeyWrap;
+        delete config.manualBackupKey;
         config.encryptedAuthBackup = await encryptBackupAuth(config, pending.recoveryPassForBackup, pending.recoveryWordForBackup);
         if (config.encryptedAuthBackup) {
             config.encryptedAuthBackup.primaryPasswordUpdate = await encryptPrimaryPasswordUpdate(config.authPasswordHash, pending.recoveryPassForBackup);
@@ -13048,8 +13557,9 @@ async function completeBackupDestinationSetup() {
     try {
         // 保存先の初回作成時点から、本人確認パスコードで復号できる鍵を使用する。
         // 失敗してもpending内に鍵を保持するため、設定をやり直せる。
-        config.manualBackupKey = pending.manualBackupKey;
+        await storePortableBackupKey(pending.manualBackupKey);
         config.manualBackupKeyWrap = pending.manualBackupKeyWrap;
+        delete config.manualBackupKey;
         const success = await configureAutoBackupFile();
         if (!success) {
             if (button) {
@@ -13065,8 +13575,8 @@ async function completeBackupDestinationSetup() {
         config.authRecoveryPassHash = pending.authRecoveryPassHash;
         config.authRecoveryWordHash = pending.authRecoveryWordHash;
         config.customRecoveryHint = pending.customRecoveryHint;
-        config.manualBackupKey = pending.manualBackupKey;
         config.manualBackupKeyWrap = pending.manualBackupKeyWrap;
+        delete config.manualBackupKey;
         config.encryptedAuthBackup = await encryptBackupAuth(config, pending.recoveryPassForBackup, pending.recoveryWordForBackup);
         if (config.encryptedAuthBackup) {
             config.encryptedAuthBackup.primaryPasswordUpdate =
