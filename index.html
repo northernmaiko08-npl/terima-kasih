@@ -6101,7 +6101,12 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
             }
         }
 
+        // 設定アイコンの連打などで権限確認が重複した場合、
+        // 古い非同期処理が新しい表示状態を上書きしないようにする。
+        let manualBackupUIRequestId = 0;
+
         async function updateManualBackupUI() {
+            const requestId = ++manualBackupUIRequestId;
             const manualRow = document.getElementById('manual-backup-row');
             const manualButton = document.getElementById('manual-backup-button');
             const autoRow = document.getElementById('auto-sync-row');
@@ -6109,24 +6114,15 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
             // 手動バックアップの項目自体は常に残す。
             if (manualRow) manualRow.style.display = 'flex';
 
-            // 非同期の権限確認を待っている間も、同期処理中・自動保存先設定済みなら
-            // 先に手動ボタンをロックする。これにより「同期中なのに一瞬だけ押せる」
-            // 状態を作らない。
-            const immediatelyLocked = autoBackupSyncInProgress || hasAutomaticBackupConfigured();
-            if (manualButton) {
-                manualButton.disabled = immediatelyLocked;
-                manualButton.setAttribute('aria-disabled', immediatelyLocked ? 'true' : 'false');
-                manualButton.classList.toggle('manual-backup-disabled', immediatelyLocked);
-                manualButton.title = immediatelyLocked
-                    ? '自動バックアップが利用可能または同期中のため、手動バックアップは現在利用できません。'
-                    : '現在のデータを新しいJSONバックアップとして保存します。';
-            }
-
-            // 「今すぐ同期」は通常はアクセス可能時に表示するが、
-            // 再接続待機中（pending）でも表示して、ここから再接続・権限確認を実行できるようにする。
+            // 権限確認が終わるまでボタンの現在の状態を維持する。
+            // 保存先が「設定済み」という理由だけで先に無効化すると、
+            // 実際にはアクセス権がない場合、確認完了後に有効へ戻って点滅する。
             const usable = await isAutomaticBackupUsable();
-        
-            // 権限確認後に最終状態を確定する。権限を失っている場合は手動へ戻す。
+
+            // 後から開始した確認がある場合、この古い結果ではUIを更新しない。
+            if (requestId !== manualBackupUIRequestId) return;
+
+            // 権限確認後に最終状態を一度だけ反映する。
             const manualLocked = usable || autoBackupSyncInProgress;
             if (manualButton) {
                 manualButton.disabled = manualLocked;
