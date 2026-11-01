@@ -6382,10 +6382,12 @@ if (config.hasUnlockedMaster) {
                 const auth = JSON.parse(new TextDecoder().decode(plain));
                 if (!auth.authPasswordHash || !auth.authRecoveryPassHash || !auth.authRecoveryWordHash) throw new Error('認証情報が不完全です');
 
-                // パスコード変更後は、バックアップ本体の認証情報が古いままでも、
-                // primaryPasswordUpdate に保存された「最後に変更したパスコード」の
-                // ハッシュを優先して復元する。
-                if (encryptedAuth.primaryPasswordUpdate) {
+                // 新形式では、パスコード変更時に本人確認パスコードを要求せず更新できるよう、
+                // 最新の起動用パスコード検証ハッシュをメタデータとして保持する。
+                // 旧形式の暗号化更新情報も後方互換のため引き続き読み込む。
+                if (isValidAuthHash(encryptedAuth.primaryPasswordUpdateHash)) {
+                    auth.authPasswordHash = encryptedAuth.primaryPasswordUpdateHash;
+                } else if (encryptedAuth.primaryPasswordUpdate) {
                     try {
                         const latestHash = await decryptPrimaryPasswordUpdate(
                             encryptedAuth.primaryPasswordUpdate,
@@ -6393,7 +6395,6 @@ if (config.hasUnlockedMaster) {
                         );
                         if (latestHash) auth.authPasswordHash = latestHash;
                     } catch (updateError) {
-                        // 更新情報が古い形式・破損等の場合は、従来の認証情報を使用する。
                         console.warn('最新パスコード更新情報を復元できませんでした。バックアップ本体の認証情報を使用します。', updateError);
                     }
                 }
@@ -12547,18 +12548,7 @@ function changeTagSort(order) {
         }
         async function setFont(f) { config.font = f; await saveConfig(); applyTheme(); }
 async function changePassword() {
-    // パスコード変更の最初に本人確認を行う。
-    let recoveryPass = null;
-    if (config.encryptedAuthBackup && config.recoverySet) {
-        recoveryPass = prompt('本人確認パスコードを入力してください。');
-        if (recoveryPass === null) return;
-        if (!recoveryPass || !await verifyAuthSecret(recoveryPass, config.authRecoveryPassHash)) {
-            alert('本人確認パスコードが一致しないため、パスコード変更を中止しました。');
-            return;
-        }
-    }
-
-    // 通常のパスコード変更では、現在のパスコードで認証したあと、新しいパスコードを2回入力して変更する。
+    // 本人確認パスコードは要求せず、現在の起動用パスコードで本人確認する。
     const currentPassInput = prompt('現在使用中のパスコードを入力してください。');
     if (currentPassInput === null) return;
     if (!currentPassInput || !await verifyAuthSecret(currentPassInput, config.authPasswordHash)) {
@@ -12581,22 +12571,20 @@ async function changePassword() {
     }
 
     try {
-        await rewrapInternalDataKeyWithPrimaryPassword(newPass, recoveryPass);
+        // データ鍵そのものは維持し、起動用パスコードで保護するラップだけを更新する。
+        // 旧形式の鍵では内部移行処理が既存の本人確認用復旧経路も引き継ぐ。
+        await rewrapInternalDataKeyWithPrimaryPassword(newPass, null);
         const newHash = await hashAuthSecret(newPass);
         config.authPasswordHash = newHash;
 
-        // バックアップを同じファイルへ復元し直した場合にも、
-        // 「最後に変更したパスコード」が使われるように更新情報を保存する。
-        // 本人確認パスコードそのものは保存せず、更新後のハッシュだけを
-        // 本人確認パスコード由来のAES-GCM鍵で暗号化してバックアップへ保持する。
+        // 本人確認パスコードを再入力できないため、更新済みの検証ハッシュを
+        // バックアップの認証メタデータへ保存する。生のパスコードは保存しない。
+        // 復元時はこの値を優先し、旧形式の primaryPasswordUpdate も読み込み可能にする。
         if (config.encryptedAuthBackup && config.recoverySet) {
-            config.encryptedAuthBackup.primaryPasswordUpdate =
-                await encryptPrimaryPasswordUpdate(newHash, recoveryPass);
+            config.encryptedAuthBackup.primaryPasswordUpdateHash = newHash;
         }
 
         await saveConfig();
-        // 自動バックアップ先が設定されている場合は、変更直後の認証更新情報を
-        // 同じJSONファイルへ即時同期する。
         if (config.backupFileHandle || config.backupDirectoryHandle) {
             await syncAutoBackupFile(true, true, false);
         }
@@ -12606,6 +12594,7 @@ async function changePassword() {
         alert(e.message || 'パスコードの変更中にエラーが発生しました。');
     }
 }
+
         async function saveConfig() { await saveDataToDB('config', { key: 'main', ...config }); }
     queueAutoBackupSync();
 
