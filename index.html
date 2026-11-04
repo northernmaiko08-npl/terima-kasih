@@ -6300,19 +6300,14 @@ if (config.hasUnlockedMaster) {
 
         
         
-        let autoBackupSyncTimer = null;
         let autoBackupSyncInProgress = false;
         let autoBackupSyncQueued = false;
         // ユーザーが権限確認などをキャンセルした場合は、接続失敗通知を出さない。
         let autoBackupLastAttemptCancelled = false;
         let autoBackupInternalWrite = false;
-        // 保存済みHandleの権限を、ユーザー操作を邪魔せず無通知で再確認する状態。
-        // 常時タイマーではなく、起動・復帰・フォーカス・オンライン復帰などの
-        // 「権限が戻る可能性が高い瞬間」にだけ確認する。
-        let autoBackupReconnectTimer = null;
-        let autoBackupReconnectChecking = false;
-        let autoBackupLastPermissionCheck = 0;
-        const AUTO_BACKUP_PERMISSION_CHECK_COOLDOWN = 1500;
+        // ホーム画面の描画で解放条件を検出しても、その場では保存しない。
+        // 次に日記・予定・メモが実際に変更されたときだけ設定をまとめて保存する。
+        let pendingDashboardUnlockConfigSave = false;
 
         function bytesToBase64(bytes) {
             let binary = '';
@@ -6463,7 +6458,6 @@ if (config.hasUnlockedMaster) {
             const statusEl=document.getElementById('autoBackupStatus'), lastEl=document.getElementById('autoBackupLastSync');
             if(!statusEl||!lastEl)return;
             const handle=config.backupFileHandle;
-            if(!config.autoBackupEnabled && handle) config.autoBackupEnabled=true;
             if(!handle||typeof handle.queryPermission!=='function'){statusEl.textContent='未設定';statusEl.className='storage-status-value storage-status-warning';lastEl.textContent='—';return;}
             try{
                 const permission=await handle.queryPermission({mode:'readwrite'});
@@ -6622,127 +6616,16 @@ if (config.hasUnlockedMaster) {
             }
         }
 
-        async function reconnectAutoBackupAfterUnlock(){
-            // ログイン時は絶対にrequestPermission()を呼ばない。
-            // Chrome/PWA側に権限が残っている場合だけ無通知で再接続する。
-            return checkAutoBackupReconnectSilently('unlock');
-        }
-
-        async function checkAutoBackupReconnectSilently(reason='event'){
-            if(autoBackupReconnectChecking||autoBackupSyncInProgress)return false;
-            const now=Date.now();
-            if(now-autoBackupLastPermissionCheck < AUTO_BACKUP_PERMISSION_CHECK_COOLDOWN) return false;
-            const fileHandle=config.backupFileHandle;
-            const directoryHandle=config.backupDirectoryHandle;
-            if(!fileHandle || typeof fileHandle.queryPermission!=='function'){
-                stopAutoBackupReconnectMonitor();
-                return false;
-            }
-            autoBackupReconnectChecking=true;
-            autoBackupLastPermissionCheck=now;
-            try{
-                // queryPermission()は状態確認だけ。ここでは絶対にrequestPermission()しない。
-                const filePermission=await fileHandle.queryPermission({mode:'readwrite'});
-                let directoryPermission='granted';
-                if(directoryHandle && typeof directoryHandle.queryPermission==='function'){
-                    directoryPermission=await directoryHandle.queryPermission({mode:'readwrite'});
-                }
-                if(filePermission==='granted' && directoryPermission==='granted'){
-                    const success=await syncAutoBackupFile(false,true,false);
-                    if(success){
-                        stopAutoBackupReconnectMonitor();
-                        return true;
-                    }
-                }
-                // prompt/deniedでもHandle・設定は絶対に破棄しない。
-                // アクセス権がないこと自体も切断の検知として記録する。
-                config.backupSyncStatus='pending';
-                if(!Number(config.backupDisconnectedSince)) config.backupDisconnectedSince=Date.now();
-                autoBackupInternalWrite=true;
-                try { await saveDataToDB('config',{key:'main',...config}).catch(()=>{}); }
-                finally { autoBackupInternalWrite=false; }
-                await updateAutoBackupStatus();
-                return false;
-            }catch(error){
-                console.warn('自動バックアップの無通知権限確認に失敗しました:', reason, error);
-                config.backupSyncStatus='pending';
-                if(!Number(config.backupDisconnectedSince)) config.backupDisconnectedSince=Date.now();
-                autoBackupInternalWrite=true;
-                try { await saveDataToDB('config',{key:'main',...config}).catch(()=>{}); }
-                finally { autoBackupInternalWrite=false; }
-                await updateAutoBackupStatus();
-                return false;
-            }finally{
-                autoBackupReconnectChecking=false;
-            }
-        }
-
-        function scheduleAutoBackupReconnectCheck(){
-            // 互換用。常時10秒ポーリングは行わず、短い遅延で一度だけ確認する。
-            clearTimeout(autoBackupReconnectTimer);
-            if(!config.backupFileHandle)return;
-            autoBackupReconnectTimer=setTimeout(()=>{
-                autoBackupReconnectTimer=null;
-                checkAutoBackupReconnectSilently('deferred');
-            },500);
-        }
-
-        function startAutoBackupReconnectMonitor(){
-            if(!config.backupFileHandle)return;
-            scheduleAutoBackupReconnectCheck();
-        }
-
-        function stopAutoBackupReconnectMonitor(){
-            clearTimeout(autoBackupReconnectTimer);
-            autoBackupReconnectTimer=null;
-        }
-
-        // Android Chrome/PWAはバックグラウンド中にタイマーが停止・遅延するため、
-        // 復帰時に同期を再開し、表示中も定期的にJSONバックアップを更新する。
-        // ブラウザが停止している間の連続実行は保証できないので、復帰時の同期で補う。
-        function resumeAutoBackupSync(reason){
+        // 自動バックアップは日記・予定・メモの実データが変更された時だけ実行する。
+        // 起動・閲覧・画面復帰・定期タイマーからの同期やファイル書き換えは行わない。
+        function queueAutoBackupSync(){
             if(fullInitializationInProgress || !config.backupFileHandle) return;
-            if(document.visibilityState === 'hidden' && reason !== 'pageshow') return;
-            void checkAutoBackupReconnectSilently(reason);
+            if(autoBackupSyncInProgress){
+                autoBackupSyncQueued=true;
+                return;
+            }
+            void syncAutoBackupFile(false, true, false);
         }
-        document.addEventListener('visibilitychange',()=>{
-            if(document.visibilityState==='visible') resumeAutoBackupSync('visibility');
-        });
-        window.addEventListener('pageshow',()=>resumeAutoBackupSync('pageshow'));
-        window.addEventListener('focus',()=>resumeAutoBackupSync('focus'));
-        window.addEventListener('online',()=>resumeAutoBackupSync('online'));
-        window.addEventListener('pagehide',()=>{
-            // 画面遷移・終了直前にもベストエフォートで同期を開始する。
-            // モバイルブラウザが処理を中断する場合があるため、これだけに依存しない。
-            if(config.backupFileHandle && !autoBackupSyncInProgress){
-                clearTimeout(autoBackupSyncTimer);
-                void syncAutoBackupFile(false, true);
-            }
-        });
-
-        // 画面が前面にある間の保険。モバイルの省電力制御で遅延しても、
-        // 次に表示状態へ戻った際のイベントで同期を再開する。
-        const AUTO_BACKUP_FOREGROUND_SYNC_INTERVAL = 30000;
-        setInterval(()=>{
-            if(document.visibilityState === 'visible' && config.backupFileHandle){
-                resumeAutoBackupSync('foreground-periodic');
-            }
-        }, AUTO_BACKUP_FOREGROUND_SYNC_INTERVAL);
-
-        async function ensureBackupProtectionOnStartup(){
-            try{
-                // 起動処理ではロック画面を表示するまで待たせない。
-                // 自動バックアップの再接続・JSON書き込みはバックグラウンドで行う。
-                await requestPersistentStorageSilently();
-                if(config.backupFileHandle){
-                    if(!config.autoBackupEnabled) config.autoBackupEnabled=true;
-                    void checkAutoBackupReconnectSilently('startup');
-                }
-            }catch(error){
-                console.warn('起動時の自動バックアップ保護確認に失敗しました:', error);
-            }
-        }
-        function queueAutoBackupSync(){if(fullInitializationInProgress || !config.backupFileHandle)return;clearTimeout(autoBackupSyncTimer);autoBackupSyncTimer=setTimeout(()=>syncAutoBackupFile(false),300);}
         async function retryAutoBackup(){
     await requestPersistentStorageSilently();
     if(!config.backupFileHandle){
@@ -7001,8 +6884,7 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         let storageProtectionInProgress = false;
         let storageProtectionLastAttempt = 0;
 
-        // 重要な安全策: 自動ログイン/再接続経路では権限昇格を絶対に行わない。
-// requestPermission() は保存先設定・「今すぐ同期」など明示的ユーザー操作からのみ呼び出す。
+        // 権限の昇格は保存先設定・「今すぐ同期」など明示的ユーザー操作からのみ行う。
 function isInstalledPWA(){
             try{
                 return !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
@@ -7082,6 +6964,33 @@ function isInstalledPWA(){
                 console.warn('ストレージ保護状態の確認に失敗しました:', error);
                 await updateStorageProtectionStatus();
                 return { supported: true, persisted: false };
+            }
+        }
+
+        // IndexedDBの削除完了後、ブラウザが返す最新の使用量・割当量を表示へ反映する。
+        // 永続化状態やバックアップ状態には触れず、容量表示だけを更新する。
+        async function refreshStorageUsageDisplay() {
+            const usageEl = document.getElementById('storageUsageStatus');
+            const quotaEl = document.getElementById('storageQuotaStatus');
+            if (!usageEl || !quotaEl || !navigator.storage || typeof navigator.storage.estimate !== 'function') return;
+
+            try {
+                const estimate = await navigator.storage.estimate();
+                const formatBytes = (bytes) => {
+                    if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
+                    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+                    let value = bytes;
+                    let unit = 0;
+                    while (value >= 1024 && unit < units.length - 1) {
+                        value /= 1024;
+                        unit++;
+                    }
+                    return `${value.toFixed(unit >= 2 ? 1 : 0)} ${units[unit]}`;
+                };
+                usageEl.textContent = formatBytes(Number(estimate.usage || 0));
+                quotaEl.textContent = formatBytes(Number(estimate.quota || 0));
+            } catch (error) {
+                console.warn('削除後のストレージ容量更新に失敗しました:', error);
             }
         }
 
@@ -7391,49 +7300,25 @@ async function loadData() {
     
     
     
+    // 起動・ログイン時は予定件数をメモリ上で補正するだけにし、
+    // 閲覧のための読み込みでconfigストアへ書き込まない。
+    // 予定数の上限は30なので、既存予定が30件を超えていても値は30に固定する。
     const existingScheduleCount = schedules.length;
     const storedScheduleCreationCount = Number(config.scheduleCreationCount);
     const normalizedScheduleCreationCount = Number.isFinite(storedScheduleCreationCount)
         ? Math.min(30, Math.max(0, Math.floor(storedScheduleCreationCount)))
         : 0;
+    config.scheduleCreationCount = Math.min(
+        30,
+        Math.max(normalizedScheduleCreationCount, Math.min(existingScheduleCount, 30))
+    );
 
-    if (normalizedScheduleCreationCount < existingScheduleCount || config.scheduleCreationCount !== normalizedScheduleCreationCount) {
-        config.scheduleCreationCount = Math.min(30, Math.max(normalizedScheduleCreationCount, existingScheduleCount));
-        await saveConfig();
-    } else {
-        config.scheduleCreationCount = normalizedScheduleCreationCount;
-    }
-
-    await cleanupPassedSchedules();
-    
+    // 読み込み時・閲覧時に過去の予定を自動削除しない。
     invalidateCaches();
     // データ読み込み完了後、ブックマーク件数に基づいて作成ボタンの表示を確定する。
     renderCustomDiaryTemplates();
 }
 
-async function cleanupPassedSchedules(force = false) {
-    const todayStr = getLocalDateString(new Date());
-    const passedSchedules = schedules.filter(s => s.date < todayStr);
-    
-    if (passedSchedules.length === 0) {
-        console.log(`✅ 削除対象なし (${todayStr})`);
-        return;
-    }
-
-    console.log(`🧹 ${passedSchedules.length}件の過去予定を削除します (${todayStr}基準)`);
-    
-
-    for (let s of passedSchedules) {
-        await deleteFromDB('schedules', s.id);
-    }
-    
-    schedules = schedules.filter(s => s.date >= todayStr);
-    
-    invalidateCaches();
-    
-    console.log(`✅ ${passedSchedules.length}件の過去予定を削除完了`);
-}
-        
         // 日記・予定・メモはAES-GCM 256bitで暗号化する。
         // 日記・予定・メモのデータ鍵は、起動時パスコードと本人確認パスコードの
         // それぞれから復元できるように保護する。省略設定では端末内CryptoKeyを保持しつつ、
@@ -7972,12 +7857,49 @@ async function saveDataToDB(storeName, data) {
                 throw new Error('全データ初期化中のため、データの保存を停止しています。');
             }
             if (!db || !db.objectStoreNames.contains(storeName)) await initDB();
+            // 同一内容の再保存は行わない。特にconfigはログイン時の補正処理などから
+            // 同じ値が渡されてもIndexedDBのputを発生させない。
+            if (data && ((isUserDataStore(storeName) && data.id != null) || (storeName === 'config' && data.key != null))) {
+                try {
+                    const recordKey = isUserDataStore(storeName) ? data.id : data.key;
+                    const existingRaw = await new Promise((resolve, reject) => {
+                        const tx = db.transaction(storeName, 'readonly');
+                        const request = tx.objectStore(storeName).get(recordKey);
+                        request.onsuccess = () => resolve(request.result || null);
+                        request.onerror = () => reject(request.error || tx.error);
+                        tx.onerror = () => reject(tx.error);
+                    });
+                    if (existingRaw) {
+                        if (isUserDataStore(storeName) && existingRaw.__encryptedRecord === true) {
+                            const existingData = await decryptInternalRecord(storeName, existingRaw);
+                            if (JSON.stringify(existingData) === JSON.stringify(data)) return;
+                        } else if (storeName === 'config' && JSON.stringify(existingRaw) === JSON.stringify(data)) {
+                            return;
+                        }
+                    }
+                } catch (comparisonError) {
+                    // 比較に失敗した場合は保存を止めず、従来どおり安全に保存する。
+                    console.warn('既存データとの比較を省略しました:', comparisonError);
+                }
+            }
             const storedData = await encryptInternalRecord(storeName, data);
             return new Promise((resolve, reject) => {
                 try {
                     const tx = db.transaction(storeName, 'readwrite');
                     tx.objectStore(storeName).put(storedData);
-                    tx.oncomplete = () => { resolve(); if (!autoBackupInternalWrite) queueAutoBackupSync(); };
+                    tx.oncomplete = () => {
+                        resolve();
+                        if (!autoBackupInternalWrite && isUserDataStore(storeName)) {
+                            queueAutoBackupSync();
+                            if (pendingDashboardUnlockConfigSave) {
+                                pendingDashboardUnlockConfigSave = false;
+                                void saveDataToDB('config', { key: 'main', ...config }).catch(error => {
+                                    pendingDashboardUnlockConfigSave = true;
+                                    console.warn('テーマ解放設定の保存を次回のデータ変更まで延期します:', error);
+                                });
+                            }
+                        }
+                    };
                     tx.onerror = () => reject(tx.error || new Error('保存に失敗しました'));
                     tx.onabort = () => reject(tx.error || new Error('保存処理が中断されました'));
                 } catch (error) { reject(error); }
@@ -8003,12 +7925,54 @@ async function saveDataToDB(storeName, data) {
         }
 
 async function deleteFromDB(storeName, id) {
-            return new Promise((resolve, reject) => {
+            if (!db || !db.objectStoreNames.contains(storeName)) await initDB();
+
+            // 指定IDのレコードが実在することを同じreadwriteトランザクション内で確認してから削除する。
+            // IDを文字列化して照合すると別キーを誤って扱う可能性があるため、型も含めてそのまま照合する。
+            await new Promise((resolve, reject) => {
+                let targetExists = false;
+                let settled = false;
                 const tx = db.transaction(storeName, 'readwrite');
-                tx.objectStore(storeName).delete(id);
-                tx.oncomplete = () => { resolve(); if (!autoBackupInternalWrite) queueAutoBackupSync(); };
-                tx.onerror = () => reject(tx.error);
+                const store = tx.objectStore(storeName);
+                const getRequest = store.get(id);
+                getRequest.onsuccess = () => {
+                    targetExists = getRequest.result !== undefined;
+                    if (targetExists) store.delete(id);
+                };
+                getRequest.onerror = () => reject(getRequest.error || tx.error || new Error('削除対象の確認に失敗しました'));
+                tx.oncomplete = () => {
+                    if (settled) return;
+                    settled = true;
+                    if (targetExists) resolve();
+                    else reject(new Error('削除対象のデータが見つかりません。画面を更新して、もう一度お試しください。'));
+                };
+                tx.onerror = () => {
+                    if (settled) return;
+                    settled = true;
+                    reject(tx.error || new Error('データの削除に失敗しました'));
+                };
+                tx.onabort = () => {
+                    if (settled) return;
+                    settled = true;
+                    reject(tx.error || new Error('データの削除処理が中断されました'));
+                };
             });
+
+            // 削除トランザクション完了後、同じキーが残っていないことを再確認する。
+            const remaining = await new Promise((resolve, reject) => {
+                const tx = db.transaction(storeName, 'readonly');
+                const request = tx.objectStore(storeName).get(id);
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || tx.error || new Error('削除結果の確認に失敗しました'));
+                tx.onerror = () => reject(tx.error || new Error('削除結果の確認に失敗しました'));
+                tx.onabort = () => reject(tx.error || new Error('削除結果の確認が中断されました'));
+            });
+            if (remaining !== undefined) throw new Error('削除後もデータが残っています。画面を更新して、もう一度お試しください。');
+
+            // 容量表示の更新失敗で、完了した削除そのものを失敗扱いにしない。
+            try { await refreshStorageUsageDisplay(); }
+            catch (error) { console.warn('削除後の容量表示を更新できませんでした:', error); }
+            if (!autoBackupInternalWrite && isUserDataStore(storeName)) queueAutoBackupSync();
         }
 
         async function getAllFromDB(storeName) {
@@ -8160,10 +8124,7 @@ window.onload = async () => {
     await loadData();
     // 通常の予定・バックアップ通知はデータ読み込み後に更新する。
     renderNotifications();
-    if (!hasPrimaryAuth()) {
-    } else {
-        await cleanupPassedSchedules(true);
-    }
+    // 起動しただけで過去の予定を削除しない。予定の削除はユーザー操作時のみ行う。
 
     // データ読み込み直後に画面と通知を描画する。
     createIcons();
@@ -8189,7 +8150,6 @@ window.onload = async () => {
         try {
             await protectStorage();
             await checkStorageHealth();
-            await ensureBackupProtectionOnStartup();
             await updateAutoBackupStatus();
         } catch (startupMaintenanceError) {
             console.warn('起動後のバックグラウンド確認に失敗しました:', startupMaintenanceError);
@@ -8204,9 +8164,6 @@ window.onload = async () => {
 
     checkNewYearFireworks(); 
 
-    setInterval(async () => {
-        await cleanupPassedSchedules();
-    }, 3600000);
 };
 
         function checkSecurity() {
@@ -8290,7 +8247,6 @@ window.onload = async () => {
                     }
                     switchTab(showSupportOnFirstLogin ? 'about' : 'home');
                     window.scrollTo(0, 0);
-                    // 初期パスコード設定直後は自動バックアップの再接続を行わない。
                     return;
                 }
 
@@ -8313,9 +8269,6 @@ window.onload = async () => {
                     }
                     switchTab(showSupportOnFirstLogin ? 'about' : 'home');
                     window.scrollTo(0, 0);
-                    // 初期パスコード設定では上で終了する。通常ログインでは、保存フォルダ未指定なら関数側で何もせず、それ以外は問答無用で再接続する。
-                    await requestPersistentStorageSilently();
-                    await reconnectAutoBackupAfterUnlock();
                 } else {
                     passInput.value = '';
                     alert('パスコードが一致しません。');
@@ -8406,9 +8359,15 @@ window.onload = async () => {
             }
         }
 
+        // 画面内だけで使う一時状態。sessionStorageへ書き込まず、閲覧・画面移動で容量を増やさない。
+        const transientViewState = new Map();
+        function viewStateSet(key, value) { transientViewState.set(String(key), String(value)); }
+        function viewStateGet(key) { return transientViewState.has(String(key)) ? transientViewState.get(String(key)) : null; }
+        function viewStateRemove(key) { transientViewState.delete(String(key)); }
+
         function saveDiaryListScroll() {
-    sessionStorage.setItem('savedDiaryScroll', window.scrollY);
-    sessionStorage.setItem('returningFromViewer', '1');
+    viewStateSet('savedDiaryScroll', window.scrollY);
+    viewStateSet('returningFromViewer', '1');
 }
 
 // 編集中の未保存変更を検知する（日記・予定・メモ）。
@@ -8611,10 +8570,10 @@ function switchTab(tabId) {
     ) {
         currentTag = null;
 
-        sessionStorage.removeItem('savedTag');
-        sessionStorage.removeItem('savedTagPage');
-        sessionStorage.removeItem('savedTagSort');
-        sessionStorage.removeItem('savedTagScroll');
+        viewStateRemove('savedTag');
+        viewStateRemove('savedTagPage');
+        viewStateRemove('savedTagSort');
+        viewStateRemove('savedTagScroll');
 
         document.getElementById('tag-filter-area').classList.add('hidden');
         document.getElementById('tag-filtered-results').innerHTML = '';
@@ -8690,12 +8649,12 @@ function switchTab(tabId) {
         renderDashboard();  
     }
     if (targetId === 'diaries') {
-        const savedPage = parseInt(sessionStorage.getItem('savedDiaryPage') || '1');
+        const savedPage = parseInt(viewStateGet('savedDiaryPage') || '1');
         diaryPage = savedPage;
         renderDiaryList();
 
-        if (sessionStorage.getItem('returningFromViewer') === '1') {
-            const savedScroll = parseInt(sessionStorage.getItem('savedDiaryScroll') || '0');
+        if (viewStateGet('returningFromViewer') === '1') {
+            const savedScroll = parseInt(viewStateGet('savedDiaryScroll') || '0');
             setTimeout(() => {
                 const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
                 window.scrollTo(0, Math.min(savedScroll, maxScroll));
@@ -8703,17 +8662,17 @@ function switchTab(tabId) {
                     window.scrollTo(0, maxScroll);
                 }
             }, 50);
-            sessionStorage.removeItem('returningFromViewer');
+            viewStateRemove('returningFromViewer');
         }
     }
     if (targetId === 'calendar') renderCalendar();
     if (targetId === 'gallery') renderGallery();
     if (targetId === 'tags') {
-        const savedTag = sessionStorage.getItem('savedTag');
+        const savedTag = viewStateGet('savedTag');
         if (savedTag) {
             currentTag = savedTag;
-            tagPage = parseInt(sessionStorage.getItem('savedTagPage') || '1');
-            tagSortOrder = sessionStorage.getItem('savedTagSort') || 'new';
+            tagPage = parseInt(viewStateGet('savedTagPage') || '1');
+            tagSortOrder = viewStateGet('savedTagSort') || 'new';
         } else {
             currentTag = null;   
         }
@@ -9115,7 +9074,7 @@ function saveCurrentListPageByDiary(id) {
 
 if (document.getElementById('view-tags').classList.contains('active') && currentTag) {
 
-    sessionStorage.setItem('savedTagScroll', window.scrollY);
+    viewStateSet('savedTagScroll', window.scrollY);
 
     let filtered = diaries.filter(d => d.tags && d.tags.includes(currentTag));
 
@@ -9124,12 +9083,12 @@ if (document.getElementById('view-tags').classList.contains('active') && current
             ? b.date.localeCompare(a.date)
             : a.date.localeCompare(b.date)
     );
-    sessionStorage.setItem('savedTagScroll', window.scrollY);
+    viewStateSet('savedTagScroll', window.scrollY);
     const index = filtered.findIndex(d => d.id == id);
     if (index !== -1) {
         const page = Math.floor(index / TAG_PAGE_SIZE) + 1;
         tagPage = page;
-        sessionStorage.setItem('savedTagPage', page);
+        viewStateSet('savedTagPage', page);
     }
 }
     if (document.getElementById('view-diaries').classList.contains('active')) {
@@ -9159,7 +9118,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
         if (index !== -1) {
             const page = Math.floor(index / DIARY_PAGE_SIZE) + 1;
             diaryPage = page;
-            sessionStorage.setItem('savedDiaryPage', page);
+            viewStateSet('savedDiaryPage', page);
         }
     }
 
@@ -9176,7 +9135,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
         if (index !== -1) {
             const page = Math.floor(index / TAG_PAGE_SIZE) + 1;
             tagPage = page;
-            sessionStorage.setItem('savedTagPage', page);
+            viewStateSet('savedTagPage', page);
         }
     }
 }
@@ -9321,11 +9280,7 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
     // DB保存を待ってから画面遷移することで一瞬ギャラリーが残るのを防ぐ
     if (immediate) switchTab('viewer');
 
-    if (isDiary) {
-        item.lastViewed = Date.now();
-        await saveDataToDB('diaries', item);
-        diaryMap.set(id, item);
-    }
+    // 閲覧日時は記録しない。日記を開くだけでIndexedDBへ書き込まない。
 
     document.getElementById('viewer-title').innerText = item.title;
     document.getElementById('viewer-date').innerText = item.date;
@@ -9643,14 +9598,7 @@ function zoomImage(src, diaryId = null, galleryIndex = null, sourceType = 'diary
     const openDiaryBtn = document.getElementById('gallery-open-diary-btn');
     if (openDiaryBtn) openDiaryBtn.style.display = (isGallery && diaryId != null) ? 'flex' : 'none';
 
-    if (diaryId && sourceType !== 'memo') {
-        const diary=diaries.find(d=>String(d.id)===String(diaryId));
-        if (diary) {
-            if (!diary.imageViewHistory) diary.imageViewHistory={};
-            diary.imageViewHistory[src]=Date.now();
-            saveDataToDB('diaries',diary).catch(()=>{});
-        }
-    }
+    // 画像を開いた履歴は保存しない。画像閲覧だけで日記データを書き換えない。
     updateGalleryNavigation();
     createIcons();
 }
@@ -9957,12 +9905,7 @@ function navigateGalleryImage(direction,event) {
     if(modalImg.complete) requestAnimationFrame(reveal);
 
 
-    const diary=nextImage.id == null ? null : diaries.find(d=>String(d.id)===String(nextImage.id));
-    if(diary && !isEditor) {
-        if(!diary.imageViewHistory) diary.imageViewHistory={};
-        diary.imageViewHistory[nextImage.src]=Date.now();
-        saveDataToDB('diaries',diary).catch(()=>{});
-    }
+    // ギャラリー内の画像切り替えは閲覧操作なので、日記データへ保存しない。
     updateGalleryNavigation();
 }
 
@@ -10000,10 +9943,16 @@ document.addEventListener('click', function(event) {
        async function deleteEntry(type, id) {
     if (confirm(`この${type === 'diary' ? '日記' : '予定'}を削除してもよろしいですか？`)) {
         const store = type === 'diary' ? 'diaries' : 'schedules';
-        await deleteFromDB(store, id);
+        try {
+            await deleteFromDB(store, id);
+        } catch (error) {
+            console.error('データの削除に失敗しました:', error);
+            alert(error && error.message ? error.message : 'データを削除できませんでした。もう一度お試しください。');
+            return;
+        }
 
         if (type === 'diary') {
-            diaries = diaries.filter(d => d.id !== id);
+            diaries = diaries.filter(d => String(d.id) !== String(id));
         } else {
             // IndexedDBから取得したIDと画面側のIDが数値／文字列で異なる場合も確実に除外する。
             schedules = schedules.filter(s => String(s.id) !== String(id));
@@ -10076,7 +10025,7 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
             else activeMoodFilter = m;
             document.querySelectorAll('.mood-filter-item').forEach(el => el.classList.toggle('active', parseInt(el.dataset.filterMood) === activeMoodFilter));
             diaryPage = 1;
-            sessionStorage.setItem('savedDiaryPage', '1');
+            viewStateSet('savedDiaryPage', '1');
             renderDiaryList();
         }
 
@@ -10864,10 +10813,7 @@ if (happyCount >= 50 && !config.hasUnlockedLucky) {
     const opt = document.getElementById('option-lucky');
     if (opt) opt.style.display = 'block';
 
-    saveDataToDB('config', {
-        key: 'main',
-        ...config
-    });
+    pendingDashboardUnlockConfigSave = true;
 
     queueThemeUnlockNotice('【とてもハッピーなお知らせです！】\nハッピーな記録(🤩・😊)が合計50個に達しました！\n 新しいテーマデザイン「ラッキー」が解放されました！☘\nさっそく設定ページで確認しましょう！');
 } 
@@ -10879,10 +10825,7 @@ if (heibonCount >= 50 && !config.hasUnlockedEdamame) {
     const opt = document.getElementById('option-edamame');
     if (opt) opt.style.display = 'block';
 
-    saveDataToDB('config', {
-        key: 'main',
-        ...config
-    });
+    pendingDashboardUnlockConfigSave = true;
 
     queueThemeUnlockNotice('【でじ帖は気に入っていただけましたか？】\n穏やかな日常の記録(😐️)が合計50個に達しました！\n 新しいテーマデザイン「えだまめ」が解放されました🟢\nさっそく設定ページで確認しましょう！');
 } 
@@ -10894,10 +10837,7 @@ if (devilCount >= 50 && !config.hasUnlockedDevil) {
     const opt = document.getElementById('option-devil');
     if (opt) opt.style.display = 'block';
 
-    saveDataToDB('config', {
-        key: 'main',
-        ...config
-    });
+    pendingDashboardUnlockConfigSave = true;
 
     queueThemeUnlockNotice('\n【アンハッピーなお知らせです...】\nネガティブな記録(😭・😡)が合計50個に達しました...\n新しいテーマデザイン「デビル」が解放されました😈\nさっそく設定ページで確認しましょう');
 }
@@ -10912,10 +10852,7 @@ if (scheduleCount >= 30 && !config.hasUnlockedTerminal) {
     const opt = document.getElementById('option-terminal');
     if (opt) opt.style.display = 'block';
 
-    saveDataToDB('config', {
-        key: 'main',
-        ...config
-    });
+    pendingDashboardUnlockConfigSave = true;
 
     alert("【予定管理のプロ？】\n30件の予定を立てました！\n新しいテーマデザイン「タイムテーブル」が解放されました📆\nさっそく設定ページで確認しましょう" );
 }
@@ -10925,7 +10862,7 @@ const streakCount = getStreak();
     if (streakCount >= 30|| config.hasUnlockedLegend) {
         if (!config.hasUnlockedLegend) {
             config.hasUnlockedLegend = true;
-            saveConfig();
+            pendingDashboardUnlockConfigSave = true;
             queueThemeUnlockNotice("1ヶ月連続達成おめでとう！ \n新しいテーマデザイン「レジェンド」が解放されました🥇\nさっそく設定ページで確認しましょう！");
         }
         
@@ -10937,7 +10874,7 @@ const streakCount = getStreak();
         if (streakCount >= 100 || config.hasUnlockedCosmos) {
     if (!config.hasUnlockedCosmos) {
         config.hasUnlockedCosmos = true;
-        saveConfig();
+        pendingDashboardUnlockConfigSave = true;
         queueThemeUnlockNotice('100日連続達成おめでとう！\n新しいテーマデザイン「ギャラクシー」が解放されました🛸\n「でじ帖」を毎日つかってくれて本当にありがとう！\nさっそく設定ページで確認しましょう！');
     }
     
@@ -10949,7 +10886,7 @@ const streakCount = getStreak();
    if (streakCount >= 50|| config.hasUnlockedMaster) {
         if (!config.hasUnlockedMaster) {
             config.hasUnlockedMaster = true;
-            saveConfig();
+            pendingDashboardUnlockConfigSave = true;
             queueThemeUnlockNotice("50日連続達成おめでとう！\n新しいテーマデザイン「モダンノート」が解放されました📓\nさっそく設定ページで確認しましょう！");
         }
         
@@ -11132,7 +11069,7 @@ let homeDisplayMode = 'diary';
 function switchHomeList(type) {
     homeDisplayMode = type;
     config.homeListMode = type;
-    saveConfig();
+    pendingDashboardUnlockConfigSave = true;
     const diaryList = document.getElementById('recent-diaries');
     const scheduleList = document.getElementById('recent-schedules');
     const title = document.getElementById('home-list-title');
@@ -11948,7 +11885,7 @@ function changeBookmarkSort(order) {
         function nextDiaryPage() {
     diaryPage++;
 
-    sessionStorage.setItem(
+    viewStateSet(
         'savedDiaryPage',
         diaryPage
     );
@@ -11961,7 +11898,7 @@ function prevDiaryPage() {
     if (diaryPage > 1) {
         diaryPage--;
 
-        sessionStorage.setItem(
+        viewStateSet(
             'savedDiaryPage',
             diaryPage
         );
@@ -11973,18 +11910,18 @@ function prevDiaryPage() {
 function changeDiarySort(order) {
     diarySortOrder = order;
     diaryPage = 1;
-    sessionStorage.setItem('savedDiaryPage', '1');
+    viewStateSet('savedDiaryPage', '1');
     renderDiaryList();
 }
 
 function filterBySpecificDate(date) {
     diaryPage = 1;
-    sessionStorage.setItem('savedDiaryPage', '1');
+    viewStateSet('savedDiaryPage', '1');
     renderDiaryList();
 }
 
         async function renderCalendar() {
-            await cleanupPassedSchedules();
+            // カレンダー閲覧時に予定データを削除・更新しない。
             // 既存の感情ヒートマップと同じテーマ別カラーをカレンダーでも参照する。
             const calendarMoodColors = {};
             for (let mood = 0; mood <= 5; mood++) {
@@ -12181,7 +12118,7 @@ function openEditorWithDate(type, date) {
 }
 
         function renderGallery() {
-    const savedOrder = sessionStorage.getItem('gallerySortOrder');
+    const savedOrder = viewStateGet('gallerySortOrder');
     if (savedOrder && ['latestViewed', 'new', 'old'].includes(savedOrder)) {
         gallerySortOrder = savedOrder;
     }
@@ -12298,12 +12235,12 @@ function prevGalleryPage() {
 function changeGallerySort(order) {
     gallerySortOrder = order;
     galleryPage = 1;
-    sessionStorage.setItem('gallerySortOrder', order);
+    viewStateSet('gallerySortOrder', order);
     
     renderGallery();   
     window.scrollTo(0, 0);
 }
-        function deleteGalleryImage(event) {
+        async function deleteGalleryImage(event) {
     event.stopPropagation();
 
     if (!currentGalleryImage) return;
@@ -12311,16 +12248,27 @@ function changeGallerySort(order) {
     const confirmed = confirm('この写真を削除しますか？');
     if (!confirmed) return;
 
-    const diary = diaries.find(d => d.id == currentGalleryImage.diaryId);
-
+    const diary = diaries.find(d => String(d.id) === String(currentGalleryImage.diaryId));
     if (!diary) return;
 
-    diary.images = diary.images.filter(
-        img => img !== currentGalleryImage.src
-    );
+    const imageToDelete = currentGalleryImage.src;
+    const updatedDiary = {
+        ...diary,
+        images: (diary.images || []).filter(img => img !== imageToDelete)
+    };
 
-    saveDataToDB('diaries', diary);
-invalidateCaches();
+    try {
+        // IndexedDBへの保存が完了してから、画面側のデータと表示を更新する。
+        await saveDataToDB('diaries', updatedDiary);
+    } catch (error) {
+        console.error('写真の削除に失敗しました:', error);
+        alert('写真を削除できませんでした。データは画面上で確定せず、もう一度お試しください。');
+        return;
+    }
+
+    const diaryIndex = diaries.findIndex(d => String(d.id) === String(updatedDiary.id));
+    if (diaryIndex !== -1) diaries[diaryIndex] = updatedDiary;
+    invalidateCaches();
     renderGallery();
     renderDiaryList();
 
@@ -12363,7 +12311,7 @@ invalidateCaches();
     document.getElementById('tags-cloud').innerHTML = 
         html || '<p style="opacity:0.6; text-align:center; padding:40px 20px;">まだタグが登録されていません</p>';
 
-    const savedTag = sessionStorage.getItem('savedTag');
+    const savedTag = viewStateGet('savedTag');
 
     if (savedTag && currentTag) {
         const sortSelect = document.getElementById('tag-sort');
@@ -12372,7 +12320,7 @@ invalidateCaches();
         setTimeout(() => {
             renderTagPage();
 
-            const savedScroll = sessionStorage.getItem('savedTagScroll');
+            const savedScroll = viewStateGet('savedTagScroll');
             if (savedScroll !== null) {
                 setTimeout(() => {
                     window.scrollTo(0, parseInt(savedScroll));
@@ -12381,9 +12329,9 @@ invalidateCaches();
         }, 60);
     } else {
         currentTag = null;
-        sessionStorage.removeItem('savedTag');
-        sessionStorage.removeItem('savedTagPage');
-        sessionStorage.removeItem('savedTagScroll');
+        viewStateRemove('savedTag');
+        viewStateRemove('savedTagPage');
+        viewStateRemove('savedTagScroll');
 
         document.getElementById('tags-cloud').classList.remove('hidden');
         document.getElementById('tag-filter-area').classList.add('hidden');
@@ -12403,9 +12351,9 @@ invalidateCaches();
         tagSortOrder = 'latestViewed';
     }
 
-    sessionStorage.setItem('savedTag', tag);
-    sessionStorage.setItem('savedTagPage', tagPage);
-    sessionStorage.setItem('savedTagSort', tagSortOrder);
+    viewStateSet('savedTag', tag);
+    viewStateSet('savedTagPage', tagPage);
+    viewStateSet('savedTagSort', tagSortOrder);
 
     document.getElementById('tags-cloud').classList.add('hidden');
     document.getElementById('tag-back-area').classList.remove('hidden');
@@ -12420,9 +12368,9 @@ function backToTagList() {
 
     currentTag = null;
 
-    sessionStorage.removeItem('savedTag');
-    sessionStorage.removeItem('savedTagPage');
-    sessionStorage.removeItem('savedTagScroll');
+    viewStateRemove('savedTag');
+    viewStateRemove('savedTagPage');
+    viewStateRemove('savedTagScroll');
 
     document.getElementById('tags-cloud')
         .classList.remove('hidden');
@@ -12521,32 +12469,32 @@ function renderTagPage() {
         totalPages
     );
 
-    const savedScroll = sessionStorage.getItem('savedTagScroll');
+    const savedScroll = viewStateGet('savedTagScroll');
     if (savedScroll !== null) {
         requestAnimationFrame(() => {
             const scroll = parseInt(savedScroll);
             const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
             window.scrollTo(0, Math.min(scroll, maxScroll));
             if (maxScroll - scroll < 120) window.scrollTo(0, maxScroll);
-            sessionStorage.removeItem('savedTagScroll');
+            viewStateRemove('savedTagScroll');
         });
     }
 }
 
 function nextTagPage() {
-    sessionStorage.removeItem('savedTagScroll');
+    viewStateRemove('savedTagScroll');
 
     tagPage++;
-    sessionStorage.setItem('savedTagPage', tagPage);
+    viewStateSet('savedTagPage', tagPage);
     renderTagPage();
 }
 
 function prevTagPage() {
-    sessionStorage.removeItem('savedTagScroll');
+    viewStateRemove('savedTagScroll');
 
     if (tagPage > 1) {
         tagPage--;
-        sessionStorage.setItem('savedTagPage', tagPage);
+        viewStateSet('savedTagPage', tagPage);
         renderTagPage();
     }
 }
@@ -12555,8 +12503,8 @@ function changeTagSort(order) {
     tagSortOrder = order;
     tagPage = 1;
 
-    sessionStorage.setItem('savedTagSort', order);
-    sessionStorage.setItem('savedTagPage', tagPage);
+    viewStateSet('savedTagSort', order);
+    viewStateSet('savedTagPage', tagPage);
 
     renderTagPage();
 }
@@ -12618,7 +12566,6 @@ async function changePassword() {
 }
 
         async function saveConfig() { await saveDataToDB('config', { key: 'main', ...config }); }
-    queueAutoBackupSync();
 
 
         function escapeExportHtml(value){return String(value??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
@@ -13244,10 +13191,7 @@ async function startFullInitialization() {
         // 全データ削除はバックアップ保存先の接続状態に依存させない。
         // 削除前の強制同期や鍵移行の認証要求が、削除そのものを妨げないようにする。
         fullInitializationInProgress = true;
-        if (autoBackupSyncTimer) { clearTimeout(autoBackupSyncTimer); autoBackupSyncTimer = null; }
-        if (autoBackupReconnectTimer) { clearTimeout(autoBackupReconnectTimer); autoBackupReconnectTimer = null; }
         autoBackupSyncQueued = false;
-        if (typeof stopAutoBackupReconnectMonitor === 'function') stopAutoBackupReconnectMonitor();
 
         // 進行中の同期だけを完了させてからDBを閉じる。新しい同期は上のフラグで停止済み。
         if (autoBackupSyncInProgress) {
@@ -13300,6 +13244,7 @@ function clearDatabase() {
                 internalDataKeyRawBytes = null;
                 if (typeof portableBackupKeyPromise !== 'undefined') portableBackupKeyPromise = null;
                 if (typeof invalidateCaches === 'function') invalidateCaches();
+                if (typeof refreshStorageUsageDisplay === 'function') void refreshStorageUsageDisplay();
                 console.log('でじ帖の全ストアを空にし、暗号鍵と設定を含む保存データを初期化しました。');
                 resolve();
             }
@@ -13366,7 +13311,7 @@ document.getElementById('search-input').addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
         diaryPage = 1;
-        sessionStorage.setItem('savedDiaryPage', '1');
+        viewStateSet('savedDiaryPage', '1');
         renderDiaryList();
     }, 300);
 });
@@ -13842,9 +13787,6 @@ function openMemoViewer(id) {
     if (!memo) return;
     currentViewingMemoId = memo.id;
     memoViewerReturnViewId = 'memos';
-    memo.lastViewed = Date.now();
-    saveDataToDB('memos', memo).catch(()=>{});
-
     const title = document.getElementById('memo-viewer-title');
     const date = document.getElementById('memo-viewer-date');
     const content = document.getElementById('memo-viewer-content');
@@ -13935,8 +13877,7 @@ function openMemoEditor(id = null) {
     if (id != null) {
         const memo = memos.find(m => String(m.id) === String(id));
         if (!memo) return;
-        memo.lastViewed = Date.now();
-        saveDataToDB('memos', memo).catch(()=>{});
+        // 編集画面を開いただけでは保存しない。実際の保存操作時にのみ書き込む。
         title.value = memo.title || '';
         content.innerHTML = sanitizeRichHtml(memo.content || '');
         memoChecklistDraft = Array.isArray(memo.checklist)
@@ -14105,7 +14046,13 @@ function cancelMemoEditor() {
 
 async function deleteMemo(id) {
     if (!confirm('このメモを削除してもよろしいですか？')) return;
-    await deleteFromDB('memos', id);
+    try {
+        await deleteFromDB('memos', id);
+    } catch (error) {
+        console.error('メモの削除に失敗しました:', error);
+        alert(error && error.message ? error.message : 'メモを削除できませんでした。もう一度お試しください。');
+        return;
+    }
     memos = memos.filter(m => String(m.id) !== String(id));
     currentEditingMemoId = null;
     memoChecklistDraft = [];
