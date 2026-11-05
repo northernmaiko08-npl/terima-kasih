@@ -7055,7 +7055,9 @@ function isInstalledPWA(){
 
         
         async function refreshStorageProtectionOnSettingsOpen() {
-            await protectStorage();
+            // 設定ページを開くだけでは永続ストレージの要求を行わない。
+            // ページ移動は状態の読み取り・表示更新だけにし、保存領域へ影響する
+            // ブラウザ権限要求は起動時または明示的な設定操作に限定する。
             await updateStorageProtectionStatus();
         }
 
@@ -10770,7 +10772,7 @@ async function saveDiaryInternal() {
             // ホームの「最近の日記」件数表示は使用しない。旧HTML由来の要素があれば確実に除去する。
             document.getElementById('home-diary-count')?.remove();
             homeDisplayMode = config.homeListMode === 'schedule' ? 'schedule' : 'diary';
-            switchHomeList(homeDisplayMode);
+            switchHomeList(homeDisplayMode, false);
             function getStreak() {
                 if (diaries.length === 0) return 0;
 
@@ -11066,10 +11068,19 @@ for (let i = 0; i < 100; i++) {
         }
 let homeDisplayMode = 'diary'; 
 
-function switchHomeList(type) {
-    homeDisplayMode = type;
-    config.homeListMode = type;
-    pendingDashboardUnlockConfigSave = true;
+function switchHomeList(type, persistSelection = true) {
+    const normalizedType = type === 'schedule' ? 'schedule' : 'diary';
+    homeDisplayMode = normalizedType;
+
+    // 描画のために呼ばれた場合は設定を変更・保存しない。
+    // ユーザーが表示切替を操作した場合だけ、実際に値が変わったときに保存する。
+    if (persistSelection && config.homeListMode !== normalizedType) {
+        config.homeListMode = normalizedType;
+        void saveDataToDB('config', { key: 'main', ...config }).catch(error => {
+            console.warn('ホーム表示設定を保存できませんでした:', error);
+        });
+    }
+
     const diaryList = document.getElementById('recent-diaries');
     const scheduleList = document.getElementById('recent-schedules');
     const title = document.getElementById('home-list-title');
@@ -11077,10 +11088,10 @@ function switchHomeList(type) {
     const btnDiary = document.getElementById('btn-show-diaries');
     const btnSched = document.getElementById('btn-show-schedules');
     
-    if(btnDiary) btnDiary.classList.toggle('active', type === 'diary');
-    if(btnSched) btnSched.classList.toggle('active', type === 'schedule');
+    if(btnDiary) btnDiary.classList.toggle('active', normalizedType === 'diary');
+    if(btnSched) btnSched.classList.toggle('active', normalizedType === 'schedule');
 
-    if (type === 'diary') {
+    if (normalizedType === 'diary') {
         if(diaryList) diaryList.classList.remove('hidden');
         if(scheduleList) scheduleList.classList.add('hidden');
         if(title) title.innerText = '最近の日記';
