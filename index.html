@@ -5388,7 +5388,10 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 <strong>データ自動保存</strong>
 <div class="data-management-help">設定済みのJSONバックアップへ、現在のデータをすぐに上書きします。</div>
 </div>
+<div class="data-management-actions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
 <button class="btn btn-primary" onclick="retryAutoBackup()" type="button">今すぐ接続</button>
+
+</div>
 </div>
 
 <div class="setting-row" id="manual-backup-row" style="display:none;">
@@ -6137,10 +6140,12 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
             if (autoRow) {
                 // 権限を「許可しない」にしても保存先情報を保持している限り、
                 // 再接続待機中として「今すぐ同期」を表示し続ける。
-                const reconnectWaiting =
-                    !!config.backupFileHandle &&
-                    config.backupSyncStatus === 'pending';
-                autoRow.style.display = (usable || reconnectWaiting) ? 'flex' : 'none';
+                // 保存先ハンドルが残っている限り、権限喪失・書き込み失敗・
+                // ハンドルの無効化のいずれでも再接続UIを隠さない。
+                // 以前は pending の場合だけ表示していたため、error状態や
+                // queryPermission失敗時に再接続手段そのものが消えていた。
+                const reconnectAvailable = !!config.backupFileHandle;
+                autoRow.style.display = (usable || reconnectAvailable) ? 'flex' : 'none';
             }
         }
 
@@ -6518,11 +6523,15 @@ if (config.hasUnlockedMaster) {
             return false;
         }
 
+        await updateAutoBackupStatus();
+        await updateManualBackupUI();
         return true;
     }catch(error){
         if(error&&error.name==='AbortError') return false;
         console.error('自動バックアップ保存先の設定に失敗しました:',error);
-        alert('バックアップ保存先の設定に失敗しました。');
+        await updateAutoBackupStatus();
+        await updateManualBackupUI();
+        alert('バックアップ保存先への接続に失敗しました。「今すぐ接続」からもう一度お試しください。');
         return false;
     }
 }
@@ -6535,13 +6544,18 @@ if (config.hasUnlockedMaster) {
             // 同期中は手動バックアップをロックする。
             updateManualBackupUI();
             try{
+                const directoryHandle=config.backupDirectoryHandle;
+                let directoryPermission='granted';
+                if(directoryHandle && typeof directoryHandle.queryPermission==='function'){
+                    directoryPermission=await directoryHandle.queryPermission({mode:'readwrite'});
+                }
                 let permission=await handle.queryPermission({mode:'readwrite'});
-                if(permission!=='granted'){
-                    // 権限を自動的に昇格させない。ブラウザ/PWAの永続権限を尊重し、
-                    // 明示的なユーザー操作から呼ばれた場合だけ再許可を要求する。
+                if(directoryPermission!=='granted' || permission!=='granted'){
+                    // 権限要求は「今すぐ接続」など明示的な操作からだけ行う。
+                    // フォルダとファイルの両方の権限を確認し、片方だけ失効した
+                    // 状態でも同じ保存先へ再接続できるようにする。
                     if(!force){
                         config.backupSyncStatus='pending';
-                        // 切断を最初に検知した時刻を保存し、以後の失敗でカウントをリセットしない。
                         if(!Number(config.backupDisconnectedSince)) config.backupDisconnectedSince=Date.now();
                         autoBackupInternalWrite=true;
                         try { await saveDataToDB('config',{key:'main',...config}).catch(()=>{}); }
@@ -6549,15 +6563,22 @@ if (config.hasUnlockedMaster) {
                         await updateAutoBackupStatus();
                         return false;
                     }
-                    permission=await handle.requestPermission({mode:'readwrite'});
-                    // 権限ダイアログで許可されなかった場合は、ユーザーの選択として扱う。
-                    // 接続処理そのものの失敗ではないため、失敗ポップアップを出さない。
+                    if(directoryPermission!=='granted' && directoryHandle && typeof directoryHandle.requestPermission==='function'){
+                        directoryPermission=await directoryHandle.requestPermission({mode:'readwrite'});
+                        if(directoryPermission!=='granted'){
+                            autoBackupLastAttemptCancelled=true;
+                            return false;
+                        }
+                    }
                     if(permission!=='granted'){
-                        autoBackupLastAttemptCancelled = true;
-                        return false;
+                        permission=await handle.requestPermission({mode:'readwrite'});
+                        if(permission!=='granted'){
+                            autoBackupLastAttemptCancelled=true;
+                            return false;
+                        }
                     }
                 }
-                if(permission!=='granted')throw new Error('バックアップファイルへのアクセスが許可されていません');
+                if(directoryPermission!=='granted' || permission!=='granted')throw new Error('バックアップ保存先へのアクセスが許可されていません');
                 // 旧バージョンから更新した既存ユーザーは、明示的な同期操作時に一度だけ
                 // 本人確認パスコードを確認して、端末内鍵からポータブル鍵へ移行する。
                 if (force && config.recoverySet && config.authRecoveryPassHash && (
