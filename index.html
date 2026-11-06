@@ -5471,7 +5471,7 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
                         <span id="storageProtectionStatus" class="storage-status-value">有効化を確認中…</span>
                     </div>
                     <div class="storage-protection-row">
-                        <span>使用容量</span>
+                        <span title="保存済みの日記・予定・メモの暗号化済みレコードサイズの合計">使用容量</span>
                         <span id="storageUsageStatus">—</span>
                     </div>
                     <div class="storage-protection-row">
@@ -6989,30 +6989,62 @@ function isInstalledPWA(){
             }
         }
 
-        // IndexedDBの削除完了後、ブラウザが返す最新の使用量・割当量を表示へ反映する。
-        // 永続化状態やバックアップ状態には触れず、容量表示だけを更新する。
+        // IndexedDBに保存されているレコード1件のサイズを計測する。
+        // JSON UTF-8バイト数によるアプリ内管理値で、IndexedDB内部管理領域等は含まない。
+        function calculateStoredRecordBytes(record) {
+            if (record === undefined) return 0;
+            const serialized = JSON.stringify(record);
+            return serialized === undefined ? 0 : new TextEncoder().encode(serialized).byteLength;
+        }
+
+        // IndexedDBに保存されている暗号化済みレコードを1件ずつ計測して合計する。
+        // 個別サイズは削除時の差し引き計算にのみ使用し、画面には表示しない。
+        async function calculateSavedUserDataBytes() {
+            if (!db) await initDB();
+            const storeNames = ['diaries', 'schedules', 'memos'];
+            let totalBytes = 0;
+            for (const storeName of storeNames) {
+                if (!db.objectStoreNames.contains(storeName)) continue;
+                const records = await new Promise((resolve, reject) => {
+                    try {
+                        const tx = db.transaction(storeName, 'readonly');
+                        const request = tx.objectStore(storeName).getAll();
+                        request.onsuccess = () => resolve(request.result || []);
+                        request.onerror = () => reject(request.error || tx.error || new Error('保存データの容量計測に失敗しました'));
+                        tx.onerror = () => reject(tx.error || new Error('保存データの容量計測に失敗しました'));
+                        tx.onabort = () => reject(tx.error || new Error('保存データの容量計測が中断されました'));
+                    } catch (error) { reject(error); }
+                });
+                records.forEach(record => { totalBytes += calculateStoredRecordBytes(record); });
+            }
+            return { totalBytes };
+        }
+
+        function formatSavedDataBytes(bytes) {
+            if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+            const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+            let value = bytes;
+            let unit = 0;
+            while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+            return `${value.toFixed(unit >= 2 ? 1 : 0)} ${units[unit]}`;
+        }
+
+        // 保存済みデータ量を再計測して表示する。削除後は削除済みレコードが集計から外れるため、
+        // ブラウザ側の容量解放タイミングを待たずに表示へ即時反映できる。
         async function refreshStorageUsageDisplay() {
             const usageEl = document.getElementById('storageUsageStatus');
             const quotaEl = document.getElementById('storageQuotaStatus');
-            if (!usageEl || !quotaEl || !navigator.storage || typeof navigator.storage.estimate !== 'function') return;
+            if (!usageEl || !quotaEl) return;
 
             try {
-                const estimate = await navigator.storage.estimate();
-                const formatBytes = (bytes) => {
-                    if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
-                    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-                    let value = bytes;
-                    let unit = 0;
-                    while (value >= 1024 && unit < units.length - 1) {
-                        value /= 1024;
-                        unit++;
-                    }
-                    return `${value.toFixed(unit >= 2 ? 1 : 0)} ${units[unit]}`;
-                };
-                usageEl.textContent = formatBytes(Number(estimate.usage || 0));
-                quotaEl.textContent = formatBytes(Number(estimate.quota || 0));
+                const savedData = await calculateSavedUserDataBytes();
+                const estimate = navigator.storage && typeof navigator.storage.estimate === 'function'
+                    ? await navigator.storage.estimate()
+                    : {};
+                usageEl.textContent = formatSavedDataBytes(savedData.totalBytes);
+                if (estimate.quota != null) quotaEl.textContent = formatSavedDataBytes(Number(estimate.quota || 0));
             } catch (error) {
-                console.warn('削除後のストレージ容量更新に失敗しました:', error);
+                console.warn('保存済みデータ容量の更新に失敗しました:', error);
             }
         }
 
@@ -7047,24 +7079,9 @@ function isInstalledPWA(){
 
                 if (typeof navigator.storage.estimate === 'function') {
                     const estimate = await navigator.storage.estimate();
-                    const usage = Number(estimate.usage || 0);
-                    const quota = Number(estimate.quota || 0);
-
-                    const formatBytes = (bytes) => {
-                        if (!Number.isFinite(bytes) || bytes <= 0) return '0 MB';
-                        const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-                        let value = bytes;
-                        let unit = 0;
-                        while (value >= 1024 && unit < units.length - 1) {
-                            value /= 1024;
-                            unit++;
-                        }
-                        const digits = unit >= 2 ? 1 : 0;
-                        return `${value.toFixed(digits)} ${units[unit]}`;
-                    };
-
-                    usageEl.textContent = formatBytes(usage);
-                    quotaEl.textContent = formatBytes(quota);
+                    const savedData = await calculateSavedUserDataBytes();
+                    usageEl.textContent = formatSavedDataBytes(savedData.totalBytes);
+                        quotaEl.textContent = formatSavedDataBytes(Number(estimate.quota || 0));
                 }
             } catch (error) {
                 console.warn('ストレージ保護状態の表示に失敗しました:', error);
@@ -7301,23 +7318,15 @@ async function loadData() {
     diaries = await getAllFromDB('diaries');
     schedules = await getAllFromDB('schedules');
     memos = await getAllFromDB('memos');
-   const previousMigrationWriteState = autoBackupInternalWrite;
-   autoBackupInternalWrite = true;
-   try {
-       for (let d of diaries) {
-            let needsSave = false;
-            if (Object.prototype.hasOwnProperty.call(d, 'searchText')) {
-                delete d.searchText;
-                needsSave = true;
-            }
-            if (!d.lastViewed) {
-                d.lastViewed = d.updatedAt || new Date(d.date).getTime();
-            }
-            // 旧版で保存されていた検索用データをIndexedDBからも削除する。
-            if (needsSave) await saveDataToDB('diaries', d);
-       }
-   } finally {
-       autoBackupInternalWrite = previousMigrationWriteState;
+   for (let d of diaries) {
+        if (Object.prototype.hasOwnProperty.call(d, 'searchText')) {
+            delete d.searchText;
+        }
+        if (!d.lastViewed) {
+            d.lastViewed = d.updatedAt || new Date(d.date).getTime();
+        }
+        // 読み込み時のデータ整理はメモリ上だけで行う。
+        // ページ表示・起動だけを理由にIndexedDBへ書き戻さない。
    }
 
     
@@ -7880,6 +7889,12 @@ async function saveDataToDB(storeName, data) {
             if (fullInitializationInProgress) {
                 throw new Error('全データ初期化中のため、データの保存を停止しています。');
             }
+            // 編集画面での入力・写真添付・プレビュー中は、明示的な保存操作以外の
+            // 日記・予定・メモのIndexedDB書き込みを禁止する。下書きはメモリ上に保持する。
+            const activeEditor = document.querySelector('#view-editor.active, #view-memo-editor.active');
+            if (activeEditor && isUserDataStore(storeName) && !explicitEditorCommitInProgress) {
+                throw new Error('編集中のデータは「保存」を押すまでデータベースへ書き込みません。');
+            }
             if (!db || !db.objectStoreNames.contains(storeName)) await initDB();
             // 同一内容の再保存は行わない。特にconfigはログイン時の補正処理などから
             // 同じ値が渡されてもIndexedDBのputを発生させない。
@@ -7913,6 +7928,10 @@ async function saveDataToDB(storeName, data) {
                     tx.objectStore(storeName).put(storedData);
                     tx.oncomplete = () => {
                         resolve();
+                        if (isUserDataStore(storeName)) {
+                            // 保存トランザクション完了後にのみ、保存済みデータ容量を再計測する。
+                            void refreshStorageUsageDisplay();
+                        }
                         if (!autoBackupInternalWrite && isUserDataStore(storeName)) {
                             queueAutoBackupSync();
                             if (pendingDashboardUnlockConfigSave) {
@@ -7950,6 +7969,26 @@ async function saveDataToDB(storeName, data) {
 
 async function deleteFromDB(storeName, id) {
             if (!db || !db.objectStoreNames.contains(storeName)) await initDB();
+
+            // 削除前に、削除対象レコード自身の保存サイズと全体合計を取得する。
+            // 削除後は「削除前合計 − 対象レコードサイズ」を容量表示へ反映する。
+            let deletedRecordBytes = 0;
+            let usageBeforeDelete = null;
+            if (isUserDataStore(storeName)) {
+                const before = await calculateSavedUserDataBytes();
+                usageBeforeDelete = before.totalBytes;
+                const targetRecord = await new Promise((resolve, reject) => {
+                    try {
+                        const tx = db.transaction(storeName, 'readonly');
+                        const request = tx.objectStore(storeName).get(id);
+                        request.onsuccess = () => resolve(request.result);
+                        request.onerror = () => reject(request.error || tx.error || new Error('削除対象のサイズ取得に失敗しました'));
+                        tx.onerror = () => reject(tx.error || new Error('削除対象のサイズ取得に失敗しました'));
+                        tx.onabort = () => reject(tx.error || new Error('削除対象のサイズ取得が中断されました'));
+                    } catch (error) { reject(error); }
+                });
+                if (targetRecord !== undefined) deletedRecordBytes = calculateStoredRecordBytes(targetRecord);
+            }
 
             // 指定IDのレコードが実在することを同じreadwriteトランザクション内で確認してから削除する。
             // IDを文字列化して照合すると別キーを誤って扱う可能性があるため、型も含めてそのまま照合する。
@@ -7993,9 +8032,22 @@ async function deleteFromDB(storeName, id) {
             });
             if (remaining !== undefined) throw new Error('削除後もデータが残っています。画面を更新して、もう一度お試しください。');
 
-            // 容量表示の更新失敗で、完了した削除そのものを失敗扱いにしない。
-            try { await refreshStorageUsageDisplay(); }
-            catch (error) { console.warn('削除後の容量表示を更新できませんでした:', error); }
+            // 削除対象の実測サイズを削除前合計から差し引き、まず表示へ即時反映する。
+            // 削除後のIndexedDBを再走査して合計との差異を補正する。
+            if (isUserDataStore(storeName) && usageBeforeDelete !== null) {
+                const usageEl = document.getElementById('storageUsageStatus');
+                if (usageEl) usageEl.textContent = formatSavedDataBytes(Math.max(0, usageBeforeDelete - deletedRecordBytes));
+            }
+            try {
+                const after = await calculateSavedUserDataBytes();
+                const usageEl = document.getElementById('storageUsageStatus');
+                if (usageEl) usageEl.textContent = formatSavedDataBytes(after.totalBytes);
+                // 計測値が差し引き計算と一致しない場合は、実際の残存レコード合計を正として表示する。
+                const expected = Math.max(0, (usageBeforeDelete ?? after.totalBytes) - deletedRecordBytes);
+                if (isUserDataStore(storeName) && after.totalBytes !== expected) {
+                    console.warn('削除サイズ差分と残存データ合計に差異があるため、残存データの再計測値を採用しました。', { expected, actual: after.totalBytes, deletedRecordBytes });
+                }
+            } catch (error) { console.warn('削除後の容量表示を更新できませんでした:', error); }
             if (!autoBackupInternalWrite && isUserDataStore(storeName)) queueAutoBackupSync();
         }
 
@@ -8013,20 +8065,13 @@ async function deleteFromDB(storeName, id) {
             });
             if (!isUserDataStore(storeName)) return raw;
             const result = [];
-            const legacy = [];
             for (const record of raw) {
                 const decoded = await decryptInternalRecord(storeName, record);
                 result.push(decoded);
-                if (!record || record.__encryptedRecord !== true) legacy.push(decoded);
             }
-            // 旧形式の平文レコードは、読み取り成功後に暗号化形式へ移行する。
-            const previousInternalWrite = autoBackupInternalWrite;
-            autoBackupInternalWrite = true;
-            try {
-                for (const record of legacy) await saveDataToDB(storeName, record);
-            } finally {
-                autoBackupInternalWrite = previousInternalWrite;
-            }
+            // 読み込みだけではIndexedDBへ書き戻さない。
+            // 旧形式の平文レコードは復号・表示だけ行い、ユーザーが実際に
+            // 保存操作をしたときに、そのレコードを暗号化形式で保存する。
             return result;
         }
 
@@ -8043,9 +8088,9 @@ async function deleteFromDB(storeName, id) {
                 } catch (error) { reject(error); }
             });
             if (!raw || !isUserDataStore(storeName)) return raw;
-            const decoded = await decryptInternalRecord(storeName, raw);
-            if (raw.__encryptedRecord !== true) await saveDataToDB(storeName, decoded);
-            return decoded;
+            // 単件読み込み時も、閲覧だけで旧形式データを書き換えない。
+            // 実際の編集・保存時に saveDataToDB() が暗号化形式で保存する。
+            return await decryptInternalRecord(storeName, raw);
         }
 
 function launchFirework() {
@@ -8399,6 +8444,8 @@ let pendingEditorSnapshot = null;
 let bypassUnsavedEditorGuard = false;
 let editorNavigationPromptOpen = false;
 let editorSaveInProgress = false;
+// 編集画面では、明示的に「保存」を押した処理だけが日記・予定・メモを書き込める。
+let explicitEditorCommitInProgress = false;
 function normalizeEditorHtml(value) {
     // contenteditable のブラウザ側の軽微なHTML表現差を吸収する。
     const template = document.createElement('template');
@@ -10601,12 +10648,16 @@ async function deleteCustomDiaryTemplate(id) {
        async function saveDiary() {
     if (editorSaveInProgress) return;
     editorSaveInProgress = true;
+    explicitEditorCommitInProgress = true;
     try {
         await saveDiaryInternal();
     } catch (error) {
         console.error('保存エラー:', error);
         alert('保存できませんでした。データベースへの書き込みでエラーが発生しました。\nもう一度お試しください。');
-    } finally { editorSaveInProgress = false; }
+    } finally {
+        explicitEditorCommitInProgress = false;
+        editorSaveInProgress = false;
+    }
 }
 
 async function saveDiaryInternal() {
@@ -12293,6 +12344,8 @@ function changeGallerySort(order) {
     try {
         // IndexedDBへの保存が完了してから、画面側のデータと表示を更新する。
         await saveDataToDB('diaries', updatedDiary);
+        // 写真データの削除保存が完了した直後に、ブラウザの使用容量表示を更新する。
+        await refreshStorageUsageDisplay();
     } catch (error) {
         console.error('写真の削除に失敗しました:', error);
         alert('写真を削除できませんでした。データは画面上で確定せず、もう一度お試しください。');
@@ -14006,6 +14059,7 @@ function removeMemoChecklistItem(index) {
 async function saveMemo() {
     if (editorSaveInProgress) return;
     editorSaveInProgress = true;
+    explicitEditorCommitInProgress = true;
     try {
         return await saveMemoInternal();
     } catch (error) {
@@ -14013,6 +14067,7 @@ async function saveMemo() {
         alert('メモを保存できませんでした。入力内容はそのまま残しています。\nもう一度お試しください。');
         return false;
     } finally {
+        explicitEditorCommitInProgress = false;
         editorSaveInProgress = false;
     }
 }
