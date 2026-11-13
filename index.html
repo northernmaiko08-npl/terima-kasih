@@ -6759,14 +6759,9 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
     autoBackupInternalWrite = true;
     let currentBackupFileHandle = null;
     try {
-        // 先にバックアップ設定を検証し、必要な認証情報を復号する。
-        // 認証入力のキャンセルや不一致で、既存データを先に消してしまわないため。
+        // 復元内容・認証情報・暗号鍵をすべてメモリ上で準備する。
+        // この段階ではIndexedDBにも、現在のアプリ内鍵状態にも変更を加えない。
         const importedConfig=(imported.config&&typeof imported.config==='object')?{...imported.config}:{};
-        if (imported.__portableBackupKey && imported.__portableBackupKeyWrap) {
-            await storePortableBackupKey(imported.__portableBackupKey);
-            importedConfig.manualBackupKeyWrap = imported.__portableBackupKeyWrap;
-            delete importedConfig.manualBackupKey;
-        }
 
         delete importedConfig.password;
         delete importedConfig.customRecoveryPass;
@@ -6795,15 +6790,14 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
             importedConfig.encryptedAuthBackup = config.encryptedAuthBackup || null;
         }
 
-        // バックアップに含まれる端末内データ鍵を本人確認パスコードで復元し、
-        // 復元先でも同じ鍵で再暗号化して保存する。鍵ラップ情報はIndexedDBに保持する。
-        let importedInternalKeyRecord = null;
+        // 復元後に保存する暗号鍵を準備する。グローバル鍵状態はコミット成功後にだけ切り替える。
+        let nextInternalKeyMaterial = null;
+        let nextInternalKeyRawBytes = internalDataKeyRawBytes;
+        let nextInternalKeyRecord = null;
         if (imported.__internalDataKeyRawBytes && imported.__internalDataKeyEnvelope) {
-            const raw = base64ToBytes(imported.__internalDataKeyRawBytes);
-            const keyMaterial = await importInternalRawKey(raw);
-            internalDataKeyRawBytes = raw;
-            internalDataKeyPromise = Promise.resolve(keyMaterial);
-            importedInternalKeyRecord = {
+            nextInternalKeyRawBytes = base64ToBytes(imported.__internalDataKeyRawBytes);
+            nextInternalKeyMaterial = await importInternalRawKey(nextInternalKeyRawBytes);
+            nextInternalKeyRecord = {
                 key: INTERNAL_DATA_KEY_ID,
                 version: 3,
                 primaryWrap: imported.__internalDataKeyEnvelope.primaryWrap || null,
@@ -6820,18 +6814,27 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
                     ? imported.__internalDataKeyEnvelope.recoveryKeyWraps
                     : (imported.__internalDataKeyEnvelope.recoveryKeyWrap ? [imported.__internalDataKeyEnvelope.recoveryKeyWrap] : [])
             };
-            if (importedConfig.startupPasswordRequired === false || !importedInternalKeyRecord.primaryWrap) {
-                importedInternalKeyRecord.localKeyMaterial = keyMaterial;
+            if (importedConfig.startupPasswordRequired === false || !nextInternalKeyRecord.primaryWrap) {
+                nextInternalKeyRecord.localKeyMaterial = nextInternalKeyMaterial;
             }
-            await saveInternalKeyRecord(importedInternalKeyRecord);
         } else {
-            // 旧形式バックアップとの互換性を維持するため、旧バックアップでは
-            // 現在の端末鍵を端末内に保持してからデータを再保存する。
-            const currentKey = await getInternalDataKey();
-            const currentRecord = await readInternalKeyRecord() || { key: INTERNAL_DATA_KEY_ID, version: 2 };
-            currentRecord.localKeyMaterial = currentKey;
-            currentRecord.legacyLocalKeyFallback = true;
-            await saveInternalKeyRecord(currentRecord);
+            // 旧形式バックアップとの互換性を維持するため、現在の端末鍵を維持する。
+            nextInternalKeyMaterial = await getInternalDataKey();
+            nextInternalKeyRecord = await readInternalKeyRecord() || { key: INTERNAL_DATA_KEY_ID, version: 2 };
+            nextInternalKeyRecord = { ...nextInternalKeyRecord, key: INTERNAL_DATA_KEY_ID };
+            nextInternalKeyRecord.localKeyMaterial = nextInternalKeyMaterial;
+            nextInternalKeyRecord.legacyLocalKeyFallback = true;
+        }
+
+        // ポータブルバックアップ鍵も保存前にCryptoKey化する。失敗しても既存データは変更されない。
+        let nextPortableBackupKeyMaterial = null;
+        if (imported.__portableBackupKey && imported.__portableBackupKeyWrap) {
+            const portableRaw = base64ToBytes(imported.__portableBackupKey);
+            nextPortableBackupKeyMaterial = await crypto.subtle.importKey(
+                'raw', portableRaw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
+            );
+            importedConfig.manualBackupKeyWrap = imported.__portableBackupKeyWrap;
+            delete importedConfig.manualBackupKey;
         }
 
         // 一時的な秘密情報を、設定・保存データへ混入させない。
@@ -6850,17 +6853,21 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         delete importedConfig.backupLastSync;
         delete importedConfig.backupDisconnectedSince;
 
-        // 認証確認がすべて完了してから、初めて既存データを置き換える。
-        const txD=db.transaction('diaries','readwrite'); await txD.objectStore('diaries').clear();
-        const txS=db.transaction('schedules','readwrite'); await txS.objectStore('schedules').clear();
-        const txM=db.transaction('memos','readwrite'); await txM.objectStore('memos').clear();
-
-        diaries=Array.isArray(imported.diaries)?imported.diaries:[];
-        for(const d of diaries){delete d.searchText;await saveDataToDB('diaries',d);}
-        schedules=Array.isArray(imported.schedules)?imported.schedules:[];
-        for(const x of schedules) await saveDataToDB('schedules',x);
-        memos=Array.isArray(imported.memos)?imported.memos:[];
-        for(const m of memos) await saveDataToDB('memos',m);
+        // 既存と同じ暗号鍵で全レコードを事前暗号化する。
+        // JSON化・AES-GCM暗号化・容量エラーなどは、既存DBに触れる前にここで検出する。
+        const nextDiaries = imported.diaries.map(d => {
+            const record = { ...d };
+            delete record.searchText;
+            return record;
+        });
+        const nextSchedules = imported.schedules.map(x => ({ ...x }));
+        const nextMemos = imported.memos.map(m => ({ ...m }));
+        const encryptedDiaries = [];
+        const encryptedSchedules = [];
+        const encryptedMemos = [];
+        for (const record of nextDiaries) encryptedDiaries.push(await encryptRecordWithKey(record, nextInternalKeyMaterial));
+        for (const record of nextSchedules) encryptedSchedules.push(await encryptRecordWithKey(record, nextInternalKeyMaterial));
+        for (const record of nextMemos) encryptedMemos.push(await encryptRecordWithKey(record, nextInternalKeyMaterial));
 
         currentBackupFileHandle = config.backupFileHandle || null;
         const currentBackupDirectoryHandle = config.backupDirectoryHandle;
@@ -6869,26 +6876,84 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         const currentBackupLastSync = config.backupLastSync;
         const currentBackupDisconnectedSince = config.backupDisconnectedSince;
 
-        config={...config,...importedConfig};
+        const nextConfig = { ...config, ...importedConfig };
         if (restoredBackupFileHandle && typeof restoredBackupFileHandle.createWritable === 'function') {
-            config.backupFileHandle = restoredBackupFileHandle;
-            config.backupFileName = restoredBackupFileHandle.name || 'dejicho_auto_backup.json';
-            delete config.backupDirectoryHandle;
-            config.backupSyncStatus = 'pending';
-            delete config.backupLastSync;
-            config.backupDisconnectedSince = null;
-            if (hasPrimaryAuth()) config.recoveryReminderDismissed = true;
+            nextConfig.backupFileHandle = restoredBackupFileHandle;
+            nextConfig.backupFileName = restoredBackupFileHandle.name || 'dejicho_auto_backup.json';
+            delete nextConfig.backupDirectoryHandle;
+            nextConfig.backupSyncStatus = 'pending';
+            delete nextConfig.backupLastSync;
+            nextConfig.backupDisconnectedSince = null;
+            if (isValidAuthHash(nextConfig.authPasswordHash)) nextConfig.recoveryReminderDismissed = true;
         } else {
-            config.backupFileHandle = currentBackupFileHandle;
-            config.backupDirectoryHandle = currentBackupDirectoryHandle;
-            config.backupFileName = currentBackupFileName;
-            config.backupSyncStatus = currentBackupSyncStatus;
-            config.backupLastSync = currentBackupLastSync;
-            config.backupDisconnectedSince = currentBackupDisconnectedSince;
+            nextConfig.backupFileHandle = currentBackupFileHandle;
+            nextConfig.backupDirectoryHandle = currentBackupDirectoryHandle;
+            nextConfig.backupFileName = currentBackupFileName;
+            nextConfig.backupSyncStatus = currentBackupSyncStatus;
+            nextConfig.backupLastSync = currentBackupLastSync;
+            nextConfig.backupDisconnectedSince = currentBackupDisconnectedSince;
         }
 
-        await saveConfig();
+        // データ3種・暗号鍵・設定を単一readwriteトランザクションで一括切替する。
+        // どれか1件でも書き込みに失敗すれば、IndexedDBがトランザクション全体をロールバックする。
+        if (!db) await initDB();
+        await new Promise((resolve, reject) => {
+            let settled = false;
+            let tx;
+            try {
+                tx = db.transaction(['diaries', 'schedules', 'memos', 'cryptoKeys', 'config'], 'readwrite');
+                const diaryStore = tx.objectStore('diaries');
+                const scheduleStore = tx.objectStore('schedules');
+                const memoStore = tx.objectStore('memos');
+                const cryptoStore = tx.objectStore('cryptoKeys');
+                const configStore = tx.objectStore('config');
+
+                diaryStore.clear();
+                scheduleStore.clear();
+                memoStore.clear();
+                for (const record of encryptedDiaries) diaryStore.put(record);
+                for (const record of encryptedSchedules) scheduleStore.put(record);
+                for (const record of encryptedMemos) memoStore.put(record);
+                cryptoStore.put(nextInternalKeyRecord);
+                cryptoStore.delete('internal-data-key');
+                if (nextPortableBackupKeyMaterial) {
+                    cryptoStore.put({ key: 'portable-backup-key-v2', keyMaterial: nextPortableBackupKeyMaterial });
+                }
+                configStore.put({ key: 'main', ...nextConfig });
+            } catch (error) {
+                if (tx) {
+                    try { tx.abort(); } catch (_) {}
+                }
+                reject(error);
+                return;
+            }
+            tx.oncomplete = () => {
+                if (settled) return;
+                settled = true;
+                resolve();
+            };
+            tx.onerror = () => {
+                if (settled) return;
+                settled = true;
+                reject(tx.error || new Error('復元データの保存に失敗しました'));
+            };
+            tx.onabort = () => {
+                if (settled) return;
+                settled = true;
+                reject(tx.error || new Error('復元処理が中断されました。既存データは維持されています。'));
+            };
+        });
+
+        // IndexedDBの一括切替が成功してから、画面内の状態も新しいデータへ切り替える。
+        internalDataKeyRawBytes = nextInternalKeyRawBytes;
+        internalDataKeyPromise = Promise.resolve(nextInternalKeyMaterial);
+        if (nextPortableBackupKeyMaterial) portableBackupKeyPromise = Promise.resolve(nextPortableBackupKeyMaterial);
+        config = nextConfig;
+        diaries = nextDiaries;
+        schedules = nextSchedules;
+        memos = nextMemos;
         invalidateCaches();
+        void refreshStorageUsageDisplay();
     } finally {
         autoBackupInternalWrite = previousAutoBackupInternalWrite;
     }
@@ -6897,7 +6962,6 @@ async function importDataObject(imported, restoredBackupFileHandle = null){
         await syncAutoBackupFile(true, true, false);
     }
 }
-
         let storageProtectionRetryInstalled = false;
         let storageProtectionInProgress = false;
         let storageProtectionLastAttempt = 0;
