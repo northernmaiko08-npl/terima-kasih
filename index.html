@@ -8353,9 +8353,8 @@ window.onload = async () => {
             const input = passInput ? passInput.value : '';
             if (!input) return;
 
-            
-            if (passInput) passInput.value = '';
-
+            // 入力内容は認証結果が確定するまで保持する。
+            // 成功時は各成功処理内で消去し、失敗時はポップアップ確認後に消去する。
             try {
                 if (!hasPrimaryAuth()) {
                     config.authPasswordHash = await hashAuthSecret(input);
@@ -8399,8 +8398,8 @@ window.onload = async () => {
                     switchTab(showSupportOnFirstLogin ? 'about' : 'home');
                     window.scrollTo(0, 0);
                 } else {
-                    passInput.value = '';
                     alert('パスコードが一致しません。');
+                    if (passInput) passInput.value = '';
                 }
             } catch (error) {
                 console.error(error);
