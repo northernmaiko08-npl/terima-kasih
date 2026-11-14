@@ -9280,7 +9280,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
             if (!parent || parent.closest('a, script, style, code, textarea')) {
                 return NodeFilter.FILTER_REJECT;
             }
-            return /https:\/\/[^\s<>"']+|#[\p{L}\p{N}_-]+/u.test(node.nodeValue || '')
+            return /https?:\/\/[^\s<>"']+|#[^\s<>"']+/u.test(node.nodeValue || '')
                 ? NodeFilter.FILTER_ACCEPT
                 : NodeFilter.FILTER_REJECT;
         }
@@ -9292,7 +9292,7 @@ if (document.getElementById('view-tags').classList.contains('active') && current
     nodes.forEach(node => {
         const text = node.nodeValue || '';
         const fragment = document.createDocumentFragment();
-        const regex = /https:\/\/[^\s<>"']+|#[\p{L}\p{N}_-]+/gu;
+        const regex = /https?:\/\/[^\s<>"']+|#[^\s<>"']+/gu;
         let lastIndex = 0;
         let match;
 
@@ -13901,25 +13901,57 @@ function linkifyMemoHTML(html) {
     const nodes = [];
     let node;
     while ((node = walker.nextNode())) {
-        if (node.parentElement && node.parentElement.closest('a')) continue;
-        if (/https?:\/\/[^\s<]+/i.test(node.nodeValue || '')) nodes.push(node);
+        if (node.parentElement && node.parentElement.closest('a, script, style, code, textarea')) continue;
+        if (/https?:\/\/[^\s<>"']+|#[^\s<>"']+/u.test(node.nodeValue || '')) nodes.push(node);
     }
     nodes.forEach(textNode => {
+        const text = textNode.nodeValue || '';
         const frag = document.createDocumentFragment();
-        const re = /(https?:\/\/[^\s<]+)/gi;
+        const re = /https?:\/\/[^\s<>"']+|#[^\s<>"']+/gu;
         let last = 0, m;
-        while ((m = re.exec(textNode.nodeValue)) !== null) {
-            frag.appendChild(document.createTextNode(textNode.nodeValue.slice(last, m.index)));
+        while ((m = re.exec(text)) !== null) {
+            let token = m[0];
+            let trailing = '';
+            const isUrl = /^https?:\/\//i.test(token);
+            if (isUrl) {
+                const trimmed = token.replace(/[。、，,！!？?）」』】〉》]+$/g, '');
+                trailing = token.slice(trimmed.length);
+                token = trimmed;
+            }
+            if (!token) continue;
+            frag.appendChild(document.createTextNode(text.slice(last, m.index)));
             const a = document.createElement('a');
-            let url = m[0].replace(/[。、，,！!？?）」』】〉》]+$/g, '');
-            const trailing = m[0].slice(url.length);
-            a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = url;
+            if (isUrl) {
+                a.className = 'auto-link';
+                a.href = token;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.textContent = token;
+            } else {
+                const keyword = token.slice(1);
+                a.className = 'hashtag-link';
+                a.href = `https://www.google.com/search?q=${encodeURIComponent(keyword)}`;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.textContent = token;
+                a.setAttribute('aria-label', `${keyword}をGoogleで検索`);
+            }
             frag.appendChild(a);
             if (trailing) frag.appendChild(document.createTextNode(trailing));
-            last = re.lastIndex;
+            last = m.index + m[0].length;
         }
-        frag.appendChild(document.createTextNode(textNode.nodeValue.slice(last)));
-        textNode.parentNode.replaceChild(frag, textNode);
+        frag.appendChild(document.createTextNode(text.slice(last)));
+        if (frag.childNodes.length) textNode.parentNode.replaceChild(frag, textNode);
+    });
+    return box.innerHTML;
+}
+
+// 編集画面では自動リンクを解除し、通常の文字として編集できるようにする。
+function removeGeneratedLinksForEditing(html) {
+    const box = document.createElement('div');
+    box.innerHTML = sanitizeRichHtml(html || '');
+    box.querySelectorAll('a.auto-link, a.hashtag-link').forEach(link => {
+        link.replaceWith(document.createTextNode(link.textContent || ''));
     });
     return box.innerHTML;
 }
@@ -14021,7 +14053,7 @@ function openMemoEditor(id = null) {
         if (!memo) return;
         // 編集画面を開いただけでは保存しない。実際の保存操作時にのみ書き込む。
         title.value = memo.title || '';
-        content.innerHTML = sanitizeRichHtml(memo.content || '');
+        content.innerHTML = removeGeneratedLinksForEditing(memo.content || '');
         memoChecklistDraft = Array.isArray(memo.checklist)
             ? memo.checklist.map(i => ({ text: i.text || '', done: !!i.done }))
             : [];
@@ -14134,8 +14166,7 @@ async function saveMemoInternal() {
     if (!titleEl || !contentEl) return;
 
     const title = titleEl.value.trim() || '無題';
-    const content = linkifyMemoHTML(sanitizeRichHtml(contentEl.innerHTML));
-    contentEl.innerHTML = content;
+    const content = sanitizeRichHtml(removeGeneratedLinksForEditing(contentEl.innerHTML));
     updateMemoCharCount();
     const checklist = memoChecklistDraft
         .map(i => ({ text: String(i.text || '').trim(), done: !!i.done }))
@@ -14218,7 +14249,7 @@ document.addEventListener('paste', function(e) {
     document.execCommand('insertText', false, text);
     setTimeout(() => {
         const content = document.getElementById('memo-content');
-        if (content) { content.innerHTML = linkifyMemoHTML(content.innerHTML); updateMemoCharCount(); }
+        if (content) { content.innerHTML = removeGeneratedLinksForEditing(content.innerHTML); updateMemoCharCount(); }
     }, 0);
 });
 
