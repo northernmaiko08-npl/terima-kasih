@@ -5892,7 +5892,7 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 </div>
 </div></details>
 <p style="text-align: center; margin-top: 2rem; opacity: 0.6;">
-                ver 3.5.9 © 2026 でじ帖プロジェクト
+                ver 3.5.11 © 2026 でじ帖プロジェクト
             <br/>Developed by northern maiko (北の舞妓さん)
             </p>
 </div>
@@ -8550,29 +8550,13 @@ let editorSaveInProgress = false;
 // 編集画面では、明示的に「保存」を押した処理だけが日記・予定・メモを書き込める。
 let explicitEditorCommitInProgress = false;
 function normalizeEditorHtml(value) {
-    // contenteditable がフォーカス・編集画面の再表示時に行う属性順などの
-    // 表現上の正規化を吸収し、実際の内容・装飾に差がある場合だけ変更扱いにする。
+    // contenteditable のブラウザ側の軽微なHTML表現差を吸収する。
     const template = document.createElement('template');
     template.innerHTML = String(value ?? '');
-    const serialize = node => {
-        if (node.nodeType === Node.TEXT_NODE) {
-            return node.nodeValue.replace(/\u00a0/g, ' ');
-        }
-        if (node.nodeType === Node.COMMENT_NODE) return '';
-        if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return '';
-        if (node.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
-            return Array.from(node.childNodes).map(serialize).join('').replace(/>\s+</g, '><').trim();
-        }
-        const tag = node.tagName.toLowerCase();
-        const attrs = Array.from(node.attributes)
-            .map(attr => [attr.name.toLowerCase(), attr.value])
-            .sort((a, b) => a[0].localeCompare(b[0]));
-        const attrText = attrs.map(([name, val]) => ` ${name}="${val.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"`).join('');
-        const voidTags = new Set(['br', 'hr', 'img']);
-        if (voidTags.has(tag)) return `<${tag}${attrText}>`;
-        return `<${tag}${attrText}>${Array.from(node.childNodes).map(serialize).join('')}</${tag}>`;
-    };
-    return serialize(template.content);
+    return template.innerHTML
+        .replace(/\u00a0/g, ' ')
+        .replace(/>\s+</g, '><')
+        .trim();
 }
 function normalizeScheduleContent(element) {
     // 予定欄はHTMLタグや装飾の差ではなく、入力された文字内容で比較する。
@@ -9470,17 +9454,7 @@ async function openViewer(id, immediate = false, selectedImageIndex = null) {
     // DB保存を待ってから画面遷移することで一瞬ギャラリーが残るのを防ぐ
     if (immediate) switchTab('viewer');
 
-    // 日記を開いた時点で最終閲覧日時を即時更新する。
-    // メモリ上の一覧データを先に更新し、IndexedDBへの保存は非同期で行う。
-    // これにより「最近見た順」は画面を戻した直後の再描画で反映される。
-    if (isDiary) {
-        const diaryRecord = diaries.find(d => String(d.id) === String(item.id)) || item;
-        diaryRecord.lastViewed = Date.now();
-        item.lastViewed = diaryRecord.lastViewed;
-        Promise.resolve(saveDataToDB('diaries', diaryRecord)).catch(error => {
-            console.error('日記の閲覧履歴の保存に失敗しました:', error);
-        });
-    }
+    // 閲覧日時は記録しない。日記を開くだけでIndexedDBへ書き込まない。
 
     document.getElementById('viewer-title').innerText = item.title;
     document.getElementById('viewer-date').innerText = item.date;
@@ -9798,20 +9772,7 @@ function zoomImage(src, diaryId = null, galleryIndex = null, sourceType = 'diary
     const openDiaryBtn = document.getElementById('gallery-open-diary-btn');
     if (openDiaryBtn) openDiaryBtn.style.display = (isGallery && diaryId != null) ? 'flex' : 'none';
 
-    // 写真ごとの最終閲覧日時も記録し、ギャラリーの「最近見た順」に反映する。
-    // 同じ画像URLが複数回使われている場合も、日記内の履歴として管理する。
-    if (!isEditor && diaryId != null) {
-        const diaryRecord = diaries.find(d => String(d.id) === String(diaryId));
-        if (diaryRecord) {
-            diaryRecord.imageViewHistory = {
-                ...(diaryRecord.imageViewHistory || {}),
-                [src]: Date.now()
-            };
-            Promise.resolve(saveDataToDB('diaries', diaryRecord)).catch(error => {
-                console.error('写真の閲覧履歴の保存に失敗しました:', error);
-            });
-        }
-    }
+    // 画像を開いた履歴は保存しない。画像閲覧だけで日記データを書き換えない。
     updateGalleryNavigation();
     createIcons();
 }
@@ -10345,40 +10306,6 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
             if (!editor || (event.target !== editor && !editor.contains(event.target))) return;
             if (!['insertText', 'insertCompositionText', 'insertFromPaste', 'insertLineBreak', 'insertParagraph'].includes(event.inputType)) return;
             const state = getFormatState(editor);
-
-            // 通常のキー入力は、カーソル左右の既存装飾ではなく、
-            // ツールバーで最後に指定したオン・オフ状態を優先して挿入する。
-            // 太字・斜体の外側にいる文字の間へ入力した場合も、明示的な通常書式で上書きする。
-            if (event.inputType === 'insertText' && !event.isComposing && typeof event.data === 'string' && event.data.length) {
-                const selection = window.getSelection();
-                if (selection && selection.rangeCount && editor.contains(selection.anchorNode) && editor.contains(selection.focusNode)) {
-                    event.preventDefault();
-                    const range = selection.getRangeAt(0).cloneRange();
-                    range.deleteContents();
-
-                    const span = document.createElement('span');
-                    span.style.fontWeight = state.bold ? 'bold' : 'normal';
-                    span.style.fontStyle = state.italic ? 'italic' : 'normal';
-                    span.appendChild(document.createTextNode(event.data));
-                    range.insertNode(span);
-
-                    const caret = document.createRange();
-                    caret.setStart(span.firstChild, span.firstChild.textContent.length);
-                    caret.collapse(true);
-                    selection.removeAllRanges();
-                    selection.addRange(caret);
-
-                    // preventDefaultで発生しなくなるinputを通知し、既存の保存・文字数処理を維持する。
-                    editor.dispatchEvent(new InputEvent('input', {
-                        bubbles: true,
-                        inputType: 'insertText',
-                        data: event.data
-                    }));
-                    syncFormatButtonStates(editor);
-                    return;
-                }
-            }
-
             setBrowserFormatState('bold', state.bold);
             setBrowserFormatState('italic', state.italic);
         }, true);
@@ -10409,12 +10336,10 @@ function updatePaginationButtons(prevBtnId, nextBtnId, currentPage, totalPages) 
             if (!editor || (event.target !== editor && !editor.contains(event.target))) return;
             const selection = window.getSelection();
             if (!selection || !selection.rangeCount || !editor.contains(selection.anchorNode) || !selection.isCollapsed) return;
-            // 矢印キーなどでカーソルを移動しても、移動先の既存文字の書式で
-            // ツールバーの明示的なオン・オフ状態を上書きしない。
-            // カーソル位置でブラウザ側の入力書式だけを現在の設定へ戻す。
-            const state = getFormatState(editor);
-            setBrowserFormatState('bold', state.bold);
-            setBrowserFormatState('italic', state.italic);
+            formatToggleStates.set(editor, {
+                bold: !!document.queryCommandState('bold'),
+                italic: !!document.queryCommandState('italic')
+            });
             syncFormatButtonStates(editor);
         }, true);
 
@@ -14209,9 +14134,10 @@ function openMemoEditor(id = null) {
         if (!confirmEditorLeave('page')) return false;
     }
     const activeId = activeView ? activeView.id.replace('view-', '') : 'memos';
-    // 編集画面の「戻る」は、編集を開始した画面へ戻す。
-    // 閲覧画面から編集した場合は、メモ選択ページを経由せず同じメモの閲覧画面へ戻す。
-    memoEditorReturnViewId = activeId === 'memo-viewer' ? 'memo-viewer' : 'memos';
+    // 編集画面の「戻る」は保存を行わず、必ずメモ一覧へ戻す。
+    // 未保存の入力内容を閲覧画面として表示してしまわないよう、
+    // 編集開始元が閲覧画面だった場合も一覧へ戻す。
+    memoEditorReturnViewId = 'memos';
     currentEditingMemoId = id;
     memoChecklistDraft = [];
 
@@ -14389,12 +14315,6 @@ function cancelMemoEditor() {
     currentEditingMemoId = null;
     memoChecklistDraft = [];
     bypassUnsavedEditorGuard = true;
-
-    if (memoEditorReturnViewId === 'memo-viewer' && currentViewingMemoId != null) {
-        openMemoViewer(currentViewingMemoId);
-        return;
-    }
-
     switchTab('memos');
     renderMemoPage();
 }
@@ -15310,6 +15230,30 @@ html body #lock-screen #pass-input:focus-visible {
 }
 </style>
 
+
+<style id="dejicho-card-primary-left-edge-final">
+/* 日記・タグで絞り込んだ日記・ブックマークの各カード左端にメインカラーの縦ラインを追加。 */
+html body #all-diaries-list .diary-item,
+html body #tag-filtered-results .diary-item,
+html body #view-tags .diary-item,
+html body #view-bookmarks #bookmark-list .diary-item,
+html body #view-bookmarks #bookmark-list .bookmark-diary-item {
+  border-left: 5px solid var(--primary-color) !important;
+  box-sizing: border-box !important;
+}
+/* メモ一覧カード */
+html body #memo-list .memo-card,
+html body #view-memos .memo-card,
+html body .memo-list .memo-card {
+  border-left: 5px solid var(--primary-color) !important;
+  box-sizing: border-box !important;
+}
+/* カレンダーで日付を選択した際に表示される日記・予定カード */
+html body #view-calendar #selected-day-entries .diary-item {
+  border-left: 5px solid var(--primary-color) !important;
+  box-sizing: border-box !important;
+}
+</style>
 </body>
 
 
@@ -15536,16 +15480,5 @@ html body[data-theme] #memo-checklist-items .memo-checklist-item.is-done input[t
   outline: none !important;
   transform: none !important;
   clip-path: none !important;
-}
-
-
-/* 太字・斜体のオン状態をボタンの縁と光彩で明示する */
-.toolbar button.tool-btn[onclick*="execCmd"].active,
-.memo-editor-tools button.tool-btn[onclick*="execCmd"].active {
-    border-color: var(--accent-color, var(--primary-color, #777)) !important;
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color, var(--primary-color, #777)) 42%, transparent),
-                0 0 10px color-mix(in srgb, var(--accent-color, var(--primary-color, #777)) 34%, transparent) !important;
-    position: relative;
-    z-index: 1;
 }
 </style>
