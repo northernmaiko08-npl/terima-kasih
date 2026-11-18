@@ -5947,7 +5947,7 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
 <button class="tool-btn" onclick="insertSelectedTemplate()" type="button">
 テンプレ挿入
 </button>
-<button class="tool-btn" onclick="toggleCustomTemplateManager()" type="button" style="display:none !important;">オリジナルテンプレートを作成</button>
+<button class="tool-btn" onclick="toggleCustomTemplateManager()" type="button" style="display:none !important;">オリジナルテンプレート作成</button>
 </div>
 <style>
 #custom-template-manager {
@@ -10494,13 +10494,13 @@ function renderCustomDiaryTemplates() {
             // 初期HTMLの display:none !important を確実に上書きして表示する。
             createButton.style.setProperty('display', 'inline-flex', 'important');
             createButton.style.setProperty('visibility', 'visible', 'important');
-            createButton.textContent = 'オリジナルテンプレートを作成';
-            createButton.title = 'オリジナルテンプレートを作成';
+            createButton.textContent = 'オリジナルテンプレート作成';
+            createButton.title = 'オリジナルテンプレート作成';
         } else {
             createButton.style.setProperty('display', 'none', 'important');
             createButton.style.setProperty('visibility', 'hidden', 'important');
         }
-        createButton.setAttribute('aria-label', createButton.title || 'オリジナルテンプレートを作成');
+        createButton.setAttribute('aria-label', createButton.title || 'オリジナルテンプレート作成');
     });
     // 未解放時は、選択欄にもオリジナルテンプレート関連の項目を一切表示しない。
     if (unlocked && templates.length) {
@@ -11869,7 +11869,7 @@ async function toggleBookmark(id, event) {
     const bookmarkCountAfter = (Array.isArray(diaries) ? diaries : []).filter(item => item && item.bookmarked).length;
     // 9件以下から10件以上になった瞬間に、解放のお知らせをポップアップ表示する。
     if (bookmarkCountBefore < 5 && bookmarkCountAfter >= 5) {
-        window.alert('【機能追加のお知らせ！】\nブックマークが合計5件に達しました！\n 日記の編集画面において「オリジナルテンプレートを作成」が解放されました！📋️\nさっそく「日記を書く」から確認しましょう！');
+        window.alert('【機能追加のお知らせ！】\nブックマークが合計5件に達しました！\n 日記の編集画面において「オリジナルテンプレート作成」が解放されました！📋️\nさっそく「日記を書く」から確認しましょう！');
     }
     diaryMap.set(diary.id, diary);
     invalidateCaches();
