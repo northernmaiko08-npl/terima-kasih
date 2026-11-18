@@ -4962,6 +4962,12 @@ html body #view-home .card:has(#moodChart) .stats-chart-period select#stats-peri
   background-color: #ffffff !important;
 }
 </style>
+<style id="startup-theme-visibility-gate">
+/* 保存済みテーマの読み込み前にクラシック配色を一瞬表示しない */
+html body:not([data-theme]) {
+    visibility: hidden !important;
+}
+</style>
 </head>
 <body class="font-standard">
 <div id="lock-screen">
@@ -8277,6 +8283,11 @@ window.onload = async () => {
     // 認証設定だけを先に読み込み、起動時パスコードが有効なら
     // 日記・予定・メモの復号／読み込みを認証完了まで行わない。
     await loadConfigBeforeUserData();
+
+    // パスコード画面を含む全画面に、保存済みテーマを先に適用する。
+    // この時点で body[data-theme] が設定され、上の初回表示ゲートが解除される。
+    applyTheme();
+
     const needsStartupUnlock = !hasPrimaryAuth() || config.startupPasswordRequired !== false;
     let unlockPromise = null;
     if (needsStartupUnlock) {
